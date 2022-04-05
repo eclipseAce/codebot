@@ -1,0 +1,26 @@
+package io.cruder.example.model;
+
+import java.util.List;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+import io.cruder.example.core.ApiResult;
+
+@ResponseBody
+@RequestMapping("/api/user")
+public interface UserApi {
+
+	@PostMapping("/add")
+	ApiResult<Long> add(@RequestBody UserAdd body);
+
+	@PostMapping("/setLocked")
+	ApiResult<Void> setLocked(@RequestBody UserSetLocked body);
+
+	@GetMapping("/list")
+	ApiResult<List<UserListItem>> list();
+
+}
