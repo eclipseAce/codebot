@@ -1,4 +1,4 @@
-package io.cruder.example.api.dto;
+package io.cruder.example.dto;
 
 import java.time.LocalDateTime;
 
