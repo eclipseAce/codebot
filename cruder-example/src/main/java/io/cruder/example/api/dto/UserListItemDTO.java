@@ -1,11 +1,11 @@
-package io.cruder.example.model;
+package io.cruder.example.api.dto;
 
 import java.time.LocalDateTime;
 
 import lombok.Data;
 
 @Data
-public class UserListItem {
+public class UserListItemDTO {
 	private Long id;
 	
 	private String username;

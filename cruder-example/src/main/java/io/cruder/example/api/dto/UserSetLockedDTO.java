@@ -1,9 +1,9 @@
-package io.cruder.example.model;
+package io.cruder.example.api.dto;
 
 import lombok.Data;
 
 @Data
-public class UserSetLocked {
+public class UserSetLockedDTO {
 	private Long id;
 
 	private Boolean locked;

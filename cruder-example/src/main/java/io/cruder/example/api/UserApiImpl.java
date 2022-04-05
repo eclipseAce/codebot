@@ -5,13 +5,12 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Controller;
 
+import io.cruder.example.api.dto.UserAddDTO;
+import io.cruder.example.api.dto.UserListItemDTO;
+import io.cruder.example.api.dto.UserSetLockedDTO;
 import io.cruder.example.core.ApiResult;
 import io.cruder.example.dao.UserRepository;
 import io.cruder.example.domain.User;
-import io.cruder.example.model.UserAdd;
-import io.cruder.example.model.UserApi;
-import io.cruder.example.model.UserListItem;
-import io.cruder.example.model.UserSetLocked;
 import lombok.RequiredArgsConstructor;
 
 @Controller
@@ -20,7 +19,7 @@ public class UserApiImpl implements UserApi {
 	private final UserRepository userRepository;
 
 	@Override
-	public ApiResult<Long> add(UserAdd body) {
+	public ApiResult<Long> add(UserAddDTO body) {
 		User entity = new User();
 		entity.setUsername(body.getUsername());
 		entity.setPassword(body.getPassword());
@@ -29,7 +28,7 @@ public class UserApiImpl implements UserApi {
 	}
 
 	@Override
-	public ApiResult<Void> setLocked(UserSetLocked body) {
+	public ApiResult<Void> setLocked(UserSetLockedDTO body) {
 		User entity = userRepository.getById(body.getId());
 		if (entity == null) {
 			return new ApiResult<>("NOT_FOUND", "user not exists", null);
@@ -40,10 +39,10 @@ public class UserApiImpl implements UserApi {
 	}
 
 	@Override
-	public ApiResult<List<UserListItem>> list() {
+	public ApiResult<List<UserListItemDTO>> list() {
 		return userRepository.findAll().stream()
 				.map(it -> {
-					UserListItem item = new UserListItem();
+					UserListItemDTO item = new UserListItemDTO();
 					item.setId(it.getId());
 					item.setUsername(it.getUsername());
 					item.setLocked(it.isLocked());
