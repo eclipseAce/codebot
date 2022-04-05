@@ -3,7 +3,6 @@ package io.cruder.example.template;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.mapstruct.Mapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -15,22 +14,25 @@ import org.springframework.web.bind.annotation.RestController;
 import io.cruder.example.core.ApiResult;
 
 public interface Template {
-	class Id {}
+	interface Id {
+	}
 
-	class Entity {}
+	interface Entity {
+		Id getId();
+	}
 
-	class AddDTO {}
+	interface AddDTO {
+	}
 
-	class ListItemDTO {}
+	interface ListItemDTO {
+	}
 
 	@Repository
-	interface Repo extends JpaRepository<Entity, Id> {}
+	interface Repo extends JpaRepository<Entity, Id> {
+	}
 
-	@Mapper(componentModel = "spring")
 	interface Conv {
 		Entity addToEntity(AddDTO dto);
-
-		Id entityToId(Entity entity);
 
 		ListItemDTO entityToListItem(Entity entity);
 	}
@@ -49,7 +51,7 @@ public interface Template {
 		public ApiResult<Id> add(AddDTO body) {
 			Entity entity = conv.addToEntity(body);
 			repo.save(entity);
-			return new ApiResult<>("OK", null, conv.entityToId(entity));
+			return new ApiResult<>("OK", null, entity.getId());
 		}
 
 		@GetMapping("/list")
