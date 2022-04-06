@@ -5,12 +5,12 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Controller;
 
-import io.cruder.example.api.dto.UserAddDTO;
-import io.cruder.example.api.dto.UserListItemDTO;
-import io.cruder.example.api.dto.UserSetLockedDTO;
 import io.cruder.example.core.ApiResult;
 import io.cruder.example.dao.UserRepository;
 import io.cruder.example.domain.User;
+import io.cruder.example.dto.UserAddDTO;
+import io.cruder.example.dto.UserListItemDTO;
+import io.cruder.example.dto.UserSetLockedDTO;
 import lombok.RequiredArgsConstructor;
 
 @Controller

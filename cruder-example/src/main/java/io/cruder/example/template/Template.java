@@ -11,56 +11,57 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.cruder.apt.Placeholder;
 import io.cruder.example.core.ApiResult;
 
 public interface Template {
-	interface Id {
-	}
+    @Placeholder
+    interface Id {}
 
-	interface Entity {
-		Id getId();
-	}
+    @Placeholder
+    interface Entity {
+        Id getId();
+    }
 
-	interface AddDTO {
-	}
+    @Placeholder
+    interface AddDTO {}
 
-	interface ListItemDTO {
-	}
+    @Placeholder
+    interface ListItemDTO {}
 
-	@Repository
-	interface Repo extends JpaRepository<Entity, Id> {
-	}
+    @Repository
+    interface Repo extends JpaRepository<Entity, Id> {}
 
-	interface Conv {
-		Entity addToEntity(AddDTO dto);
+    interface Conv {
+        Entity addToEntity(AddDTO dto);
 
-		ListItemDTO entityToListItem(Entity entity);
-	}
+        ListItemDTO entityToListItem(Entity entity);
+    }
 
-	@RestController
-	@RequestMapping("/api/user")
-	class Api {
+    @RestController
+    @RequestMapping("/api/user")
+    class Api {
 
-		@Autowired
-		private Conv conv;
+        @Autowired
+        private Conv conv;
 
-		@Autowired
-		private Repo repo;
+        @Autowired
+        private Repo repo;
 
-		@PostMapping("/add")
-		public ApiResult<Id> add(AddDTO body) {
-			Entity entity = conv.addToEntity(body);
-			repo.save(entity);
-			return new ApiResult<>("OK", null, entity.getId());
-		}
+        @PostMapping("/add")
+        public ApiResult<Id> add(AddDTO body) {
+            Entity entity = conv.addToEntity(body);
+            repo.save(entity);
+            return new ApiResult<>("OK", null, entity.getId());
+        }
 
-		@GetMapping("/list")
-		public ApiResult<List<ListItemDTO>> list() {
-			return repo.findAll().stream()
-					.map(conv::entityToListItem)
-					.collect(Collectors.collectingAndThen(
-							Collectors.toList(),
-							list -> new ApiResult<>("OK", null, list)));
-		}
-	}
+        @GetMapping("/list")
+        public ApiResult<List<ListItemDTO>> list() {
+            return repo.findAll().stream()
+                    .map(conv::entityToListItem)
+                    .collect(Collectors.collectingAndThen(
+                            Collectors.toList(),
+                            list -> new ApiResult<>("OK", null, list)));
+        }
+    }
 }

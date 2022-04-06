@@ -8,10 +8,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-import io.cruder.example.api.dto.UserAddDTO;
-import io.cruder.example.api.dto.UserListItemDTO;
-import io.cruder.example.api.dto.UserSetLockedDTO;
 import io.cruder.example.core.ApiResult;
+import io.cruder.example.dto.UserAddDTO;
+import io.cruder.example.dto.UserListItemDTO;
+import io.cruder.example.dto.UserSetLockedDTO;
 
 @ResponseBody
 @RequestMapping("/api/user")
