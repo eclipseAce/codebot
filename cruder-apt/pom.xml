@@ -30,6 +30,13 @@
 			<version>9.1.0</version>
 		</dependency>
 
+		<dependency>
+			<groupId>org.mapstruct</groupId>
+			<artifactId>mapstruct</artifactId>
+			<version>1.4.2.Final</version>
+			<optional>true</optional>
+		</dependency>
+
 	</dependencies>
 
 	<build>

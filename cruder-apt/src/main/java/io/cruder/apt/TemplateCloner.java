@@ -1,5 +1,6 @@
 package io.cruder.apt;
 
+import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -8,9 +9,11 @@ import java.util.stream.Stream;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.TypeElement;
 
+import io.cruder.apt.mapstruct.Mapper;
 import io.cruder.apt.util.AnnotationUtils;
 import io.cruder.apt.util.TypeNameUtils;
 import spoon.reflect.code.CtLiteral;
+import spoon.reflect.declaration.CtAnnotation;
 import spoon.reflect.declaration.CtElement;
 import spoon.reflect.declaration.CtType;
 import spoon.reflect.reference.CtTypeReference;
@@ -93,6 +96,19 @@ public class TemplateCloner {
 	private class ReplacingCloneVisitor extends CloneVisitor {
 		public ReplacingCloneVisitor(ReplacingCloneHelper cloneHelper) {
 			super(cloneHelper);
+		}
+
+		@Override
+		public <A extends Annotation> void visitCtAnnotation(CtAnnotation<A> annotation) {
+			if (annotation.getType().getQualifiedName().equals(Mapper.class.getName())) {
+				CtAnnotation<?> actual = annotation.getFactory().createAnnotation();
+				actual.setAnnotationType(annotation.getFactory().Type()
+						.createReference("org.mapstruct.Mapper"));
+				actual.setValues(annotation.getValues());
+				super.visitCtAnnotation(actual);
+			} else {
+				super.visitCtAnnotation(annotation);
+			}
 		}
 
 		@Override

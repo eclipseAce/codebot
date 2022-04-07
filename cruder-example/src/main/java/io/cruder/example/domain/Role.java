@@ -2,8 +2,10 @@ package io.cruder.example.domain;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.Set;
 
+import javax.persistence.ElementCollection;
 import javax.persistence.Entity;
 import javax.persistence.EntityListeners;
 import javax.persistence.GeneratedValue;
@@ -29,7 +31,8 @@ public class Role implements Serializable {
 
 	private @Getter @Setter boolean disabled;
 
-	private @Getter @Setter Set<String> permissions;
+	@ElementCollection
+	private @Getter @Setter Set<String> permissions = new HashSet<>();
 
 	@CreatedDate
 	private @Getter LocalDateTime createdAt;
