@@ -10,6 +10,10 @@ import java.lang.annotation.Target;
 @Documented
 @Retention(SOURCE)
 @Target(TYPE)
-public @interface UseTemplate {
-    Class<?> value();
+public @interface Template {
+    Class<?>[] uses();
+    
+    String regex();
+    
+    String replacement();
 }

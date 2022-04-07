@@ -10,6 +10,6 @@ import java.lang.annotation.Target;
 @Documented
 @Retention(SOURCE)
 @Target(TYPE)
-public @interface Placeholder {
-
+public @interface ReplaceTypes {
+    ReplaceType[] value();
 }
