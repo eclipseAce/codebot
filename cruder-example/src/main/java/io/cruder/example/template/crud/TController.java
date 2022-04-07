@@ -35,7 +35,7 @@ public class TController {
 
 	@GetMapping("/get")
 	public ApiResult<TDetailsDTO> get(@RequestParam("id") TEntity.Id id) {
-		TEntity entity = repository.getById(id);
+		TEntity entity = repository.findById(id).orElse(null);
 		if (entity == null) {
 			return new ApiResult<>("NOT_FOUND", "#<path> not exists", null);
 		}
