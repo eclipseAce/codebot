@@ -15,23 +15,23 @@ import io.cruder.example.core.ApiResult;
 @RequestMapping("/api/user")
 public class TController {
 
-    @Autowired
-    private TConverter converter;
+	@Autowired
+	private TConverter converter;
 
-    @Autowired
-    private TRepository repository;
+	@Autowired
+	private TRepository repository;
 
-    @PostMapping("/add")
-    public ApiResult<TId> add(TAddDTO body) {
-        TEntity entity = converter.addToEntity(body);
-        repository.save(entity);
-        return new ApiResult<>("OK", null, entity.getId());
-    }
+	@PostMapping("/add")
+	public ApiResult<TEntity.Id> add(TAddDTO body) {
+		TEntity entity = converter.addToEntity(body);
+		repository.save(entity);
+		return new ApiResult<>("OK", null, entity.getId());
+	}
 
-    @GetMapping("/list")
-    public ApiResult<List<TListItemDTO>> list() {
-        return new ApiResult<>("OK", null, repository.findAll().stream()
-                .map(converter::entityToListItem)
-                .collect(Collectors.toList()));
-    }
+	@GetMapping("/list")
+	public ApiResult<List<TListItemDTO>> list() {
+		return new ApiResult<>("OK", null, repository.findAll().stream()
+				.map(converter::entityToListItem)
+				.collect(Collectors.toList()));
+	}
 }

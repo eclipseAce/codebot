@@ -1,5 +1,8 @@
 package io.cruder.example.template.crud;
 
 public interface TEntity {
-	TId getId();
+	Id getId();
+
+	public interface Id {
+	}
 }

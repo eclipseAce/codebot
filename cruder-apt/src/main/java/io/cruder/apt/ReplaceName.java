@@ -10,8 +10,8 @@ import java.lang.annotation.Target;
 @Documented
 @Retention(SOURCE)
 @Target(TYPE)
-public @interface Template {
-	String basePackage();
+public @interface ReplaceName {
+	String regex();
 
-	Class<?>[] uses();
+	String replacement();
 }
