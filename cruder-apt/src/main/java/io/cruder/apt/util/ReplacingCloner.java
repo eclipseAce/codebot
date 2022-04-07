@@ -1,7 +1,12 @@
 package io.cruder.apt.util;
 
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
+
+import javax.lang.model.element.PackageElement;
+import javax.lang.model.element.TypeElement;
+
+import com.google.common.collect.Maps;
 
 import spoon.reflect.declaration.CtElement;
 import spoon.reflect.declaration.CtType;
@@ -12,12 +17,22 @@ import spoon.support.visitor.equals.CloneHelper;
 public class ReplacingCloner {
     private final String regex;
     private final String replacement;
-    private final Map<String, String> replaceTypes;
+    private final Map<String, String> typeReplaces;
 
-    public ReplacingCloner(String regex, String replacement, Map<String, String> replaces) {
+    public ReplacingCloner(
+            String regex,
+            String replacement,
+            Map<String, String> typeReplaces,
+            List<TypeElement> templateTypes) {
         this.regex = regex;
         this.replacement = replacement;
-        this.replaceTypes = replaces;
+        this.typeReplaces = Maps.newHashMap(typeReplaces);
+        for (TypeElement te : templateTypes) {
+            String packageName = ((PackageElement) te.getEnclosingElement()).getQualifiedName().toString();
+            typeReplaces.put(
+                    te.getQualifiedName().toString(),
+                    packageName + "." + te.getSimpleName().toString().replaceAll(regex, replacement));
+        }
     }
 
     public <T extends CtElement> T clone(CtElement element) {
@@ -34,7 +49,7 @@ public class ReplacingCloner {
         @Override
         public <T> void visitCtTypeReference(CtTypeReference<T> reference) {
             String qname = reference.getQualifiedName();
-            String qnameReplace = replaceTypes.get(qname);
+            String qnameReplace = typeReplaces.get(qname);
             if (qnameReplace == null) {
                 super.visitCtTypeReference(reference);
             } else {

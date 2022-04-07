@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
 import java.util.AbstractMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -21,7 +22,6 @@ import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.FileObject;
@@ -34,8 +34,10 @@ import io.cruder.apt.util.AnnotationUtils;
 import io.cruder.apt.util.ReplacingCloner;
 import spoon.Launcher;
 import spoon.reflect.CtModel;
+import spoon.reflect.declaration.CtPackage;
 import spoon.reflect.declaration.CtType;
 import spoon.support.compiler.VirtualFile;
+import spoon.support.compiler.VirtualFolder;
 
 @AutoService(Processor.class)
 @SupportedAnnotationTypes({ "io.cruder.apt.Template" })
@@ -58,8 +60,8 @@ public class TemplateProcessor extends AbstractProcessor {
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         for (Element element : roundEnv.getElementsAnnotatedWith(Template.class)) {
-            Map<String, String> replaceTypes = Stream
-                    .of(element.getAnnotationsByType(ReplaceType.class))
+
+            Map<String, String> replaceTypes = Stream.of(element.getAnnotationsByType(ReplaceType.class))
                     .map(it -> new AbstractMap.SimpleEntry<>(
                             ((TypeElement) types.asElement(AnnotationUtils.getClassValue(it, ReplaceType::target)))
                                     .getQualifiedName().toString(),
@@ -68,29 +70,39 @@ public class TemplateProcessor extends AbstractProcessor {
                     .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
             Template ann = element.getAnnotation(Template.class);
-            for (TypeMirror tm : AnnotationUtils.getClassValues(ann, Template::uses)) {
-                TypeElement te = (TypeElement) types.asElement(tm);
-                try {
-                    Launcher launcher = new Launcher();
-                    launcher.addInputResource(getJavaSourceFile(te));
-                    launcher.getEnvironment().setAutoImports(true);
-                    CtModel model = launcher.buildModel();
 
-                    CtType<?> type = model.getAllTypes().iterator().next();
+            List<TypeElement> templateTypes = AnnotationUtils.getClassValues(ann, Template::uses).stream()
+                    .map(it -> (TypeElement) it)
+                    .collect(Collectors.toList());
 
-                    CtType<?> clone = new ReplacingCloner(ann.regex(), ann.replacement(), replaceTypes).clone(type);
+            try {
+                VirtualFolder vf = new VirtualFolder();
+                for (TypeElement te : templateTypes) {
+                    vf.addFile(getJavaSourceFile(te));
+                }
 
-                    clone.getFactory().Package().create(null, "io.cruder.example.generated").addType(clone);
+                Launcher launcher = new Launcher();
+                launcher.getEnvironment().setAutoImports(true);
+                launcher.addInputResource(vf);
+                CtModel model = launcher.buildModel();
 
-                    System.out.println(clone.toStringWithImports());
+                CtPackage pkg = launcher.getFactory().Package()
+                        .create(null, "io.cruder.example.generated");
 
-                    JavaFileObject jfo = filer.createSourceFile(clone.getQualifiedName(), te);
+                ReplacingCloner cloner = new ReplacingCloner(ann.regex(), ann.replacement(), replaceTypes,
+                        templateTypes);
+
+                for (CtType<?> type : model.getAllTypes()) {
+                    CtType<?> clone = cloner.clone(type);
+                    pkg.addType(clone);
+
+                    JavaFileObject jfo = filer.createSourceFile(clone.getQualifiedName());
                     try (Writer w = jfo.openWriter()) {
                         w.append(clone.toStringWithImports());
                     }
-                } catch (Exception e) {
-                    e.printStackTrace();
                 }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
         return true;
@@ -109,7 +121,7 @@ public class TemplateProcessor extends AbstractProcessor {
             while ((read = reader.read(buf)) != -1) {
                 builder.append(buf, 0, read);
             }
-            return new VirtualFile(builder.toString());
+            return new VirtualFile(builder.toString(), typeElement.getSimpleName() + ".java");
         }
     }
 
