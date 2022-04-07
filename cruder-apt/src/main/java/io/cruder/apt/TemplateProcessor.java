@@ -6,8 +6,6 @@ import java.io.Writer;
 import java.util.Set;
 
 import javax.annotation.processing.AbstractProcessor;
-import javax.annotation.processing.Filer;
-import javax.annotation.processing.Messager;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
@@ -18,8 +16,6 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
-import javax.lang.model.util.Elements;
-import javax.lang.model.util.Types;
 import javax.tools.FileObject;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardLocation;
@@ -27,8 +23,6 @@ import javax.tools.StandardLocation;
 import com.google.auto.service.AutoService;
 
 import io.cruder.apt.util.AnnotationUtils;
-import io.cruder.apt.util.ReplacingCloner;
-import io.cruder.apt.util.TypeNameUtils;
 import spoon.Launcher;
 import spoon.reflect.CtModel;
 import spoon.reflect.declaration.CtPackage;
@@ -40,18 +34,12 @@ import spoon.support.compiler.VirtualFolder;
 @SupportedAnnotationTypes({ "io.cruder.apt.Template" })
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
 public class TemplateProcessor extends AbstractProcessor {
-	private Elements elements;
-	private Types types;
-	private Messager messager;
-	private Filer filer;
+	private ProcessingEnvironment processingEnv;
 
 	@Override
 	public synchronized void init(ProcessingEnvironment processingEnv) {
 		super.init(processingEnv);
-		elements = processingEnv.getElementUtils();
-		types = processingEnv.getTypeUtils();
-		messager = processingEnv.getMessager();
-		filer = processingEnv.getFiler();
+		this.processingEnv = processingEnv;
 	}
 
 	@Override
@@ -59,27 +47,16 @@ public class TemplateProcessor extends AbstractProcessor {
 		for (Element element : roundEnv.getElementsAnnotatedWith(Template.class)) {
 			try {
 				Template template = element.getAnnotation(Template.class);
-				ReplaceName replaceName = element.getAnnotation(ReplaceName.class);
 
-				ReplacingCloner cloner = new ReplacingCloner(replaceName.regex(), replaceName.replacement());
-				for (ReplaceType replaceType : element.getAnnotationsByType(ReplaceType.class)) {
-					TypeMirror target = AnnotationUtils.getClassValue(replaceType, ReplaceType::target);
-					TypeMirror with = AnnotationUtils.getClassValue(replaceType, ReplaceType::with);
-					cloner.replaceType(
-							TypeNameUtils.getQualifiedName((TypeElement) types.asElement(target)),
-							TypeNameUtils.getQualifiedName((TypeElement) types.asElement(with)));
-				}
+				TemplateCloner cloner = new TemplateCloner(
+						processingEnv, template,
+						element.getAnnotation(ReplaceTypeName.class),
+						element.getAnnotationsByType(ReplaceStringLiteral.class),
+						element.getAnnotationsByType(ReplaceType.class));
 
 				VirtualFolder vf = new VirtualFolder();
 				for (TypeMirror use : AnnotationUtils.getClassValues(template, Template::uses)) {
-					TypeElement te = (TypeElement) types.asElement(use);
-
-					vf.addFile(getJavaSourceFile(te));
-
-					String sname = TypeNameUtils.getSimpleName(te)
-							.replaceAll(replaceName.regex(), replaceName.replacement());
-					String qname = TypeNameUtils.getQualifiedName(te);
-					cloner.replaceType(qname, template.basePackage() + "." + sname);
+					vf.addFile(getJavaSourceFile((TypeElement) processingEnv.getTypeUtils().asElement(use)));
 				}
 
 				Launcher launcher = new Launcher();
@@ -94,7 +71,8 @@ public class TemplateProcessor extends AbstractProcessor {
 					CtType<?> clone = cloner.clone(type);
 					pkg.addType(clone);
 
-					JavaFileObject jfo = filer.createSourceFile(clone.getQualifiedName());
+					JavaFileObject jfo = processingEnv.getFiler()
+							.createSourceFile(clone.getQualifiedName());
 					try (Writer w = jfo.openWriter()) {
 						w.append(clone.toStringWithImports());
 					}
@@ -107,7 +85,7 @@ public class TemplateProcessor extends AbstractProcessor {
 	}
 
 	private VirtualFile getJavaSourceFile(TypeElement typeElement) throws IOException {
-		FileObject source = filer.getResource(
+		FileObject source = processingEnv.getFiler().getResource(
 				StandardLocation.SOURCE_PATH,
 				((PackageElement) typeElement.getEnclosingElement()).getQualifiedName(),
 				typeElement.getSimpleName() + ".java");

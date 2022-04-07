@@ -1,4 +1,4 @@
-package io.cruder.example.dto;
+package io.cruder.example.dto.role;
 
 import java.time.LocalDateTime;
 
@@ -8,9 +8,9 @@ import lombok.Data;
 public class RoleListItemDTO {
 	private Long id;
 	
-	private String username;
+	private String name;
 	
-	private Boolean locked;
+	private Boolean disabled;
 	
 	private LocalDateTime createdAt;
 	

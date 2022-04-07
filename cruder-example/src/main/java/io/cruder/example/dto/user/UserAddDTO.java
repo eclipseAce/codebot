@@ -1,9 +1,9 @@
-package io.cruder.example.dto;
+package io.cruder.example.dto.user;
 
 import lombok.Data;
 
 @Data
-public class RoleAddDTO {
+public class UserAddDTO {
 	private String username;
 
 	private String password;
