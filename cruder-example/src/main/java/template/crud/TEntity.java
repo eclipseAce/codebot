@@ -1,8 +1,5 @@
 package template.crud;
 
-import io.cruder.apt.Template;
-
-@Template
 public interface TEntity {
 	Wrapper.Id getId();
 

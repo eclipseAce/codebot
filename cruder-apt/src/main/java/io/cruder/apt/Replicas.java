@@ -9,5 +9,5 @@ import java.lang.annotation.Target;
 @Retention(SOURCE)
 @Target(TYPE)
 public @interface Replicas {
-    Replica[] value();
+	Replica[] value();
 }

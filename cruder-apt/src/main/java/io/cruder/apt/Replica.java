@@ -11,7 +11,7 @@ import java.lang.annotation.Target;
 @Target(TYPE)
 @Repeatable(Replicas.class)
 public @interface Replica {
-    String name();
+	String name();
 
-    Replace[] replaces() default {};
+	Replace replace() default @Replace();
 }

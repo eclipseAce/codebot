@@ -7,16 +7,18 @@ import org.springframework.stereotype.Repository;
 import io.cruder.apt.Replace;
 import io.cruder.apt.Replica;
 import io.cruder.apt.Template;
+import io.cruder.example.domain.Role;
+import io.cruder.example.domain.User;
 
 @Template
-@Replica(name = "generated.dao.UserRepository", replaces = {
-        @Replace(type = "type", args = { "template[.]crud[.]TEntity[$]Wrapper[$]Id", "java.lang.Long" }),
-        @Replace(type = "type", args = { "template[.]crud[.]TEntity", "io.cruder.example.domain.User" })
-})
-@Replica(name = "generated.dao.RoleRepository", replaces = {
-        @Replace(type = "type", args = { "template[.]crud[.]TEntity[$]Wrapper[$]Id", "java.lang.Long" }),
-        @Replace(type = "type", args = { "template[.]crud[.]TEntity", "io.cruder.example.domain.Role" })
-})
+@Replica(name = "generated.dao.UserRepository", replace = @Replace(types = {
+		@Replace.Type(target = TEntity.Wrapper.Id.class, type = Long.class),
+		@Replace.Type(target = TEntity.class, type = User.class)
+}))
+@Replica(name = "generated.dao.RoleRepository", replace = @Replace(types = {
+		@Replace.Type(target = TEntity.Wrapper.Id.class, type = Long.class),
+		@Replace.Type(target = TEntity.class, type = Role.class)
+}))
 @Repository
 public interface TRepository extends
 		JpaRepository<TEntity, TEntity.Wrapper.Id>,
