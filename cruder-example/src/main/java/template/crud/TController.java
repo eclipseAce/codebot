@@ -25,18 +25,20 @@ import template.crud.dto.TListItemDTO;
 import template.crud.dto.TQueryDTO;
 
 @Template
-@Replica(name = "generated.user.UserController", replaces = {
+@Replica(name = "generated.api.UserController", replaces = {
         @Replace(type = "type", args = { "template[.]crud[.]TEntity[$]Wrapper[$]Id", "java.lang.Long" }),
         @Replace(type = "type", args = { "template[.]crud[.]TEntity", "io.cruder.example.domain.User" }),
-        @Replace(type = "type", args = { "template[.]crud[.]T(.+)", "generated.user.User$1" }),
+        @Replace(type = "type", args = { "template[.]crud[.]TConverter", "generated.conv.UserConverter" }),
+        @Replace(type = "type", args = { "template[.]crud[.]TRepository", "generated.dao.UserRepository" }),
         @Replace(type = "type", args = { "template[.]crud[.]dto[.]T(.+)DTO", "io.cruder.example.dto.user.User$1DTO" }),
         @Replace(type = "literal", args = { "#<path>", "user" }),
         @Replace(type = "literal", args = { "#<title>", "用户" })
 })
-@Replica(name = "generated.user.RoleController", replaces = {
+@Replica(name = "generated.api.RoleController", replaces = {
         @Replace(type = "type", args = { "template[.]crud[.]TEntity[$]Wrapper[$]Id", "java.lang.Long" }),
         @Replace(type = "type", args = { "template[.]crud[.]TEntity", "io.cruder.example.domain.Role" }),
-        @Replace(type = "type", args = { "template[.]crud[.]T(.+)", "generated.role.Role$1" }),
+        @Replace(type = "type", args = { "template[.]crud[.]TConverter", "generated.conv.RoleConverter" }),
+        @Replace(type = "type", args = { "template[.]crud[.]TRepository", "generated.dao.RoleRepository" }),
         @Replace(type = "type", args = { "template[.]crud[.]dto[.]T(.+)DTO", "io.cruder.example.dto.role.Role$1DTO" }),
         @Replace(type = "literal", args = { "#<path>", "role" }),
         @Replace(type = "literal", args = { "#<title>", "角色" })

@@ -88,7 +88,7 @@ public class TemplateProcessor extends AbstractProcessor {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return true;
+        return false;
     }
 
     private VirtualFile loadSourceFile(TypeElement element) throws IOException {
