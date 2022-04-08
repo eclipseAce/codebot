@@ -2,7 +2,6 @@ package io.cruder.apt;
 
 import java.io.IOException;
 import java.io.Reader;
-import java.io.Writer;
 import java.util.Set;
 
 import javax.annotation.processing.AbstractProcessor;
@@ -12,22 +11,21 @@ import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
-import javax.lang.model.element.Element;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.ElementFilter;
 import javax.tools.FileObject;
-import javax.tools.JavaFileObject;
 import javax.tools.StandardLocation;
 
 import com.google.auto.service.AutoService;
 
-import io.cruder.apt.util.AnnotationUtils;
 import spoon.Launcher;
 import spoon.reflect.CtModel;
+import spoon.reflect.declaration.CtElement;
 import spoon.reflect.declaration.CtType;
 import spoon.support.compiler.VirtualFile;
-import spoon.support.compiler.VirtualFolder;
+import spoon.support.visitor.clone.CloneVisitor;
+import spoon.support.visitor.equals.CloneHelper;
 
 @AutoService(Processor.class)
 @SupportedAnnotationTypes({ "io.cruder.apt.Template" })
@@ -43,47 +41,38 @@ public class TemplateProcessor extends AbstractProcessor {
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-        for (Element element : roundEnv.getElementsAnnotatedWith(Template.class)) {
-            try {
-                Template template = element.getAnnotation(Template.class);
-
-                TemplateCloner cloner = new TemplateCloner(
-                        processingEnv, template,
-                        element.getAnnotation(ReplaceTypeName.class),
-                        element.getAnnotationsByType(ReplaceStringLiteral.class),
-                        element.getAnnotationsByType(ReplaceType.class));
-
-                VirtualFolder vf = new VirtualFolder();
-                for (TypeMirror use : AnnotationUtils.getClassValues(template, Template::uses)) {
-                    vf.addFile(getJavaSourceFile((TypeElement) processingEnv.getTypeUtils().asElement(use)));
-                }
-
+        try {
+            for (TypeElement annotation : annotations) {
                 Launcher launcher = new Launcher();
                 launcher.getEnvironment().setAutoImports(true);
-                launcher.addInputResource(vf);
+                for (TypeElement e : ElementFilter.typesIn(roundEnv.getElementsAnnotatedWith(annotation))) {
+                    launcher.addInputResource(getJavaSourceFile(e));
+                }
                 CtModel model = launcher.buildModel();
 
+                ReplacingCloneHelper cloneHelper = new ReplacingCloneHelper();
                 for (CtType<?> type : model.getAllTypes()) {
-                    CtType<?> clone = cloner.clone(type);
-
-                    JavaFileObject jfo = processingEnv.getFiler()
-                            .createSourceFile(clone.getQualifiedName());
-                    try (Writer w = jfo.openWriter()) {
-                        w.append(clone.toStringWithImports());
-                    }
+                    CtType<?> clone = cloneHelper.clone(type);
+                    clone.setSimpleName("Generated" + type.getSimpleName());
+                    clone.getFactory().Package()
+                            .create(null, "generated")
+                            .addType(clone);
+                    System.out.println(clone.toStringWithImports());
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
+
             }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
         return true;
     }
 
-    private VirtualFile getJavaSourceFile(TypeElement typeElement) throws IOException {
-        FileObject source = processingEnv.getFiler().getResource(
-                StandardLocation.SOURCE_PATH,
-                ((PackageElement) typeElement.getEnclosingElement()).getQualifiedName(),
-                typeElement.getSimpleName() + ".java");
+    private VirtualFile getJavaSourceFile(TypeElement element) throws IOException {
+        String pkg = ((PackageElement) element.getEnclosingElement()).getQualifiedName().toString();
+        String file = element.getSimpleName() + ".java";
+
+        FileObject source = processingEnv.getFiler()
+                .getResource(StandardLocation.SOURCE_PATH, pkg, file);
 
         try (Reader reader = source.openReader(true)) {
             final StringBuilder builder = new StringBuilder();
@@ -92,8 +81,24 @@ public class TemplateProcessor extends AbstractProcessor {
             while ((read = reader.read(buf)) != -1) {
                 builder.append(buf, 0, read);
             }
-            return new VirtualFile(builder.toString(), typeElement.getSimpleName() + ".java");
+            return new VirtualFile(builder.toString(), pkg + "." + file);
         }
     }
 
+    public class ReplacingCloneHelper extends CloneHelper {
+
+        @Override
+        public <T extends CtElement> T clone(T element) {
+            CloneVisitor cloneVisitor = new TemplateCloneVisitor();
+            cloneVisitor.scan(element);
+            return cloneVisitor.getClone();
+        }
+
+        private class TemplateCloneVisitor extends CloneVisitor {
+            public TemplateCloneVisitor() {
+                super(ReplacingCloneHelper.this);
+            }
+        }
+
+    }
 }

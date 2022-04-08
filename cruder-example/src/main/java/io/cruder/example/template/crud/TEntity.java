@@ -1,8 +1,14 @@
 package io.cruder.example.template.crud;
 
-public interface TEntity {
-	Id getId();
+import io.cruder.apt.Template;
 
-	public interface Id {
+@Template
+public interface TEntity {
+	Wrapper.Id getId();
+
+	public interface Wrapper {
+	    public interface Id {
+	    }
 	}
+	
 }

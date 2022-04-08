@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.cruder.apt.Template;
 import io.cruder.example.core.ApiResult;
 import io.cruder.example.template.crud.dto.TAddDTO;
 import io.cruder.example.template.crud.dto.TDetailsDTO;
@@ -21,6 +22,7 @@ import io.cruder.example.template.crud.dto.TQueryDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
+@Template
 @Tag(name = "#<nameCN>管理接口")
 @RestController
 @RequestMapping("/api/#<path>")
@@ -34,7 +36,7 @@ public class TController {
 
     @Operation(summary = "新增#<nameCN>")
     @PostMapping("/add")
-    public ApiResult<TEntity.Id> add(@RequestBody @Valid TAddDTO body) {
+    public ApiResult<TEntity.Wrapper.Id> add(@RequestBody @Valid TAddDTO body) {
         TEntity entity = converter.addToEntity(body);
         repository.save(entity);
         return new ApiResult<>("OK", null, entity.getId());
@@ -42,7 +44,7 @@ public class TController {
 
     @Operation(summary = "获取#<nameCN>")
     @GetMapping("/get")
-    public ApiResult<TDetailsDTO> get(@RequestParam("id") TEntity.Id id) {
+    public ApiResult<TDetailsDTO> get(@RequestParam("id") TEntity.Wrapper.Id id) {
         TEntity entity = repository.findById(id).orElse(null);
         if (entity == null) {
             return new ApiResult<>("NOT_FOUND", "#<path> not exists", null);
@@ -52,7 +54,7 @@ public class TController {
 
     @Operation(summary = "删除#<nameCN>")
     @PostMapping("/delete")
-    public ApiResult<Void> delete(@RequestParam("id") TEntity.Id id) {
+    public ApiResult<Void> delete(@RequestParam("id") TEntity.Wrapper.Id id) {
         TEntity entity = repository.findById(id).orElse(null);
         if (entity == null) {
             return new ApiResult<>("NOT_FOUND", "#<path> not exists", null);

@@ -1,11 +1,11 @@
 package io.cruder.example.template.crud;
 
-import io.cruder.apt.mapstruct.Mapper;
+import io.cruder.apt.Template;
 import io.cruder.example.template.crud.dto.TAddDTO;
 import io.cruder.example.template.crud.dto.TDetailsDTO;
 import io.cruder.example.template.crud.dto.TListItemDTO;
 
-@Mapper(componentModel = "spring")
+@Template
 public interface TConverter {
 	TEntity addToEntity(TAddDTO dto);
 
