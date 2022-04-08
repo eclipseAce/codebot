@@ -1,4 +1,4 @@
-package io.cruder.example.template.crud.dto;
+package template.crud.dto;
 
 import com.querydsl.core.types.Predicate;
 

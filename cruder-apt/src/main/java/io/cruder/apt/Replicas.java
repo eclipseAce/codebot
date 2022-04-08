@@ -8,5 +8,6 @@ import java.lang.annotation.Target;
 
 @Retention(SOURCE)
 @Target(TYPE)
-public @interface Template {
+public @interface Replicas {
+    Replica[] value();
 }

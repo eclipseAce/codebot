@@ -2,6 +2,12 @@ package io.cruder.apt;
 
 import java.io.IOException;
 import java.io.Reader;
+import java.io.Writer;
+import java.lang.annotation.Annotation;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.annotation.processing.AbstractProcessor;
@@ -15,22 +21,31 @@ import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.ElementFilter;
 import javax.tools.FileObject;
+import javax.tools.JavaFileObject;
 import javax.tools.StandardLocation;
 
 import com.google.auto.service.AutoService;
 
 import spoon.Launcher;
 import spoon.reflect.CtModel;
+import spoon.reflect.code.CtLiteral;
+import spoon.reflect.declaration.CtAnnotation;
 import spoon.reflect.declaration.CtElement;
+import spoon.reflect.declaration.CtPackage;
 import spoon.reflect.declaration.CtType;
+import spoon.reflect.reference.CtTypeReference;
 import spoon.support.compiler.VirtualFile;
 import spoon.support.visitor.clone.CloneVisitor;
 import spoon.support.visitor.equals.CloneHelper;
 
 @AutoService(Processor.class)
-@SupportedAnnotationTypes({ "io.cruder.apt.Template" })
+@SupportedAnnotationTypes({ TemplateProcessor.TEMPLATE_ANNOTATION_NAME })
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
 public class TemplateProcessor extends AbstractProcessor {
+    public static final String TEMPLATE_ANNOTATION_NAME = "io.cruder.apt.Template";
+    public static final String REPLICA_ANNOTATION_NAME = "io.cruder.apt.Replica";
+    public static final String REPLICAS_ANNOTATION_NAME = "io.cruder.apt.Replicas";
+
     private ProcessingEnvironment processingEnv;
 
     @Override
@@ -45,19 +60,28 @@ public class TemplateProcessor extends AbstractProcessor {
             for (TypeElement annotation : annotations) {
                 Launcher launcher = new Launcher();
                 launcher.getEnvironment().setAutoImports(true);
+
+                Map<String, Replica[]> replicas = new HashMap<>();
                 for (TypeElement e : ElementFilter.typesIn(roundEnv.getElementsAnnotatedWith(annotation))) {
-                    launcher.addInputResource(getJavaSourceFile(e));
+                    launcher.addInputResource(loadSourceFile(e));
+                    replicas.put(e.getQualifiedName().toString(), e.getAnnotationsByType(Replica.class));
                 }
                 CtModel model = launcher.buildModel();
 
-                ReplacingCloneHelper cloneHelper = new ReplacingCloneHelper();
                 for (CtType<?> type : model.getAllTypes()) {
-                    CtType<?> clone = cloneHelper.clone(type);
-                    clone.setSimpleName("Generated" + type.getSimpleName());
-                    clone.getFactory().Package()
-                            .create(null, "generated")
-                            .addType(clone);
-                    System.out.println(clone.toStringWithImports());
+                    for (Replica replica : replicas.get(type.getQualifiedName())) {
+                        ReplacaCloneHelper cloneHelper = new ReplacaCloneHelper(replica.replaces());
+
+                        CtType<?> clone = cloneHelper.clone(type);
+                        CtTypeReference<?> ref = clone.getFactory().Type()
+                                .createReference(replica.name());
+                        CtPackage pkg = clone.getFactory().Package()
+                                .create(null, ref.getPackage().getQualifiedName());
+                        clone.setSimpleName(ref.getSimpleName());
+                        pkg.addType(clone);
+
+                        saveSourceFile(clone);
+                    }
                 }
 
             }
@@ -67,7 +91,7 @@ public class TemplateProcessor extends AbstractProcessor {
         return true;
     }
 
-    private VirtualFile getJavaSourceFile(TypeElement element) throws IOException {
+    private VirtualFile loadSourceFile(TypeElement element) throws IOException {
         String pkg = ((PackageElement) element.getEnclosingElement()).getQualifiedName().toString();
         String file = element.getSimpleName() + ".java";
 
@@ -85,18 +109,75 @@ public class TemplateProcessor extends AbstractProcessor {
         }
     }
 
-    public class ReplacingCloneHelper extends CloneHelper {
+    private void saveSourceFile(CtType<?> type) throws IOException {
+        JavaFileObject source = processingEnv.getFiler()
+                .createSourceFile(type.getQualifiedName());
+        try (Writer w = source.openWriter()) {
+            w.append(type.toStringWithImports());
+        }
+    }
+
+    public class ReplacaCloneHelper extends CloneHelper {
+        private final List<Replace> typeReplaces = new ArrayList<>();
+        private final List<Replace> literalReplaces = new ArrayList<>();
+
+        public ReplacaCloneHelper(Replace[] replaces) {
+            for (Replace replace : replaces) {
+                if (replace.type().equals("type") && replace.args().length == 2) {
+                    typeReplaces.add(replace);
+                } else if (replace.type().equals("literal") && replace.args().length == 2) {
+                    literalReplaces.add(replace);
+                }
+            }
+        }
 
         @Override
         public <T extends CtElement> T clone(T element) {
-            CloneVisitor cloneVisitor = new TemplateCloneVisitor();
+            CloneVisitor cloneVisitor = new ReplicaCloneVisitor();
             cloneVisitor.scan(element);
             return cloneVisitor.getClone();
         }
 
-        private class TemplateCloneVisitor extends CloneVisitor {
-            public TemplateCloneVisitor() {
-                super(ReplacingCloneHelper.this);
+        private class ReplicaCloneVisitor extends CloneVisitor {
+            public ReplicaCloneVisitor() {
+                super(ReplacaCloneHelper.this);
+            }
+
+            @Override
+            public <A extends Annotation> void visitCtAnnotation(CtAnnotation<A> annotation) {
+                String name = annotation.getAnnotationType().getQualifiedName();
+                if (TEMPLATE_ANNOTATION_NAME.equals(name)
+                        || REPLICA_ANNOTATION_NAME.equals(name)
+                        || REPLICAS_ANNOTATION_NAME.equals(name)) {
+                    return;
+                }
+                super.visitCtAnnotation(annotation);
+            }
+
+            @Override
+            public <T> void visitCtTypeReference(CtTypeReference<T> reference) {
+                String name = reference.getQualifiedName();
+                for (Replace replace : typeReplaces) {
+                    if (name.matches(replace.args()[0])) {
+                        reference = reference.getFactory().Type()
+                                .createReference(name.replaceAll(replace.args()[0], replace.args()[1]));
+                        break;
+                    }
+                }
+                super.visitCtTypeReference(reference);
+            }
+
+            @SuppressWarnings("unchecked")
+            @Override
+            public <T> void visitCtLiteral(CtLiteral<T> literal) {
+                if ("java.lang.String".equals(literal.getType().getQualifiedName())) {
+                    String value = (String) literal.getValue();
+                    for (Replace replace : literalReplaces) {
+                        value = value.replaceAll(replace.args()[0], replace.args()[1]);
+                    }
+                    literal.setValue((T) value);
+                }
+                super.visitCtLiteral(literal);
             }
         }
 

@@ -1,4 +1,4 @@
-package io.cruder.example.template.crud;
+package template.crud;
 
 import io.cruder.apt.Template;
 

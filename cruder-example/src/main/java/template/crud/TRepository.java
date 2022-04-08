@@ -1,4 +1,4 @@
-package io.cruder.example.template.crud;
+package template.crud;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.querydsl.QuerydslPredicateExecutor;
