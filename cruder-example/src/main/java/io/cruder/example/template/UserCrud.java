@@ -25,6 +25,7 @@ import io.cruder.example.template.crud.dto.TQueryDTO;
 })
 @ReplaceTypeName(regex = "T(.*)", replacement = "User$1")
 @ReplaceStringLiteral(regex = "#<path>", replacement = "user")
+@ReplaceStringLiteral(regex = "#<nameCN>", replacement = "用户")
 @ReplaceType(target = TEntity.Id.class, with = Long.class)
 @ReplaceType(target = TEntity.class, with = User.class)
 @ReplaceType(target = TAddDTO.class, with = UserAddDTO.class)
