@@ -13,7 +13,13 @@ import java.lang.annotation.Target;
 @Target(TYPE)
 @Repeatable(ReplaceTypes.class)
 public @interface ReplaceType {
-    Class<?> target();
 
-    Class<?> with();
+    String regex() default "";
+
+    String replacement() default "";
+
+    Class<?> target() default Object.class;
+
+    Class<?> with() default Object.class;
+
 }

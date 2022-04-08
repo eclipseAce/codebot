@@ -45,11 +45,25 @@ public class TemplateCloner {
                 .collect(Collectors.collectingAndThen(Collectors.toList(), ArrayList::new));
 
         this.replaceTypes = Stream.of(replaceTypes)
-                .map(it -> new String[] {
-                        TypeNameUtils.getQualifiedName((TypeElement) processingEnv.getTypeUtils()
-                                .asElement(AnnotationUtils.getClassValue(it, ReplaceType::target))),
-                        TypeNameUtils.getQualifiedName((TypeElement) processingEnv.getTypeUtils()
-                                .asElement(AnnotationUtils.getClassValue(it, ReplaceType::with)))
+                .flatMap(it -> {
+                    String regex = it.regex();
+                    String replacement = it.replacement();
+                    if (!regex.isEmpty()) {
+                        return Stream.of(new String[][] {
+                                new String[] { "regex", regex, replacement }
+                        });
+                    }
+                    String target = TypeNameUtils.getQualifiedName((TypeElement) processingEnv.getTypeUtils()
+                            .asElement(AnnotationUtils.getClassValue(it, ReplaceType::target)));
+                    String with = TypeNameUtils.getQualifiedName((TypeElement) processingEnv.getTypeUtils()
+                            .asElement(AnnotationUtils.getClassValue(it, ReplaceType::with)));
+                    if (!Object.class.getName().contentEquals(target)
+                            && !Object.class.getName().contentEquals(with)) {
+                        return Stream.of(new String[][] {
+                                new String[] { "exact", target, with }
+                        });
+                    }
+                    return Stream.empty();
                 })
                 .collect(Collectors.collectingAndThen(Collectors.toList(), ArrayList::new));
 
@@ -57,6 +71,7 @@ public class TemplateCloner {
                 .map(it -> (TypeElement) processingEnv.getTypeUtils().asElement(it))
                 .forEach(use -> {
                     this.replaceTypes.add(new String[] {
+                            "exact",
                             TypeNameUtils.getQualifiedName(use),
                             this.basePackage + "." + replaceTypeName(TypeNameUtils.getSimpleName(use))
                     });
@@ -80,8 +95,11 @@ public class TemplateCloner {
 
     private String replaceType(String input) {
         for (String[] replace : replaceTypes) {
-            if (replace[0].contentEquals(input)) {
-                return replace[1];
+            if (replace[0].equals("exact") && replace[1].contentEquals(input)) {
+                return replace[2];
+            }
+            if (replace[0].equals("regex") && input.matches(replace[1])) {
+                return input.replaceAll(replace[1], replace[2]);
             }
         }
         return null;

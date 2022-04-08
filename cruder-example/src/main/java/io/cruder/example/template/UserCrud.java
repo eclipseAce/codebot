@@ -5,33 +5,22 @@ import io.cruder.apt.ReplaceType;
 import io.cruder.apt.ReplaceTypeName;
 import io.cruder.apt.Template;
 import io.cruder.example.domain.User;
-import io.cruder.example.dto.user.UserAddDTO;
-import io.cruder.example.dto.user.UserDetailsDTO;
-import io.cruder.example.dto.user.UserListItemDTO;
-import io.cruder.example.dto.user.UserQueryDTO;
 import io.cruder.example.template.crud.TController;
 import io.cruder.example.template.crud.TConverter;
 import io.cruder.example.template.crud.TEntity;
 import io.cruder.example.template.crud.TRepository;
-import io.cruder.example.template.crud.dto.TAddDTO;
-import io.cruder.example.template.crud.dto.TDetailsDTO;
-import io.cruder.example.template.crud.dto.TListItemDTO;
-import io.cruder.example.template.crud.dto.TQueryDTO;
 
 @Template(basePackage = "io.cruder.example.generated.user", uses = {
-		TController.class,
-		TRepository.class,
-		TConverter.class
+        TController.class,
+        TRepository.class,
+        TConverter.class
 })
 @ReplaceTypeName(regex = "T(.*)", replacement = "User$1")
 @ReplaceStringLiteral(regex = "#<path>", replacement = "user")
 @ReplaceStringLiteral(regex = "#<nameCN>", replacement = "用户")
 @ReplaceType(target = TEntity.Id.class, with = Long.class)
 @ReplaceType(target = TEntity.class, with = User.class)
-@ReplaceType(target = TAddDTO.class, with = UserAddDTO.class)
-@ReplaceType(target = TListItemDTO.class, with = UserListItemDTO.class)
-@ReplaceType(target = TDetailsDTO.class, with = UserDetailsDTO.class)
-@ReplaceType(target = TQueryDTO.class, with = UserQueryDTO.class)
+@ReplaceType(regex = "(.+)\\.template\\.crud\\.dto\\.T(.+)DTO", replacement = "$1.dto.user.User$2DTO")
 public interface UserCrud {
 
 }
