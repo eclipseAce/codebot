@@ -5,8 +5,8 @@ import org.springframework.data.querydsl.QuerydslPredicateExecutor;
 import org.springframework.stereotype.Repository;
 
 import io.cruder.apt.Template;
-import template.annotation.RoleReplica;
-import template.annotation.UserReplica;
+import template.RoleReplica;
+import template.UserReplica;
 
 @Template({ UserReplica.class, RoleReplica.class })
 @Repository

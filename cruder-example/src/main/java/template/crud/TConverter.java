@@ -4,8 +4,8 @@ import org.mapstruct.Mapper;
 
 import io.cruder.apt.WrapMapper;
 import io.cruder.apt.Template;
-import template.annotation.RoleReplica;
-import template.annotation.UserReplica;
+import template.RoleReplica;
+import template.UserReplica;
 import template.crud.dto.TAddDTO;
 import template.crud.dto.TDetailsDTO;
 import template.crud.dto.TListItemDTO;

@@ -1,4 +1,4 @@
-package template.annotation;
+package template;
 
 import io.cruder.apt.Replica;
 import io.cruder.apt.Replica.Literal;
