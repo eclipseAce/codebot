@@ -11,7 +11,29 @@ import java.lang.annotation.Target;
 @Target(TYPE)
 @Repeatable(Replicas.class)
 public @interface Replica {
-	String name();
+	Name name();
 
-	Replace replace() default @Replace();
+	TypeRef[] typeRefs() default {};
+
+	Literal[] literals() default {};
+
+	@interface Name {
+		String regex();
+
+		String replacement();
+	}
+
+	@interface TypeRef {
+		Class<?> target();
+
+		Class<?> withType() default Object.class;
+
+		String withName() default "";
+	}
+
+	@interface Literal {
+		String regex();
+
+		String replacement();
+	}
 }

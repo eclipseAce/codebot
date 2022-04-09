@@ -13,54 +13,18 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import io.cruder.apt.Replace;
-import io.cruder.apt.Replica;
 import io.cruder.apt.Template;
 import io.cruder.example.core.ApiResult;
-import io.cruder.example.domain.Role;
-import io.cruder.example.domain.User;
-import io.cruder.example.dto.role.RoleAddDTO;
-import io.cruder.example.dto.role.RoleDetailsDTO;
-import io.cruder.example.dto.role.RoleListItemDTO;
-import io.cruder.example.dto.role.RoleQueryDTO;
-import io.cruder.example.dto.user.UserAddDTO;
-import io.cruder.example.dto.user.UserDetailsDTO;
-import io.cruder.example.dto.user.UserListItemDTO;
-import io.cruder.example.dto.user.UserQueryDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import template.annotation.RoleReplica;
+import template.annotation.UserReplica;
 import template.crud.dto.TAddDTO;
 import template.crud.dto.TDetailsDTO;
 import template.crud.dto.TListItemDTO;
 import template.crud.dto.TQueryDTO;
 
-@Template
-@Replica(name = "generated.api.UserController", replace = @Replace(types = {
-		@Replace.Type(target = TEntity.Wrapper.Id.class, type = Long.class),
-		@Replace.Type(target = TEntity.class, type = User.class),
-		@Replace.Type(target = TAddDTO.class, type = UserAddDTO.class),
-		@Replace.Type(target = TDetailsDTO.class, type = UserDetailsDTO.class),
-		@Replace.Type(target = TListItemDTO.class, type = UserListItemDTO.class),
-		@Replace.Type(target = TQueryDTO.class, type = UserQueryDTO.class),
-		@Replace.Type(target = TConverter.class, name = "generated.conv.UserConverter"),
-		@Replace.Type(target = TRepository.class, name = "generated.dao.UserRepository")
-}, literals = {
-		@Replace.Literal(regex = "#<path>", replacement = "user"),
-		@Replace.Literal(regex = "#<title>", replacement = "用户")
-}))
-@Replica(name = "generated.api.RoleController", replace = @Replace(types = {
-		@Replace.Type(target = TEntity.Wrapper.Id.class, type = Long.class),
-		@Replace.Type(target = TEntity.class, type = Role.class),
-		@Replace.Type(target = TAddDTO.class, type = RoleAddDTO.class),
-		@Replace.Type(target = TDetailsDTO.class, type = RoleDetailsDTO.class),
-		@Replace.Type(target = TListItemDTO.class, type = RoleListItemDTO.class),
-		@Replace.Type(target = TQueryDTO.class, type = RoleQueryDTO.class),
-		@Replace.Type(target = TConverter.class, name = "generated.conv.RoleConverter"),
-		@Replace.Type(target = TRepository.class, name = "generated.dao.RoleRepository")
-}, literals = {
-		@Replace.Literal(regex = "#<path>", replacement = "role"),
-		@Replace.Literal(regex = "#<title>", replacement = "角色")
-}))
+@Template({ UserReplica.class, RoleReplica.class })
 @Tag(name = "#<title>管理接口")
 @RestController
 @RequestMapping("/api/#<path>")
