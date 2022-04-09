@@ -19,13 +19,13 @@ import template.crud.dto.TQueryDTO;
 
 @Replica(name = @Name(regex = "T(.*)$", replacement = "io.cruder.example.generated.role.Role$1"), //
 		typeRefs = {
-				@TypeRef(target = TEntity.class, withType = Role.class),
-				@TypeRef(target = TAddDTO.class, withType = RoleAddDTO.class),
-				@TypeRef(target = TDetailsDTO.class, withType = RoleDetailsDTO.class),
-				@TypeRef(target = TListItemDTO.class, withType = RoleListItemDTO.class),
-				@TypeRef(target = TQueryDTO.class, withType = RoleQueryDTO.class),
-				@TypeRef(target = TConverter.class, withName = "io.cruder.example.generated.role.RoleConverter"),
-				@TypeRef(target = TRepository.class, withName = "io.cruder.example.generated.role.RoleRepository"),
+				@TypeRef(replace = TEntity.class, withType = Role.class),
+				@TypeRef(replace = TAddDTO.class, withType = RoleAddDTO.class),
+				@TypeRef(replace = TDetailsDTO.class, withType = RoleDetailsDTO.class),
+				@TypeRef(replace = TListItemDTO.class, withType = RoleListItemDTO.class),
+				@TypeRef(replace = TQueryDTO.class, withType = RoleQueryDTO.class),
+				@TypeRef(replace = TConverter.class, withName = "io.cruder.example.generated.role.RoleConverter"),
+				@TypeRef(replace = TRepository.class, withName = "io.cruder.example.generated.role.RoleRepository"),
 		}, //
 		literals = {
 				@Literal(regex = "#<path>", replacement = "role"),

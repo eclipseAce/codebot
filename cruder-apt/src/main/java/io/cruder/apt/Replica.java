@@ -23,7 +23,7 @@ public @interface Replica {
 	}
 
 	@interface TypeRef {
-		Class<?> target();
+		Class<?> replace();
 
 		Class<?> withType() default Object.class;
 

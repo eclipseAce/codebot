@@ -135,7 +135,7 @@ public class TemplateProcessor extends AbstractProcessor {
 					info.replacement = replica.name().replacement();
 					for (Replica.TypeRef r : replica.typeRefs()) {
 						TypeRefReplacer replacer = new TypeRefReplacer();
-						replacer.ref = getQualifiedName(accessClassValue(() -> r.target()));
+						replacer.ref = getQualifiedName(accessClassValue(() -> r.replace()));
 						replacer.with = r.withName();
 						if (replacer.with.isEmpty()) {
 							replacer.with = getQualifiedName(accessClassValue(() -> r.withType()));
