@@ -2,8 +2,8 @@ package template.crud;
 
 import org.mapstruct.Mapper;
 
-import io.cruder.apt.WrapMapper;
 import io.cruder.apt.Template;
+import io.cruder.apt.wrap.WrapMapper;
 import template.RoleReplica;
 import template.UserReplica;
 import template.crud.dto.TAddDTO;

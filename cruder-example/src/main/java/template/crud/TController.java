@@ -38,7 +38,7 @@ public class TController {
 
 	@Operation(summary = "新增#<title>")
 	@PostMapping("/add")
-	public ApiResult<TEntity.Wrapper.Id> add(@RequestBody @Valid TAddDTO body) {
+	public ApiResult<Long> add(@RequestBody @Valid TAddDTO body) {
 		TEntity entity = converter.addToEntity(body);
 		repository.save(entity);
 		return new ApiResult<>("OK", null, entity.getId());
@@ -46,7 +46,7 @@ public class TController {
 
 	@Operation(summary = "获取#<title>")
 	@GetMapping("/get")
-	public ApiResult<TDetailsDTO> get(@RequestParam("id") TEntity.Wrapper.Id id) {
+	public ApiResult<TDetailsDTO> get(@RequestParam("id") Long id) {
 		TEntity entity = repository.findById(id).orElse(null);
 		if (entity == null) {
 			return new ApiResult<>("NOT_FOUND", "#<path> not exists", null);
@@ -56,7 +56,7 @@ public class TController {
 
 	@Operation(summary = "删除#<title>")
 	@PostMapping("/delete")
-	public ApiResult<Void> delete(@RequestParam("id") TEntity.Wrapper.Id id) {
+	public ApiResult<Void> delete(@RequestParam("id") Long id) {
 		TEntity entity = repository.findById(id).orElse(null);
 		if (entity == null) {
 			return new ApiResult<>("NOT_FOUND", "#<path> not exists", null);

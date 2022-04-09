@@ -1,4 +1,4 @@
-package io.cruder.apt;
+package io.cruder.apt.wrap;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -7,8 +7,8 @@ import java.lang.annotation.Target;
 
 import org.mapstruct.Mapper;
 
-@Target(ElementType.TYPE)
 @Retention(RetentionPolicy.CLASS)
+@Target(ElementType.TYPE)
 public @interface WrapMapper {
 	Mapper value();
 }

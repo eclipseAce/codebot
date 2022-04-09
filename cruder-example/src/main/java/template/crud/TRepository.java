@@ -10,7 +10,5 @@ import template.UserReplica;
 
 @Template({ UserReplica.class, RoleReplica.class })
 @Repository
-public interface TRepository extends
-		JpaRepository<TEntity, TEntity.Wrapper.Id>,
-		QuerydslPredicateExecutor<TEntity> {
+public interface TRepository extends JpaRepository<TEntity, Long>, QuerydslPredicateExecutor<TEntity> {
 }

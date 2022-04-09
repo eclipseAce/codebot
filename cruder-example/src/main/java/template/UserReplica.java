@@ -17,16 +17,15 @@ import template.crud.dto.TDetailsDTO;
 import template.crud.dto.TListItemDTO;
 import template.crud.dto.TQueryDTO;
 
-@Replica(name = @Name(regex = "T(.*)$", replacement = "generated.user.User$1"), //
+@Replica(name = @Name(regex = "T(.*)$", replacement = "io.cruder.example.generated.user.User$1"), //
 		typeRefs = {
-				@TypeRef(target = TEntity.Wrapper.Id.class, withType = Long.class),
 				@TypeRef(target = TEntity.class, withType = User.class),
 				@TypeRef(target = TAddDTO.class, withType = UserAddDTO.class),
 				@TypeRef(target = TDetailsDTO.class, withType = UserDetailsDTO.class),
 				@TypeRef(target = TListItemDTO.class, withType = UserListItemDTO.class),
 				@TypeRef(target = TQueryDTO.class, withType = UserQueryDTO.class),
-				@TypeRef(target = TConverter.class, withName = "generated.user.UserConverter"),
-				@TypeRef(target = TRepository.class, withName = "generated.user.UserRepository"),
+				@TypeRef(target = TConverter.class, withName = "io.cruder.example.generated.user.UserConverter"),
+				@TypeRef(target = TRepository.class, withName = "io.cruder.example.generated.user.UserRepository"),
 		}, //
 		literals = {
 				@Literal(regex = "#<path>", replacement = "user"),

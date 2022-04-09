@@ -1,14 +1,13 @@
 package io.cruder.apt;
 
-import static java.lang.annotation.ElementType.TYPE;
-import static java.lang.annotation.RetentionPolicy.SOURCE;
-
+import java.lang.annotation.ElementType;
 import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-@Retention(SOURCE)
-@Target(TYPE)
+@Retention(RetentionPolicy.CLASS)
+@Target(ElementType.TYPE)
 @Repeatable(Replicas.class)
 public @interface Replica {
 	Name name();

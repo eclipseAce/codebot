@@ -34,6 +34,7 @@ import javax.tools.StandardLocation;
 
 import com.google.auto.service.AutoService;
 
+import io.cruder.apt.wrap.WrapMapper;
 import lombok.RequiredArgsConstructor;
 import spoon.Launcher;
 import spoon.reflect.CtModel;
