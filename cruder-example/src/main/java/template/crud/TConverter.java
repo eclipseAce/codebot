@@ -11,7 +11,7 @@ import template.crud.dto.TDetailsDTO;
 import template.crud.dto.TListItemDTO;
 
 @Template({ UserReplica.class, RoleReplica.class })
-@WrapMapper(@Mapper)
+@WrapMapper(@Mapper(componentModel = "spring"))
 public interface TConverter {
 	TEntity addToEntity(TAddDTO dto);
 
