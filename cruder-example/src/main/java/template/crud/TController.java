@@ -2,6 +2,7 @@ package template.crud;
 
 import javax.validation.Valid;
 
+import io.cruder.example.core.ApiReply;
 import org.springdoc.core.converters.models.PageableAsQueryParam;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -14,7 +15,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.cruder.apt.Template;
-import io.cruder.example.core.ApiResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import template.RoleReplica;
@@ -24,52 +24,38 @@ import template.crud.dto.TDetailsDTO;
 import template.crud.dto.TListItemDTO;
 import template.crud.dto.TQueryDTO;
 
-@Template({ UserReplica.class, RoleReplica.class })
+@Template({UserReplica.class, RoleReplica.class})
 @Tag(name = "#<title>管理接口")
 @RestController
 @RequestMapping("/api/#<path>")
 public class TController {
 
-	@Autowired
-	private TConverter converter;
+    @Autowired
+    private TService service;
 
-	@Autowired
-	private TRepository repository;
+    @Operation(summary = "新增#<title>")
+    @PostMapping("/add")
+    public ApiReply<Long> add(@RequestBody @Valid TAddDTO body) {
+        return ApiReply.ok(service.add(body));
+    }
 
-	@Operation(summary = "新增#<title>")
-	@PostMapping("/add")
-	public ApiResult<Long> add(@RequestBody @Valid TAddDTO body) {
-		TEntity entity = converter.addToEntity(body);
-		repository.save(entity);
-		return new ApiResult<>("OK", null, entity.getId());
-	}
+    @Operation(summary = "获取#<title>")
+    @GetMapping("/get")
+    public ApiReply<TDetailsDTO> get(@RequestParam("id") Long id) {
+        return ApiReply.ok(service.get(id));
+    }
 
-	@Operation(summary = "获取#<title>")
-	@GetMapping("/get")
-	public ApiResult<TDetailsDTO> get(@RequestParam("id") Long id) {
-		TEntity entity = repository.findById(id).orElse(null);
-		if (entity == null) {
-			return new ApiResult<>("NOT_FOUND", "#<path> not exists", null);
-		}
-		return new ApiResult<>("OK", null, converter.entityToDetails(entity));
-	}
+    @Operation(summary = "删除#<title>")
+    @PostMapping("/delete")
+    public ApiReply<Void> delete(@RequestParam("id") Long id) {
+        service.delete(id);
+        return ApiReply.ok();
+    }
 
-	@Operation(summary = "删除#<title>")
-	@PostMapping("/delete")
-	public ApiResult<Void> delete(@RequestParam("id") Long id) {
-		TEntity entity = repository.findById(id).orElse(null);
-		if (entity == null) {
-			return new ApiResult<>("NOT_FOUND", "#<path> not exists", null);
-		}
-		return new ApiResult<>("OK", null, null);
-	}
-
-	@Operation(summary = "分页查询#<title>")
-	@PageableAsQueryParam
-	@PostMapping("/page")
-	public ApiResult<Page<TListItemDTO>> page(@RequestBody @Valid TQueryDTO body, Pageable pageable) {
-		return new ApiResult<>("OK", null,
-				repository.findAll(body.toPredicate(), pageable)
-						.map(converter::entityToListItem));
-	}
+    @Operation(summary = "分页查询#<title>")
+    @PageableAsQueryParam
+    @PostMapping("/page")
+    public ApiReply<Page<TListItemDTO>> page(@RequestBody @Valid TQueryDTO body, Pageable pageable) {
+        return ApiReply.ok(service.query(body, pageable));
+    }
 }

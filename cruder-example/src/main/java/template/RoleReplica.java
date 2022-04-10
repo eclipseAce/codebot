@@ -12,6 +12,7 @@ import io.cruder.example.dto.role.RoleQueryDTO;
 import template.crud.TConverter;
 import template.crud.TEntity;
 import template.crud.TRepository;
+import template.crud.TService;
 import template.crud.dto.TAddDTO;
 import template.crud.dto.TDetailsDTO;
 import template.crud.dto.TListItemDTO;
@@ -25,6 +26,7 @@ import template.crud.dto.TQueryDTO;
 				@TypeRef(replace = TListItemDTO.class, withType = RoleListItemDTO.class),
 				@TypeRef(replace = TQueryDTO.class, withType = RoleQueryDTO.class),
 				@TypeRef(replace = TConverter.class, withName = "io.cruder.example.generated.role.RoleConverter"),
+				@TypeRef(replace = TService.class, withName = "io.cruder.example.generated.role.RoleService"),
 				@TypeRef(replace = TRepository.class, withName = "io.cruder.example.generated.role.RoleRepository"),
 		}, //
 		literals = {
