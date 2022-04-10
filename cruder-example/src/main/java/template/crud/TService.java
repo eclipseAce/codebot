@@ -8,14 +8,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import template.RoleReplica;
-import template.UserReplica;
 import template.crud.dto.TAddDTO;
 import template.crud.dto.TDetailsDTO;
 import template.crud.dto.TListItemDTO;
 import template.crud.dto.TQueryDTO;
 
-@Template({UserReplica.class, RoleReplica.class})
+@Template
 @Service
 public class TService {
     @Autowired
@@ -42,12 +40,12 @@ public class TService {
 
     @Transactional
     public void delete(Long id) {
-        TEntity entity = repository.findById(id).orElse(null);
-        if (entity != null) {
+        TEntity TEntity = repository.findById(id).orElse(null);
+        if (TEntity != null) {
             throw new BusinessException(BusinessErrors.ENTITY_NOT_FOUND
                     .withMessage("#<path>(" + id + ") not found"));
         }
-        repository.delete(entity);
+        repository.delete(TEntity);
     }
 
     public Page<TListItemDTO> query(TQueryDTO body, Pageable pageable) {
