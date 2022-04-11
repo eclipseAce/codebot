@@ -1,6 +1,5 @@
 package template.crud;
 
-import io.cruder.apt.Template;
 import io.cruder.example.core.BusinessErrors;
 import io.cruder.example.core.BusinessException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,7 +12,6 @@ import template.crud.dto.TDetailsDTO;
 import template.crud.dto.TListItemDTO;
 import template.crud.dto.TQueryDTO;
 
-@Template
 @Service
 public class TService {
     @Autowired

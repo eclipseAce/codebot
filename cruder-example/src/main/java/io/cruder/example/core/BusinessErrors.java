@@ -1,6 +1,5 @@
 package io.cruder.example.core;
 
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor

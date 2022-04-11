@@ -1,6 +1,5 @@
 package template.crud;
 
-import io.cruder.apt.Template;
 import io.cruder.example.core.ApiReply;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -16,7 +15,6 @@ import template.crud.dto.TQueryDTO;
 
 import javax.validation.Valid;
 
-@Template
 @Tag(name = "#<title>管理接口")
 @RestController
 @RequestMapping("/api/#<path>")
