@@ -1,6 +1,0 @@
-__builders.javaBean(__annotated)
-        .packageName("io.cruder.example.generated.dto")
-        .className(__annotated.getSimpleName() + "AddDTO")
-        .forceBoxedType(true)
-        .build()
-        .writeTo(__filer)
