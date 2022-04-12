@@ -3,6 +3,7 @@ package io.cruder.apt;
 import com.google.auto.service.AutoService;
 import groovy.lang.Binding;
 import groovy.lang.GroovyShell;
+import io.cruder.apt.bean.BeanInfo;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
@@ -41,7 +42,7 @@ public class TemplateProcessor extends AbstractProcessor {
                 Binding binding = new Binding();
                 binding.setProperty("__roundEnv", roundEnv);
                 binding.setProperty("__processingEnv", processingEnv);
-                binding.setProperty("__annotatedElement", element);
+                binding.setProperty("__beanInfo", BeanInfo.introspect(element));
                 GroovyShell shell = new GroovyShell(binding);
                 try (Reader r = fo.openReader(true)) {
                     shell.evaluate(r);
