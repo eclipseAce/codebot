@@ -3,7 +3,6 @@ package io.cruder.apt;
 import com.google.auto.service.AutoService;
 import groovy.lang.Binding;
 import groovy.lang.GroovyShell;
-import io.cruder.apt.dsl.DSLContext;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
@@ -40,14 +39,9 @@ public class TemplateProcessor extends AbstractProcessor {
                 FileObject fo = processingEnv.getFiler()
                         .getResource(StandardLocation.SOURCE_PATH, pkg.getQualifiedName(), annotation.value());
                 Binding binding = new Binding();
-                binding.setVariable("__annotated", element);
-                binding.setVariable("__roundEnv", roundEnv);
-                binding.setVariable("__processingEnv", processingEnv);
-                binding.setVariable("__types", processingEnv.getTypeUtils());
-                binding.setVariable("__elements", processingEnv.getElementUtils());
-                binding.setVariable("__messager", processingEnv.getMessager());
-                binding.setVariable("__filer", processingEnv.getFiler());
-                binding.setVariable("__dsl", new DSLContext(processingEnv));
+                binding.setProperty("__roundEnv", roundEnv);
+                binding.setProperty("__processingEnv", processingEnv);
+                binding.setProperty("__annotatedElement", element);
                 GroovyShell shell = new GroovyShell(binding);
                 try (Reader r = fo.openReader(true)) {
                     shell.evaluate(r);

@@ -39,6 +39,16 @@ public class User implements Serializable {
 
     @Getter
     @Setter
+    @Schema(description = "手机号码")
+    private String mobile;
+
+    @Getter
+    @Setter
+    @Schema(description = "EMail")
+    private String email;
+
+    @Getter
+    @Setter
     @Schema(description = "是否锁定")
     private boolean locked;
 

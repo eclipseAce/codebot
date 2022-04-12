@@ -19,7 +19,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import lombok.Getter;
 import lombok.Setter;
 
-@Template("crud.groovy")
+//@Template("crud.groovy")
 @Entity
 @EntityListeners(AuditingEntityListener.class)
 public class Role implements Serializable {
