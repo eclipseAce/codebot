@@ -5,17 +5,19 @@ import com.squareup.javapoet.ClassName;
 import groovy.lang.Closure;
 import groovy.lang.DelegatesTo;
 import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
-@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
-public class AnnotationDsl extends DslSupport {
+@RequiredArgsConstructor(access = AccessLevel.PROTECTED)
+public class AnnotationDSL extends DSLSupport {
+    @Getter
     private final AnnotationSpec.Builder builder;
 
-    public static AnnotationSpec annotate(ClassName type,
-                                          @DelegatesTo(AnnotationDsl.class) Closure<?> cl) {
-        AnnotationDsl dsl = new AnnotationDsl(AnnotationSpec.builder(type));
+    public static AnnotationDSL annotate(ClassName type,
+                                         @DelegatesTo(AnnotationDSL.class) Closure<?> cl) {
+        AnnotationDSL dsl = new AnnotationDSL(AnnotationSpec.builder(type));
         cl.rehydrate(dsl, cl.getOwner(), dsl).call();
-        return dsl.builder.build();
+        return dsl;
     }
 
     public void member(String name, String format, Object... args) {

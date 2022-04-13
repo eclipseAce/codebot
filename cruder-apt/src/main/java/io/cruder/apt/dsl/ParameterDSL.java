@@ -6,24 +6,26 @@ import com.squareup.javapoet.TypeName;
 import groovy.lang.Closure;
 import groovy.lang.DelegatesTo;
 import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
 
-@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
-public class ParameterDsl extends DslSupport {
+@RequiredArgsConstructor(access = AccessLevel.PROTECTED)
+public class ParameterDSL extends DSLSupport {
+    @Getter
     private final ParameterSpec.Builder builder;
 
-    public static ParameterSpec parameter(TypeName type, String name,
-                                          @DelegatesTo(ParameterDsl.class) Closure<?> cl) {
-        ParameterDsl dsl = new ParameterDsl(ParameterSpec.builder(type, name));
+    public static ParameterDSL parameter(TypeName type, String name,
+                                         @DelegatesTo(ParameterDSL.class) Closure<?> cl) {
+        ParameterDSL dsl = new ParameterDSL(ParameterSpec.builder(type, name));
         cl.rehydrate(dsl, cl.getOwner(), dsl).call();
-        return dsl.builder.build();
+        return dsl;
     }
 
     public void annotate(ClassName type,
-                         @DelegatesTo(AnnotationDsl.class) Closure<?> cl) {
-        builder.addAnnotation(AnnotationDsl.annotate(type, cl));
+                         @DelegatesTo(AnnotationDSL.class) Closure<?> cl) {
+        builder.addAnnotation(AnnotationDSL.annotate(type, cl).getBuilder().build());
     }
 
     public void annotate(List<? extends ClassName> types) {

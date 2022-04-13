@@ -6,7 +6,7 @@ import com.squareup.javapoet.TypeName;
 
 import javax.lang.model.type.TypeMirror;
 
-public abstract class DslSupport {
+public abstract class DSLSupport {
     public ClassName type(String name) {
         return ClassName.bestGuess(name);
     }

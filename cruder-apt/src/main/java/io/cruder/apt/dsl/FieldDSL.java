@@ -6,26 +6,28 @@ import com.squareup.javapoet.TypeName;
 import groovy.lang.Closure;
 import groovy.lang.DelegatesTo;
 import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 import javax.lang.model.element.Modifier;
 import java.util.List;
 
-@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
-public class FieldDsl extends DslSupport {
+@RequiredArgsConstructor(access = AccessLevel.PROTECTED)
+public class FieldDSL extends DSLSupport {
+    @Getter
     private final FieldSpec.Builder builder;
 
-    public static FieldSpec field(List<Modifier> modifiers, TypeName type, String name,
-                                  @DelegatesTo(FieldDsl.class) Closure<?> cl) {
-        FieldDsl dsl = new FieldDsl(FieldSpec.builder(type, name)
+    public static FieldDSL field(List<Modifier> modifiers, TypeName type, String name,
+                                 @DelegatesTo(FieldDSL.class) Closure<?> cl) {
+        FieldDSL dsl = new FieldDSL(FieldSpec.builder(type, name)
                 .addModifiers(modifiers.toArray(new Modifier[modifiers.size()])));
         cl.rehydrate(dsl, cl.getOwner(), dsl).call();
-        return dsl.builder.build();
+        return dsl;
     }
 
     public void annotate(ClassName type,
-                         @DelegatesTo(AnnotationDsl.class) Closure<?> cl) {
-        builder.addAnnotation(AnnotationDsl.annotate(type, cl));
+                         @DelegatesTo(AnnotationDSL.class) Closure<?> cl) {
+        builder.addAnnotation(AnnotationDSL.annotate(type, cl).getBuilder().build());
     }
 
     public void annotate(List<? extends ClassName> types) {

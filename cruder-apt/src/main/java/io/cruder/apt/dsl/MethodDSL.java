@@ -3,31 +3,32 @@ package io.cruder.apt.dsl;
 
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.MethodSpec;
-import com.squareup.javapoet.ParameterSpec;
 import com.squareup.javapoet.TypeName;
 import groovy.lang.Closure;
 import groovy.lang.DelegatesTo;
 import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 import javax.lang.model.element.Modifier;
 import java.util.List;
 
-@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
-public class MethodDsl extends DslSupport {
+@RequiredArgsConstructor(access = AccessLevel.PROTECTED)
+public class MethodDSL extends DSLSupport {
+    @Getter
     private final MethodSpec.Builder builder;
 
-    public static MethodSpec method(List<Modifier> modifiers, String name,
-                                    @DelegatesTo(MethodDsl.class) Closure<?> cl) {
-        MethodDsl dsl = new MethodDsl(MethodSpec.methodBuilder(name)
+    public static MethodDSL method(List<Modifier> modifiers, String name,
+                                   @DelegatesTo(MethodDSL.class) Closure<?> cl) {
+        MethodDSL dsl = new MethodDSL(MethodSpec.methodBuilder(name)
                 .addModifiers(modifiers));
         cl.rehydrate(dsl, cl.getOwner(), dsl).call();
-        return dsl.builder.build();
+        return dsl;
     }
 
     public void annotate(ClassName type,
-                         @DelegatesTo(AnnotationDsl.class) Closure<?> cl) {
-        builder.addAnnotation(AnnotationDsl.annotate(type, cl));
+                         @DelegatesTo(AnnotationDSL.class) Closure<?> cl) {
+        builder.addAnnotation(AnnotationDSL.annotate(type, cl).getBuilder().build());
     }
 
     public void annotate(List<? extends ClassName> types) {
@@ -39,8 +40,8 @@ public class MethodDsl extends DslSupport {
     }
 
     public void parameter(TypeName type, String name,
-                          @DelegatesTo(ParameterDsl.class) Closure<?> cl) {
-        builder.addParameter(ParameterDsl.parameter(type, name, cl));
+                          @DelegatesTo(ParameterDSL.class) Closure<?> cl) {
+        builder.addParameter(ParameterDSL.parameter(type, name, cl).getBuilder().build());
     }
 
     public void parameter(TypeName type, String name) {

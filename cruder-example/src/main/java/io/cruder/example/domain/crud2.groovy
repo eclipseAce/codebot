@@ -3,7 +3,7 @@ package io.cruder.example.domain
 
 import com.squareup.javapoet.TypeName
 import io.cruder.apt.bean.BeanInfo
-import io.cruder.apt.dsl.TypesDsl
+import io.cruder.apt.dsl.TypesDSL
 
 import javax.annotation.processing.ProcessingEnvironment
 
@@ -12,7 +12,7 @@ import static javax.lang.model.element.Modifier.*
 final ProcessingEnvironment processingEnv = __processingEnv
 final BeanInfo beanInfo = __beanInfo
 
-TypesDsl.decls(processingEnv.filer, {
+TypesDSL.decls({
     final JpaRepository = type('org.springframework.data.jpa.repository.JpaRepository')
     final Repository = type('org.springframework.stereotype.Repository')
     final Service = type('org.springframework.stereotype.Service')
@@ -25,10 +25,16 @@ TypesDsl.decls(processingEnv.filer, {
     final Valid = type('javax.validation.Valid')
     final ApiReply = type('io.cruder.example.core.ApiReply')
 
-    final theEntity = type(beanInfo.typeElement.asType())
+    final theEntity = type(beanInfo.typeElement.qualifiedName.toString())
+    final theAddDTO = type("io.cruder.example.generated.dto.${theEntity.simpleName()}AddDTO")
     final theRepository = type('io.cruder.example.generated.repository.UserRepository')
     final theService = type('io.cruder.example.generated.service.UserService')
     final theController = type('io.cruder.example.generated.controller.UserController')
+
+    declClass([PUBLIC], theAddDTO, {
+        property(type('java.lang.String'), 'username', {})
+        property(TypeName.BOOLEAN, 'locked', {})
+    })
 
     declInterface([PUBLIC], theRepository, {
         superinterface(type(JpaRepository, theEntity, TypeName.LONG.box()))
@@ -69,4 +75,4 @@ TypesDsl.decls(processingEnv.filer, {
             body('return $T.ok(service.add(null));', ApiReply)
         })
     })
-})
+}).files.each { it.writeTo(processingEnv.filer) }
