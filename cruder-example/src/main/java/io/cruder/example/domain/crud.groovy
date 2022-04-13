@@ -5,6 +5,7 @@ import io.cruder.apt.bean.BeanInfo
 
 import javax.annotation.processing.ProcessingEnvironment
 import javax.lang.model.element.Modifier
+import java.lang.annotation.Annotation
 
 def findFields(Collection<BeanInfo.Property> props, String... names) {
     props.findAll { prop -> names.contains(prop.name) }.collect { prop ->
@@ -46,8 +47,7 @@ final BeanInfo beanInfo = __beanInfo
 final namePrefix = beanInfo.typeElement.simpleName
 final basePackage = "io.cruder.example.generated"
 
-//beanClass("${namePrefix}SetProfileDTO",
-//        readableFields('id') + writableFields('username', 'password', 'mobile', 'email')),
+
 //beanClass("${namePrefix}SetLockedDTO",
 //        readableFields('id') + writableFields('locked')),
 //beanClass("${namePrefix}DetailsDTO",
@@ -57,6 +57,10 @@ final basePackage = "io.cruder.example.generated"
 
 final teMapper = processingEnv.elementUtils
         .getTypeElement("org.mapstruct.Mapper")
+final teMapping = processingEnv.elementUtils
+        .getTypeElement("org.mapstruct.Mapping")
+final teMappingTarget = processingEnv.elementUtils
+        .getTypeElement("org.mapstruct.MappingTarget")
 final teService = processingEnv.elementUtils
         .getTypeElement("org.springframework.stereotype.Service")
 final teRestController = processingEnv.elementUtils
@@ -77,6 +81,8 @@ final teTransactional = processingEnv.elementUtils
         .getTypeElement("org.springframework.transaction.annotation.Transactional")
 final teJpaRepository = processingEnv.elementUtils
         .getTypeElement("org.springframework.data.jpa.repository.JpaRepository")
+final teBusinessErrors = processingEnv.elementUtils
+        .getTypeElement("io.cruder.example.core.BusinessErrors")
 
 final teApiResult = processingEnv.elementUtils
         .getTypeElement("io.cruder.example.core.ApiReply")
@@ -84,7 +90,12 @@ final teApiResult = processingEnv.elementUtils
 var entityTypeName = ClassName.get(beanInfo.typeElement)
 
 var addDtoTypeName = ClassName.get("${basePackage}.dto", "${namePrefix}AddDTO")
-var addDtoType = beanClass(addDtoTypeName, writableFields('username', 'password', 'mobile', 'email'))
+var addDtoType = beanClass(addDtoTypeName,
+        writableFields('username', 'password', 'mobile', 'email'))
+
+var setProfileDtoTypeName = ClassName.get("${basePackage}.dto", "${namePrefix}SetProfileDTO")
+var setProfileDtoType = beanClass(setProfileDtoTypeName,
+        readableFields('id') + writableFields('mobile', 'email'))
 
 var converterTypeName = ClassName.get("${basePackage}.converter", "${namePrefix}Converter")
 var converterType = TypeSpec
@@ -99,6 +110,20 @@ var converterType = TypeSpec
                 .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
                 .addParameter(addDtoTypeName, "dto")
                 .returns(entityTypeName)
+                .build())
+        .addMethod(MethodSpec
+                .methodBuilder("convertSetProfileToEntity")
+                .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
+                .addAnnotation(AnnotationSpec
+                        .builder(ClassName.get(teMapping))
+                        .addMember("target", '"id"')
+                        .addMember("ignore", 'true')
+                        .build())
+                .addParameter(ParameterSpec
+                        .builder(entityTypeName, "entity")
+                        .addAnnotation(ClassName.get(teMappingTarget))
+                        .build())
+                .addParameter(setProfileDtoTypeName, "dto")
                 .build())
         .build()
 
@@ -131,9 +156,25 @@ var serviceType = TypeSpec
                 .addParameter(addDtoTypeName, "dto")
                 .returns(TypeName.LONG.box())
                 .addAnnotation(ClassName.get(teTransactional))
-                .addCode("\$T entity = converter.convertAddToEntity(dto);\n", entityTypeName)
-                .addCode("repository.save(entity);\n")
-                .addCode("return entity.getId();\n")
+                .addCode('''
+$T entity = converter.convertAddToEntity(dto);
+repository.save(entity);
+return entity.getId();
+''', entityTypeName)
+                .build())
+        .addMethod(MethodSpec
+                .methodBuilder("setProfile")
+                .addModifiers(Modifier.PUBLIC)
+                .addParameter(setProfileDtoTypeName, "dto")
+                .addAnnotation(ClassName.get(teTransactional))
+                .addCode('''
+$T entity = repository.findById(dto.getId()).orElse(null);
+if (entity == null) {
+  throw $T.ENTITY_NOT_FOUND.withMessage("$L not found").toException();
+}
+converter.convertSetProfileToEntity(entity, dto);
+repository.save(entity);
+''', entityTypeName, teBusinessErrors, entityTypeName.simpleName().toLowerCase())
                 .build())
         .build()
 
@@ -170,6 +211,7 @@ var controllerType = TypeSpec
         .build()
 
 JavaFile.builder(addDtoTypeName.packageName(), addDtoType).build().writeTo(processingEnv.filer)
+JavaFile.builder(setProfileDtoTypeName.packageName(), setProfileDtoType).build().writeTo(processingEnv.filer)
 JavaFile.builder(converterTypeName.packageName(), converterType).build().writeTo(processingEnv.filer)
 JavaFile.builder(repositoryTypeName.packageName(), repositoryType).build().writeTo(processingEnv.filer)
 JavaFile.builder(serviceTypeName.packageName(), serviceType).build().writeTo(processingEnv.filer)
