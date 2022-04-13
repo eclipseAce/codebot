@@ -24,8 +24,8 @@ public class BeanInfo {
     private final Map<String, Property> writableProperties;
 
     public static BeanInfo introspect(TypeElement typeElement) {
-        Map<String, Property> readables = Maps.newHashMap();
-        Map<String, Property> writables = Maps.newHashMap();
+        Map<String, Property> readables = Maps.newLinkedHashMap();
+        Map<String, Property> writables = Maps.newLinkedHashMap();
         for (ExecutableElement method : ElementFilter.methodsIn(typeElement.getEnclosedElements())) {
             String methodName = method.getSimpleName().toString();
             if (methodName.length() > 3
