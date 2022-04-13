@@ -1,24 +1,22 @@
 package io.cruder.apt.dsl;
 
 import com.squareup.javapoet.ClassName;
-import com.squareup.javapoet.FieldSpec;
+import com.squareup.javapoet.ParameterSpec;
 import com.squareup.javapoet.TypeName;
 import groovy.lang.Closure;
 import groovy.lang.DelegatesTo;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 
-import javax.lang.model.element.Modifier;
 import java.util.List;
 
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
-public class FieldDsl extends DslSupport {
-    private final FieldSpec.Builder builder;
+public class ParameterDsl extends DslSupport {
+    private final ParameterSpec.Builder builder;
 
-    public static FieldSpec field(List<Modifier> modifiers, TypeName type, String name,
-                                  @DelegatesTo(FieldDsl.class) Closure<?> cl) {
-        FieldDsl dsl = new FieldDsl(FieldSpec.builder(type, name)
-                .addModifiers(modifiers.toArray(new Modifier[modifiers.size()])));
+    public static ParameterSpec parameter(TypeName type, String name,
+                                          @DelegatesTo(ParameterDsl.class) Closure<?> cl) {
+        ParameterDsl dsl = new ParameterDsl(ParameterSpec.builder(type, name));
         cl.rehydrate(dsl, cl.getOwner(), dsl).call();
         return dsl.builder.build();
     }

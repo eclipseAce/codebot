@@ -15,7 +15,7 @@ import javax.persistence.Id;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
-@Template("crud.groovy")
+@Template("crud2.groovy")
 @Entity
 @EntityListeners(AuditingEntityListener.class)
 public class User implements Serializable {
