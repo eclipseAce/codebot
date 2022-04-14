@@ -7,18 +7,15 @@ import com.squareup.javapoet.TypeName;
 import groovy.lang.Closure;
 import groovy.lang.DelegatesTo;
 import lombok.AccessLevel;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 import javax.lang.model.element.Modifier;
-import java.util.List;
 
 @RequiredArgsConstructor(access = AccessLevel.PROTECTED)
 public class MethodDSL extends DSLSupport {
-    @Getter
     private final MethodSpec.Builder builder;
 
-    public static MethodDSL method(List<Modifier> modifiers, String name,
+    public static MethodDSL method(Iterable<Modifier> modifiers, String name,
                                    @DelegatesTo(MethodDSL.class) Closure<?> cl) {
         MethodDSL dsl = new MethodDSL(MethodSpec.methodBuilder(name)
                 .addModifiers(modifiers));
@@ -26,33 +23,44 @@ public class MethodDSL extends DSLSupport {
         return dsl;
     }
 
-    public void annotate(ClassName type,
-                         @DelegatesTo(AnnotationDSL.class) Closure<?> cl) {
-        builder.addAnnotation(AnnotationDSL.annotate(type, cl).getBuilder().build());
+    public MethodDSL annotate(ClassName typeName,
+                              @DelegatesTo(AnnotationDSL.class) Closure<?> cl) {
+        builder.addAnnotation(AnnotationDSL.annotate(typeName, cl).build());
+        return this;
     }
 
-    public void annotate(List<? extends ClassName> types) {
-        types.forEach(builder::addAnnotation);
+    public MethodDSL annotate(Iterable<ClassName> typeNames) {
+        typeNames.forEach(builder::addAnnotation);
+        return this;
     }
 
-    public void annotate(ClassName type) {
-        builder.addAnnotation(type);
+    public MethodDSL annotate(ClassName typeName) {
+        builder.addAnnotation(typeName);
+        return this;
     }
 
-    public void parameter(TypeName type, String name,
-                          @DelegatesTo(ParameterDSL.class) Closure<?> cl) {
-        builder.addParameter(ParameterDSL.parameter(type, name, cl).getBuilder().build());
+    public MethodDSL parameter(TypeName typeName, String name,
+                               @DelegatesTo(ParameterDSL.class) Closure<?> cl) {
+        builder.addParameter(ParameterDSL.parameter(typeName, name, cl).build());
+        return this;
     }
 
-    public void parameter(TypeName type, String name) {
-        builder.addParameter(type, name);
+    public MethodDSL parameter(TypeName typeName, String name) {
+        builder.addParameter(typeName, name);
+        return this;
     }
 
-    public void returns(TypeName type) {
-        builder.returns(type);
+    public MethodDSL returns(TypeName typeName) {
+        builder.returns(typeName);
+        return this;
     }
 
-    public void body(String format, Object... args) {
+    public MethodDSL body(String format, Object... args) {
         builder.addCode(format, args);
+        return this;
+    }
+
+    public MethodSpec build() {
+        return builder.build();
     }
 }

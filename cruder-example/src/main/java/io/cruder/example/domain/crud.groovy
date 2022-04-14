@@ -1,218 +1,78 @@
 package io.cruder.example.domain
 
-import com.squareup.javapoet.*
+
+import com.squareup.javapoet.TypeName
 import io.cruder.apt.bean.BeanInfo
+import io.cruder.apt.dsl.TypesDSL
 
 import javax.annotation.processing.ProcessingEnvironment
-import javax.lang.model.element.Modifier
-import java.lang.annotation.Annotation
 
-def findFields(Collection<BeanInfo.Property> props, String... names) {
-    props.findAll { prop -> names.contains(prop.name) }.collect { prop ->
-        FieldSpec.builder(TypeName.get(prop.type).box(), prop.name, Modifier.PRIVATE).build()
-    }
-}
-
-def writableFields(String... names) {
-    findFields(__beanInfo.writableProperties.values(), names)
-}
-
-def readableFields(String... names) {
-    findFields(__beanInfo.readableProperties.values(), names)
-}
-
-def beanClass(ClassName name, List<FieldSpec> fields) {
-    TypeSpec.Builder typeBld = TypeSpec.classBuilder(name.simpleName())
-            .addModifiers(Modifier.PUBLIC)
-    fields.each { field ->
-        typeBld.addField(field)
-                .addMethod(MethodSpec.methodBuilder("get" + field.name.capitalize())
-                        .addModifiers(Modifier.PUBLIC)
-                        .returns(field.type)
-                        .addCode("return this.\$N;", field.name)
-                        .build())
-                .addMethod(MethodSpec.methodBuilder("set" + field.name.capitalize())
-                        .addModifiers(Modifier.PUBLIC)
-                        .addParameter(field.type, field.name)
-                        .addCode("this.\$N = \$N;", field.name, field.name)
-                        .build())
-    }
-    typeBld.build()
-}
-
+import static javax.lang.model.element.Modifier.*
 
 final ProcessingEnvironment processingEnv = __processingEnv
 final BeanInfo beanInfo = __beanInfo
 
-final namePrefix = beanInfo.typeElement.simpleName
-final basePackage = "io.cruder.example.generated"
+TypesDSL.decls({
+    final JpaRepository = type('org.springframework.data.jpa.repository.JpaRepository')
+    final Repository = type('org.springframework.stereotype.Repository')
+    final Service = type('org.springframework.stereotype.Service')
+    final RestController = type('org.springframework.web.bind.annotation.RestController')
+    final Transactional = type('org.springframework.transaction.annotation.Transactional')
+    final Autowired = type('org.springframework.beans.factory.annotation.Autowired')
+    final RequestMapping = type('org.springframework.web.bind.annotation.RequestMapping')
+    final RequestBody = type('org.springframework.web.bind.annotation.RequestBody')
+    final RequestMethod = type('org.springframework.web.bind.annotation.RequestMethod')
+    final Valid = type('javax.validation.Valid')
+    final ApiReply = type('io.cruder.example.core.ApiReply')
 
+    final theEntity = type(beanInfo.typeElement.qualifiedName.toString())
+    final theAddDTO = type("io.cruder.example.generated.dto.${theEntity.simpleName()}AddDTO")
+    final theRepository = type('io.cruder.example.generated.repository.UserRepository')
+    final theService = type('io.cruder.example.generated.service.UserService')
+    final theController = type('io.cruder.example.generated.controller.UserController')
 
-//beanClass("${namePrefix}SetLockedDTO",
-//        readableFields('id') + writableFields('locked')),
-//beanClass("${namePrefix}DetailsDTO",
-//        readableFields('id', 'username', 'locked', 'mobile', 'email', 'createdAt', 'updatedAt')),
-//beanClass("${namePrefix}SummaryDTO",
-//        readableFields('id', 'username', 'createdAt', 'updatedAt')),
+    declClass([PUBLIC], theAddDTO, {
+        property(type('java.lang.String'), 'username', {})
+        property(TypeName.BOOLEAN, 'locked', {})
+    })
 
-final teMapper = processingEnv.elementUtils
-        .getTypeElement("org.mapstruct.Mapper")
-final teMapping = processingEnv.elementUtils
-        .getTypeElement("org.mapstruct.Mapping")
-final teMappingTarget = processingEnv.elementUtils
-        .getTypeElement("org.mapstruct.MappingTarget")
-final teService = processingEnv.elementUtils
-        .getTypeElement("org.springframework.stereotype.Service")
-final teRestController = processingEnv.elementUtils
-        .getTypeElement("org.springframework.web.bind.annotation.RestController")
-final teRequestBody = processingEnv.elementUtils
-        .getTypeElement("org.springframework.web.bind.annotation.RequestBody")
-final teValid = processingEnv.elementUtils
-        .getTypeElement("javax.validation.Valid")
-final teRepository = processingEnv.elementUtils
-        .getTypeElement("org.springframework.stereotype.Repository")
-final teRequestMapping = processingEnv.elementUtils
-        .getTypeElement("org.springframework.web.bind.annotation.RequestMapping")
-final teRequestMethod = processingEnv.elementUtils
-        .getTypeElement("org.springframework.web.bind.annotation.RequestMethod")
-final teAutowired = processingEnv.elementUtils
-        .getTypeElement("org.springframework.beans.factory.annotation.Autowired")
-final teTransactional = processingEnv.elementUtils
-        .getTypeElement("org.springframework.transaction.annotation.Transactional")
-final teJpaRepository = processingEnv.elementUtils
-        .getTypeElement("org.springframework.data.jpa.repository.JpaRepository")
-final teBusinessErrors = processingEnv.elementUtils
-        .getTypeElement("io.cruder.example.core.BusinessErrors")
+    declInterface([PUBLIC], theRepository, {
+        superinterface(type(JpaRepository, theEntity, TypeName.LONG.box()))
+        annotate(Repository)
+    })
 
-final teApiResult = processingEnv.elementUtils
-        .getTypeElement("io.cruder.example.core.ApiReply")
+    declClass([PUBLIC], theService, {
+        annotate(Service)
+        field([PRIVATE], theRepository, 'repository', {
+            annotate(Autowired)
+        })
+        method([PUBLIC], 'add', {
+            annotate(Transactional)
+            parameter(theAddDTO, 'dto')
+            returns(TypeName.LONG)
+            body('return 0L;')
+        })
+    })
 
-var entityTypeName = ClassName.get(beanInfo.typeElement)
-
-var addDtoTypeName = ClassName.get("${basePackage}.dto", "${namePrefix}AddDTO")
-var addDtoType = beanClass(addDtoTypeName,
-        writableFields('username', 'password', 'mobile', 'email'))
-
-var setProfileDtoTypeName = ClassName.get("${basePackage}.dto", "${namePrefix}SetProfileDTO")
-var setProfileDtoType = beanClass(setProfileDtoTypeName,
-        readableFields('id') + writableFields('mobile', 'email'))
-
-var converterTypeName = ClassName.get("${basePackage}.converter", "${namePrefix}Converter")
-var converterType = TypeSpec
-        .interfaceBuilder(converterTypeName)
-        .addModifiers(Modifier.PUBLIC)
-        .addAnnotation(AnnotationSpec
-                .builder(ClassName.get(teMapper))
-                .addMember("componentModel", '"spring"')
-                .build())
-        .addMethod(MethodSpec
-                .methodBuilder("convertAddToEntity")
-                .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
-                .addParameter(addDtoTypeName, "dto")
-                .returns(entityTypeName)
-                .build())
-        .addMethod(MethodSpec
-                .methodBuilder("convertSetProfileToEntity")
-                .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
-                .addAnnotation(AnnotationSpec
-                        .builder(ClassName.get(teMapping))
-                        .addMember("target", '"id"')
-                        .addMember("ignore", 'true')
-                        .build())
-                .addParameter(ParameterSpec
-                        .builder(entityTypeName, "entity")
-                        .addAnnotation(ClassName.get(teMappingTarget))
-                        .build())
-                .addParameter(setProfileDtoTypeName, "dto")
-                .build())
-        .build()
-
-var repositoryTypeName = ClassName.get("${basePackage}.repository", "${namePrefix}Repository")
-var repositoryType = TypeSpec
-        .interfaceBuilder(repositoryTypeName)
-        .addModifiers(Modifier.PUBLIC)
-        .addAnnotation(ClassName.get(teRepository))
-        .addSuperinterface(ParameterizedTypeName.get(ClassName.get(teJpaRepository), entityTypeName, TypeName.LONG.box()))
-        .build()
-
-var serviceTypeName = ClassName.get("${basePackage}.service", "${namePrefix}Service")
-var serviceType = TypeSpec
-        .classBuilder(serviceTypeName)
-        .addModifiers(Modifier.PUBLIC)
-        .addAnnotation(ClassName.get(teService))
-        .addField(FieldSpec
-                .builder(converterTypeName, "converter")
-                .addModifiers(Modifier.PRIVATE)
-                .addAnnotation(ClassName.get(teAutowired))
-                .build())
-        .addField(FieldSpec
-                .builder(repositoryTypeName, "repository")
-                .addModifiers(Modifier.PRIVATE)
-                .addAnnotation(ClassName.get(teAutowired))
-                .build())
-        .addMethod(MethodSpec
-                .methodBuilder("add")
-                .addModifiers(Modifier.PUBLIC)
-                .addParameter(addDtoTypeName, "dto")
-                .returns(TypeName.LONG.box())
-                .addAnnotation(ClassName.get(teTransactional))
-                .addCode('''
-$T entity = converter.convertAddToEntity(dto);
-repository.save(entity);
-return entity.getId();
-''', entityTypeName)
-                .build())
-        .addMethod(MethodSpec
-                .methodBuilder("setProfile")
-                .addModifiers(Modifier.PUBLIC)
-                .addParameter(setProfileDtoTypeName, "dto")
-                .addAnnotation(ClassName.get(teTransactional))
-                .addCode('''
-$T entity = repository.findById(dto.getId()).orElse(null);
-if (entity == null) {
-  throw $T.ENTITY_NOT_FOUND.withMessage("$L not found").toException();
-}
-converter.convertSetProfileToEntity(entity, dto);
-repository.save(entity);
-''', entityTypeName, teBusinessErrors, entityTypeName.simpleName().toLowerCase())
-                .build())
-        .build()
-
-var controllerTypeName = ClassName.get("${basePackage}.controller", "${namePrefix}Controller")
-var controllerType = TypeSpec
-        .classBuilder(controllerTypeName)
-        .addModifiers(Modifier.PUBLIC)
-        .addAnnotation(ClassName.get(teRestController))
-        .addAnnotation(AnnotationSpec
-                .builder(ClassName.get(teRequestMapping))
-                .addMember("path", '"/api/\$L"', entityTypeName.simpleName().toLowerCase())
-                .build())
-        .addField(FieldSpec
-                .builder(serviceTypeName, "service")
-                .addModifiers(Modifier.PRIVATE)
-                .addAnnotation(ClassName.get(teAutowired))
-                .build())
-        .addMethod(MethodSpec
-                .methodBuilder("add")
-                .addModifiers(Modifier.PUBLIC)
-                .addAnnotation(AnnotationSpec
-                        .builder(ClassName.get(teRequestMapping))
-                        .addMember("method", "\$T.POST", teRequestMethod)
-                        .addMember("path", '"/add"')
-                        .build())
-                .addParameter(ParameterSpec
-                        .builder(addDtoTypeName, "body")
-                        .addAnnotation(ClassName.get(teRequestBody))
-                        .addAnnotation(ClassName.get(teValid))
-                        .build())
-                .returns(ParameterizedTypeName.get(ClassName.get(teApiResult), TypeName.LONG.box()))
-                .addCode("return \$T.ok(service.add(body));\n", ClassName.get(teApiResult))
-                .build())
-        .build()
-
-JavaFile.builder(addDtoTypeName.packageName(), addDtoType).build().writeTo(processingEnv.filer)
-JavaFile.builder(setProfileDtoTypeName.packageName(), setProfileDtoType).build().writeTo(processingEnv.filer)
-JavaFile.builder(converterTypeName.packageName(), converterType).build().writeTo(processingEnv.filer)
-JavaFile.builder(repositoryTypeName.packageName(), repositoryType).build().writeTo(processingEnv.filer)
-JavaFile.builder(serviceTypeName.packageName(), serviceType).build().writeTo(processingEnv.filer)
-JavaFile.builder(controllerTypeName.packageName(), controllerType).build().writeTo(processingEnv.filer)
+    declClass([PUBLIC], theController, {
+        annotate(RestController)
+        annotate(RequestMapping, {
+            member('path', '$S', '/api/user')
+        })
+        field([PRIVATE], theService, 'service', {
+            annotate(Autowired)
+        })
+        method([PUBLIC], 'add', {
+            annotate(RequestMapping, {
+                member('method', '$T.POST', RequestMethod)
+                member('path', '$S', '/add')
+            })
+            parameter(TypeName.LONG.box(), 'id', {
+                annotate(RequestBody)
+                annotate(Valid)
+            })
+            returns(type(ApiReply, TypeName.LONG.box()))
+            body('return $T.ok(service.add(null));', ApiReply)
+        })
+    })
+}) build() values() each { it.writeTo(processingEnv.filer) }

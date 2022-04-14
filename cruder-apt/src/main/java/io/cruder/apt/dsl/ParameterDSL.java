@@ -6,33 +6,38 @@ import com.squareup.javapoet.TypeName;
 import groovy.lang.Closure;
 import groovy.lang.DelegatesTo;
 import lombok.AccessLevel;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
 
 @RequiredArgsConstructor(access = AccessLevel.PROTECTED)
 public class ParameterDSL extends DSLSupport {
-    @Getter
     private final ParameterSpec.Builder builder;
 
-    public static ParameterDSL parameter(TypeName type, String name,
+    public static ParameterDSL parameter(TypeName typeName, String name,
                                          @DelegatesTo(ParameterDSL.class) Closure<?> cl) {
-        ParameterDSL dsl = new ParameterDSL(ParameterSpec.builder(type, name));
+        ParameterDSL dsl = new ParameterDSL(ParameterSpec.builder(typeName, name));
         cl.rehydrate(dsl, cl.getOwner(), dsl).call();
         return dsl;
     }
 
-    public void annotate(ClassName type,
-                         @DelegatesTo(AnnotationDSL.class) Closure<?> cl) {
-        builder.addAnnotation(AnnotationDSL.annotate(type, cl).getBuilder().build());
+    public ParameterDSL annotate(ClassName typeName,
+                                 @DelegatesTo(AnnotationDSL.class) Closure<?> cl) {
+        builder.addAnnotation(AnnotationDSL.annotate(typeName, cl).build());
+        return this;
     }
 
-    public void annotate(List<? extends ClassName> types) {
-        types.forEach(builder::addAnnotation);
+    public ParameterDSL annotate(Iterable<ClassName> typeNames) {
+        typeNames.forEach(builder::addAnnotation);
+        return this;
     }
 
-    public void annotate(ClassName type) {
-        builder.addAnnotation(type);
+    public ParameterDSL annotate(ClassName typeNames) {
+        builder.addAnnotation(typeNames);
+        return this;
+    }
+
+    public ParameterSpec build() {
+        return builder.build();
     }
 }

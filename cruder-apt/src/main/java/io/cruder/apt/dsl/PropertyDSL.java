@@ -1,65 +1,93 @@
 package io.cruder.apt.dsl;
 
+import com.google.common.collect.Lists;
+import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.TypeName;
 import groovy.lang.Closure;
 import groovy.lang.DelegatesTo;
 import lombok.AccessLevel;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.lang.model.element.Modifier;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 @RequiredArgsConstructor(access = AccessLevel.PROTECTED)
 public class PropertyDSL {
-    @Getter
     private final FieldSpec.Builder fieldBuilder;
-    @Getter
     private final MethodSpec.Builder getterBuilder;
-
-    @Getter
     private final MethodSpec.Builder setterBuilder;
-
-    @Getter
     private boolean noGetter;
-
-    @Getter
     private boolean noSetter;
 
-    public static PropertyDSL property(TypeName type, String name,
+    public static PropertyDSL property(TypeName typeName, String name,
                                        @DelegatesTo(PropertyDSL.class) Closure<?> cl) {
         PropertyDSL dsl = new PropertyDSL(
-                FieldSpec.builder(type, name, Modifier.PRIVATE),
-                getter(type, name),
-                setter(type, name)
+                FieldSpec.builder(typeName, name, Modifier.PRIVATE),
+                createGetterBuilder(typeName, name),
+                createSetterBuilder(typeName, name)
         );
         cl.rehydrate(dsl, cl.getOwner(), dsl).call();
         return dsl;
     }
 
-    public void noGetter() {
-        this.noGetter = true;
-    }
-
-    public void noSetter() {
-        this.noSetter = true;
-    }
-
-    private static MethodSpec.Builder getter(TypeName type, String name) {
-        String prefix = TypeName.BOOLEAN.equals(type) ? "is" : "get";
+    private static MethodSpec.Builder createGetterBuilder(TypeName typeName, String name) {
+        String prefix = TypeName.BOOLEAN.equals(typeName) ? "is" : "get";
         return MethodSpec.methodBuilder(prefix + StringUtils.capitalize(name))
                 .addModifiers(Arrays.asList(Modifier.PUBLIC))
-                .returns(type)
+                .returns(typeName)
                 .addCode("return this.$N;", name);
     }
 
-    private static MethodSpec.Builder setter(TypeName type, String name) {
+    private static MethodSpec.Builder createSetterBuilder(TypeName typeName, String name) {
         return MethodSpec.methodBuilder("set" + StringUtils.capitalize(name))
                 .addModifiers(Arrays.asList(Modifier.PUBLIC))
-                .addParameter(type, name)
+                .addParameter(typeName, name)
                 .addCode("this.$N = $N;", name, name);
+    }
+
+    public PropertyDSL noGetter() {
+        noGetter = true;
+        return this;
+    }
+
+    public PropertyDSL noSetter() {
+        noSetter = true;
+        return this;
+    }
+
+    public PropertyDSL annotateField(ClassName typeName,
+                             @DelegatesTo(AnnotationDSL.class) Closure<?> cl) {
+        fieldBuilder.addAnnotation(AnnotationDSL.annotate(typeName, cl).build());
+        return this;
+    }
+
+    public PropertyDSL annotateField(Iterable<ClassName> types) {
+        types.forEach(fieldBuilder::addAnnotation);
+        return this;
+    }
+
+    public PropertyDSL annotateField(ClassName type) {
+        fieldBuilder.addAnnotation(type);
+        return this;
+    }
+
+    public FieldSpec buildField() {
+        return fieldBuilder.build();
+    }
+
+    public List<MethodSpec> buildAccessors() {
+        List<MethodSpec> accessors = Lists.newArrayListWithCapacity(2);
+        if (!noGetter) {
+            accessors.add(getterBuilder.build());
+        }
+        if (!noSetter) {
+            accessors.add(setterBuilder.build());
+        }
+        return Collections.unmodifiableList(accessors);
     }
 }
