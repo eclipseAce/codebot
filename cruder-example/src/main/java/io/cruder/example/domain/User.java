@@ -1,64 +1,24 @@
 package io.cruder.example.domain;
 
-import io.cruder.apt.Template;
-import io.swagger.v3.oas.annotations.media.Schema;
+import io.cruder.apt.PreCompile;
+import io.cruder.example.core.BaseEntity;
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import javax.persistence.Entity;
-import javax.persistence.EntityListeners;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import java.io.Serializable;
-import java.time.LocalDateTime;
 
-@Template("autocrud.groovy")
+@PreCompile(script = "autocrud")
 @Entity
-@EntityListeners(AuditingEntityListener.class)
-public class User implements Serializable {
-    private static final long serialVersionUID = 1L;
+public class User extends BaseEntity {
 
-    @Id
-    @GeneratedValue
-    @Getter
-    @Schema(description = "用户ID")
-    private long id;
+    private @Getter @Setter String username;
 
-    @Getter
-    @Setter
-    @Schema(description = "用户名")
-    private String username;
+    private @Getter @Setter String password;
 
-    @Getter
-    @Setter
-    @Schema(description = "密码")
-    private String password;
+    private @Getter @Setter String mobile;
 
-    @Getter
-    @Setter
-    @Schema(description = "手机号码")
-    private String mobile;
+    private @Getter @Setter String email;
 
-    @Getter
-    @Setter
-    @Schema(description = "EMail")
-    private String email;
+    private @Getter @Setter boolean locked;
 
-    @Getter
-    @Setter
-    @Schema(description = "是否锁定")
-    private boolean locked;
-
-    @CreatedDate
-    @Getter
-    @Schema(description = "创建时间")
-    private LocalDateTime createdAt;
-
-    @LastModifiedDate
-    @Getter
-    @Schema(description = "更新时间")
-    private LocalDateTime updatedAt;
 }

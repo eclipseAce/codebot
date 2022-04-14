@@ -18,10 +18,10 @@ import java.io.Reader;
 import java.util.Set;
 
 @AutoService(Processor.class)
-@SupportedAnnotationTypes({TemplateProcessor.TEMPLATE_ANNOTATION_NAME})
+@SupportedAnnotationTypes({PreCompileProcessor.TEMPLATE_ANNOTATION_NAME})
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
-public class TemplateProcessor extends AbstractProcessor {
-    public static final String TEMPLATE_ANNOTATION_NAME = "io.cruder.apt.Template";
+public class PreCompileProcessor extends AbstractProcessor {
+    public static final String TEMPLATE_ANNOTATION_NAME = "io.cruder.apt.PreCompile";
 
     private ProcessingEnvironment processingEnv;
 
@@ -34,11 +34,11 @@ public class TemplateProcessor extends AbstractProcessor {
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         try {
-            for (TypeElement element : ElementFilter.typesIn(roundEnv.getElementsAnnotatedWith(Template.class))) {
+            for (TypeElement element : ElementFilter.typesIn(roundEnv.getElementsAnnotatedWith(PreCompile.class))) {
                 PackageElement pkg = getPackageElement(element);
-                Template annotation = element.getAnnotation(Template.class);
+                PreCompile annotation = element.getAnnotation(PreCompile.class);
                 FileObject fo = processingEnv.getFiler()
-                        .getResource(StandardLocation.CLASS_PATH, "", annotation.value());
+                        .getResource(StandardLocation.CLASS_PATH, "", annotation.script() + ".groovy");
                 Binding binding = new Binding();
                 binding.setProperty("__roundEnv", roundEnv);
                 binding.setProperty("__processingEnv", processingEnv);
