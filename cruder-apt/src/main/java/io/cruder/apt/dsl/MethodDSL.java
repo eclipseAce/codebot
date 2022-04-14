@@ -24,18 +24,15 @@ public class MethodDSL extends DSLSupport {
     }
 
     public MethodDSL annotate(ClassName typeName,
-                              @DelegatesTo(AnnotationDSL.class) Closure<?> cl) {
+                                 @DelegatesTo(AnnotationDSL.class) Closure<?> cl) {
         builder.addAnnotation(AnnotationDSL.annotate(typeName, cl).build());
         return this;
     }
 
-    public MethodDSL annotate(Iterable<ClassName> typeNames) {
-        typeNames.forEach(builder::addAnnotation);
-        return this;
-    }
-
-    public MethodDSL annotate(ClassName typeName) {
-        builder.addAnnotation(typeName);
+    public MethodDSL annotate(ClassName... typeNames) {
+        for (ClassName typeName : typeNames) {
+            builder.addAnnotation(typeName);
+        }
         return this;
     }
 

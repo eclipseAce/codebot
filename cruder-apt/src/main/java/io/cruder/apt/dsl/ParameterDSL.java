@@ -22,18 +22,15 @@ public class ParameterDSL extends DSLSupport {
     }
 
     public ParameterDSL annotate(ClassName typeName,
-                                 @DelegatesTo(AnnotationDSL.class) Closure<?> cl) {
+                            @DelegatesTo(AnnotationDSL.class) Closure<?> cl) {
         builder.addAnnotation(AnnotationDSL.annotate(typeName, cl).build());
         return this;
     }
 
-    public ParameterDSL annotate(Iterable<ClassName> typeNames) {
-        typeNames.forEach(builder::addAnnotation);
-        return this;
-    }
-
-    public ParameterDSL annotate(ClassName typeNames) {
-        builder.addAnnotation(typeNames);
+    public ParameterDSL annotate(ClassName... typeNames) {
+        for (ClassName typeName : typeNames) {
+            builder.addAnnotation(typeName);
+        }
         return this;
     }
 

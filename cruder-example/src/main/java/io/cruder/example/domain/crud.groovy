@@ -1,6 +1,5 @@
 package io.cruder.example.domain
 
-
 import com.squareup.javapoet.TypeName
 import io.cruder.apt.bean.BeanInfo
 import io.cruder.apt.dsl.TypesDSL
@@ -14,6 +13,8 @@ final BeanInfo beanInfo = __beanInfo
 
 TypesDSL.decls({
     final JpaRepository = type('org.springframework.data.jpa.repository.JpaRepository')
+    final Mapper = type('org.mapstruct.Mapper')
+    final MappingTarget = type('org.mapstruct.MappingTarget')
     final Repository = type('org.springframework.stereotype.Repository')
     final Service = type('org.springframework.stereotype.Service')
     final RestController = type('org.springframework.web.bind.annotation.RestController')
@@ -28,6 +29,7 @@ TypesDSL.decls({
     final theEntity = type(beanInfo.typeElement.qualifiedName.toString())
     final theAddDTO = type("io.cruder.example.generated.dto.${theEntity.simpleName()}AddDTO")
     final theRepository = type('io.cruder.example.generated.repository.UserRepository')
+    final theConverter = type('io.cruder.example.generated.converter.UserConverter')
     final theService = type('io.cruder.example.generated.service.UserService')
     final theController = type('io.cruder.example.generated.controller.UserController')
 
@@ -41,38 +43,43 @@ TypesDSL.decls({
         annotate(Repository)
     })
 
+    declInterface([PUBLIC], theConverter, {
+        annotate(Mapper, { member('componentModel', '$S', 'spring') })
+        method([PUBLIC, ABSTRACT], 'convertAddToEntity', {
+            parameter(theEntity, 'entity', { annotate(MappingTarget) })
+            parameter(theAddDTO, 'dto')
+        })
+    })
+
     declClass([PUBLIC], theService, {
         annotate(Service)
-        field([PRIVATE], theRepository, 'repository', {
-            annotate(Autowired)
-        })
+        field([PRIVATE], theRepository, 'repository', { annotate(Autowired) })
+        field([PRIVATE], theConverter, 'converter', { annotate(Autowired) })
         method([PUBLIC], 'add', {
             annotate(Transactional)
             parameter(theAddDTO, 'dto')
             returns(TypeName.LONG)
-            body('return 0L;')
+            body('''
+$T entity = new $T();
+converter.convertAddToEntity(entity, dto);
+repository.save(entity);
+return entity.getId();
+''', theEntity, theEntity)
         })
     })
 
     declClass([PUBLIC], theController, {
         annotate(RestController)
-        annotate(RequestMapping, {
-            member('path', '$S', '/api/user')
-        })
-        field([PRIVATE], theService, 'service', {
-            annotate(Autowired)
-        })
+        annotate(RequestMapping, { member('path', '$S', '/api/user') })
+        field([PRIVATE], theService, 'service', { annotate(Autowired) })
         method([PUBLIC], 'add', {
             annotate(RequestMapping, {
                 member('method', '$T.POST', RequestMethod)
                 member('path', '$S', '/add')
             })
-            parameter(TypeName.LONG.box(), 'id', {
-                annotate(RequestBody)
-                annotate(Valid)
-            })
+            parameter(theAddDTO, 'body', { annotate(RequestBody, Valid) })
             returns(type(ApiReply, TypeName.LONG.box()))
-            body('return $T.ok(service.add(null));', ApiReply)
+            body('return $T.ok(service.add(body));', ApiReply)
         })
     })
 }) build() values() each { it.writeTo(processingEnv.filer) }

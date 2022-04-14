@@ -32,8 +32,8 @@ public class TypeDSL extends DSLSupport {
         return dsl;
     }
 
-    public TypeDSL modifiers(Iterable<Modifier> modifiers) {
-        modifiers.forEach(builder::addModifiers);
+    public TypeDSL modifiers(Modifier... modifiers) {
+        builder.addModifiers(modifiers);
         return this;
     }
 
@@ -42,13 +42,10 @@ public class TypeDSL extends DSLSupport {
         return this;
     }
 
-    public TypeDSL superinterface(TypeName typeName) {
-        builder.addSuperinterface(typeName);
-        return this;
-    }
-
-    public TypeDSL superinterfaces(Iterable<? extends TypeName> typeNames) {
-        builder.addSuperinterfaces(typeNames);
+    public TypeDSL superinterface(TypeName... typeNames) {
+        for (TypeName typeName : typeNames) {
+            builder.addSuperinterface(typeName);
+        }
         return this;
     }
 
@@ -58,13 +55,10 @@ public class TypeDSL extends DSLSupport {
         return this;
     }
 
-    public TypeDSL annotate(Iterable<ClassName> typeNames) {
-        typeNames.forEach(builder::addAnnotation);
-        return this;
-    }
-
-    public TypeDSL annotate(ClassName typeName) {
-        builder.addAnnotation(typeName);
+    public TypeDSL annotate(ClassName... typeNames) {
+        for (ClassName typeName : typeNames) {
+            builder.addAnnotation(typeName);
+        }
         return this;
     }
 

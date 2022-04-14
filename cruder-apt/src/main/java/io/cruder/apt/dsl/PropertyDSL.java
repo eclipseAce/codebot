@@ -66,13 +66,10 @@ public class PropertyDSL {
         return this;
     }
 
-    public PropertyDSL annotateField(Iterable<ClassName> types) {
-        types.forEach(fieldBuilder::addAnnotation);
-        return this;
-    }
-
-    public PropertyDSL annotateField(ClassName type) {
-        fieldBuilder.addAnnotation(type);
+    public PropertyDSL annotateField(ClassName ...typeNames) {
+        for (ClassName typeName : typeNames) {
+            fieldBuilder.addAnnotation(typeName);
+        }
         return this;
     }
 

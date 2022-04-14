@@ -24,18 +24,15 @@ public class FieldDSL extends DSLSupport {
     }
 
     public FieldDSL annotate(ClassName typeName,
-                             @DelegatesTo(AnnotationDSL.class) Closure<?> cl) {
+                              @DelegatesTo(AnnotationDSL.class) Closure<?> cl) {
         builder.addAnnotation(AnnotationDSL.annotate(typeName, cl).build());
         return this;
     }
 
-    public FieldDSL annotate(Iterable<ClassName> types) {
-        types.forEach(builder::addAnnotation);
-        return this;
-    }
-
-    public FieldDSL annotate(ClassName type) {
-        builder.addAnnotation(type);
+    public FieldDSL annotate(ClassName... typeNames) {
+        for (ClassName typeName : typeNames) {
+            builder.addAnnotation(typeName);
+        }
         return this;
     }
 
