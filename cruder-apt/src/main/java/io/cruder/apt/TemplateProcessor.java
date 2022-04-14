@@ -38,7 +38,7 @@ public class TemplateProcessor extends AbstractProcessor {
                 PackageElement pkg = getPackageElement(element);
                 Template annotation = element.getAnnotation(Template.class);
                 FileObject fo = processingEnv.getFiler()
-                        .getResource(StandardLocation.SOURCE_PATH, pkg.getQualifiedName(), annotation.value());
+                        .getResource(StandardLocation.CLASS_PATH, "", annotation.value());
                 Binding binding = new Binding();
                 binding.setProperty("__roundEnv", roundEnv);
                 binding.setProperty("__processingEnv", processingEnv);

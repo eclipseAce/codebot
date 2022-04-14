@@ -1,4 +1,4 @@
-package io.cruder.example.domain
+
 
 import com.squareup.javapoet.TypeName
 import io.cruder.apt.bean.BeanInfo
