@@ -1,5 +1,3 @@
-
-
 import com.squareup.javapoet.TypeName
 import io.cruder.apt.bean.BeanInfo
 import io.cruder.apt.dsl.TypesDSL
@@ -10,6 +8,7 @@ import static javax.lang.model.element.Modifier.*
 
 final ProcessingEnvironment processingEnv = __processingEnv
 final BeanInfo beanInfo = __beanInfo
+final List<String> args = __args
 
 TypesDSL.decls({
     final JpaRepository = type('org.springframework.data.jpa.repository.JpaRepository')

@@ -7,7 +7,7 @@ import lombok.Setter;
 
 import javax.persistence.Entity;
 
-@PreCompile(script = "autocrud")
+@PreCompile(script = "test")
 @Entity
 public class User extends BaseEntity {
 

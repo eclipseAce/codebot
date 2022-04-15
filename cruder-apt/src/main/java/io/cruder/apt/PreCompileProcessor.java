@@ -15,6 +15,7 @@ import javax.lang.model.util.ElementFilter;
 import javax.tools.FileObject;
 import javax.tools.StandardLocation;
 import java.io.Reader;
+import java.util.Arrays;
 import java.util.Set;
 
 @AutoService(Processor.class)
@@ -40,9 +41,10 @@ public class PreCompileProcessor extends AbstractProcessor {
                 FileObject fo = processingEnv.getFiler()
                         .getResource(StandardLocation.CLASS_PATH, "", annotation.script() + ".groovy");
                 Binding binding = new Binding();
-                binding.setProperty("__roundEnv", roundEnv);
-                binding.setProperty("__processingEnv", processingEnv);
-                binding.setProperty("__beanInfo", BeanInfo.introspect(element));
+                binding.setVariable("__roundEnv", roundEnv);
+                binding.setVariable("__processingEnv", processingEnv);
+                binding.setVariable("__beanInfo", BeanInfo.introspect(element));
+                binding.setVariable("__args", Arrays.asList(annotation.args()));
                 GroovyShell shell = new GroovyShell(binding);
                 try (Reader r = fo.openReader(true)) {
                     shell.evaluate(r);
