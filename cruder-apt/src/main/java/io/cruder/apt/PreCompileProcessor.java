@@ -43,7 +43,7 @@ public class PreCompileProcessor extends AbstractProcessor {
                 Binding binding = new Binding();
                 binding.setVariable("__roundEnv", roundEnv);
                 binding.setVariable("__processingEnv", processingEnv);
-                binding.setVariable("__beanInfo", BeanInfo.introspect(element));
+                binding.setVariable("__element", element);
                 binding.setVariable("__args", Arrays.asList(annotation.args()));
                 GroovyShell shell = new GroovyShell(binding);
                 try (Reader r = fo.openReader(true)) {

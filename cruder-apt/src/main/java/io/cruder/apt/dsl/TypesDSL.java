@@ -17,7 +17,7 @@ import java.util.Map;
 
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class TypesDSL extends DSLSupport {
-    private final Map<TypeName, JavaFile.Builder> builders = Maps.newHashMap();
+    private final Map<ClassName, TypeSpec> types = Maps.newHashMap();
 
     public static TypesDSL decls(@DelegatesTo(TypesDSL.class) Closure<?> cl) {
         TypesDSL dsl = new TypesDSL();
@@ -27,21 +27,31 @@ public class TypesDSL extends DSLSupport {
 
     public TypesDSL declClass(Iterable<Modifier> modifiers, ClassName typeName,
                               @DelegatesTo(TypeDSL.class) Closure<?> cl) {
-        TypeSpec type = TypeDSL.declClass(modifiers, typeName.simpleName(), cl).build();
-        builders.put(typeName, JavaFile.builder(typeName.packageName(), type));
+        types.put(typeName, TypeDSL.declClass(modifiers, typeName.simpleName(), cl).build());
         return this;
     }
 
     public TypesDSL declInterface(Iterable<Modifier> modifiers, ClassName typeName,
                                   @DelegatesTo(TypeDSL.class) Closure<?> cl) {
-        TypeSpec type = TypeDSL.declInterface(modifiers, typeName.simpleName(), cl).build();
-        builders.put(typeName, JavaFile.builder(typeName.packageName(), type));
+        types.put(typeName, TypeDSL.declInterface(modifiers, typeName.simpleName(), cl).build());
         return this;
     }
 
-    public Map<? extends TypeName, JavaFile> build() {
-        Map<TypeName, JavaFile> files = Maps.newHashMap();
-        builders.forEach((typeName, builder) -> files.put(typeName, builder.build()));
+    public TypesDSL redecl(ClassName typeName,
+                           @DelegatesTo(TypeDSL.class) Closure<?> cl) {
+        types.computeIfPresent(typeName, (k, type) -> {
+            TypeDSL dsl = new TypeDSL(type.toBuilder());
+            cl.rehydrate(dsl, cl.getOwner(), dsl).call();
+            return dsl.build();
+        });
+        return this;
+    }
+
+    public Map<ClassName, JavaFile> build() {
+        Map<ClassName, JavaFile> files = Maps.newHashMap();
+        types.forEach((typeName, type) -> {
+            files.put(typeName, JavaFile.builder(typeName.packageName(), type).build());
+        });
         return Collections.unmodifiableMap(files);
     }
 }
