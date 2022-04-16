@@ -3,7 +3,6 @@ package io.cruder.apt.dsl;
 import com.google.common.collect.Maps;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.JavaFile;
-import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
 import groovy.lang.Closure;
 import groovy.lang.DelegatesTo;
@@ -12,14 +11,13 @@ import lombok.NoArgsConstructor;
 
 import javax.lang.model.element.Modifier;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class TypesDSL extends DSLSupport {
     private final Map<ClassName, TypeSpec> types = Maps.newHashMap();
 
-    public static TypesDSL decls(@DelegatesTo(TypesDSL.class) Closure<?> cl) {
+    public static TypesDSL declTypes(@DelegatesTo(TypesDSL.class) Closure<?> cl) {
         TypesDSL dsl = new TypesDSL();
         cl.rehydrate(dsl, cl.getOwner(), dsl).call();
         return dsl;

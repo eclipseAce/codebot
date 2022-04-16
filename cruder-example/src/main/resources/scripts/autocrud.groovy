@@ -1,9 +1,10 @@
-import com.squareup.javapoet.ClassName
-import com.squareup.javapoet.TypeName
-import io.cruder.apt.dsl.TypesDSL
+package scripts
+
+import com.squareup.javapoet.*
+import groovy.transform.BaseScript
+import io.cruder.apt.autocrud.AutocrudScript
 
 import javax.annotation.processing.ProcessingEnvironment
-import javax.lang.model.element.ElementKind
 import javax.lang.model.element.TypeElement
 import javax.lang.model.util.ElementFilter
 import java.lang.reflect.Modifier
@@ -102,8 +103,9 @@ class AutocrudBuilder extends BuilderSupport {
     }
 }
 
+@BaseScript AutocrudScript script
 
-var define = new AutocrudBuilder(__processingEnv, __element).define {
+var define = new NodeBuilder().define {
     field('username', title: '用户名')
     field('password', title: '密码')
     field('mobile', title: '手机号')
@@ -127,9 +129,10 @@ var define = new AutocrudBuilder(__processingEnv, __element).define {
     }
 }
 
-println(define)
+println(define);
 
-TypesDSL.decls({
+
+script.declTypes({
     final JpaRepository = type('org.springframework.data.jpa.repository.JpaRepository')
     final Mapper = type('org.mapstruct.Mapper')
     final MappingTarget = type('org.mapstruct.MappingTarget')
@@ -208,4 +211,4 @@ return entity.getId();
             })
         })
     }
-}) build() values() each { it.writeTo(__processingEnv.filer) }
+}) build() values() each { it.writeTo(script.processingEnv.filer) }

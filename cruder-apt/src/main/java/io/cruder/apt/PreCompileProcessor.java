@@ -3,7 +3,7 @@ package io.cruder.apt;
 import com.google.auto.service.AutoService;
 import groovy.lang.Binding;
 import groovy.lang.GroovyShell;
-import io.cruder.apt.bean.BeanInfo;
+import org.codehaus.groovy.control.CompilerConfiguration;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
@@ -15,7 +15,6 @@ import javax.lang.model.util.ElementFilter;
 import javax.tools.FileObject;
 import javax.tools.StandardLocation;
 import java.io.Reader;
-import java.util.Arrays;
 import java.util.Set;
 
 @AutoService(Processor.class)
@@ -38,14 +37,18 @@ public class PreCompileProcessor extends AbstractProcessor {
             for (TypeElement element : ElementFilter.typesIn(roundEnv.getElementsAnnotatedWith(PreCompile.class))) {
                 PackageElement pkg = getPackageElement(element);
                 PreCompile annotation = element.getAnnotation(PreCompile.class);
+
+                CompilerConfiguration config = new CompilerConfiguration();
+                config.setScriptBaseClass(PreCompileScript.class.getName());
+
+                Binding binding = new Binding();
+                binding.setVariable(PreCompileScript.ROUND_ENV_KEY, roundEnv);
+                binding.setVariable(PreCompileScript.PROCESSING_ENV_KEY, processingEnv);
+                binding.setVariable(PreCompileScript.TARGET_ELEMENT_KEY, element);
+                GroovyShell shell = new GroovyShell(binding, config);
+
                 FileObject fo = processingEnv.getFiler()
                         .getResource(StandardLocation.CLASS_PATH, "", annotation.script() + ".groovy");
-                Binding binding = new Binding();
-                binding.setVariable("__roundEnv", roundEnv);
-                binding.setVariable("__processingEnv", processingEnv);
-                binding.setVariable("__element", element);
-                binding.setVariable("__args", Arrays.asList(annotation.args()));
-                GroovyShell shell = new GroovyShell(binding);
                 try (Reader r = fo.openReader(true)) {
                     shell.evaluate(r);
                 }
