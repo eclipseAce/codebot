@@ -27,9 +27,9 @@ public class JavaPoetBuilder extends BuilderSupport {
         defaultTypeRefs();
     }
 
-    public void typeRef(Map<String, String> mappings, String... qualifiedNames) {
-        for (Map.Entry<String, String> entry : mappings.entrySet()) {
-            typeRef(entry.getKey(), ClassName.bestGuess(entry.getValue()));
+    public void typeRef(Map<String, ?> mappings, String... qualifiedNames) {
+        for (Map.Entry<String, ?> entry : mappings.entrySet()) {
+            typeRef(entry.getKey(), typeOf(entry.getValue()));
         }
         typeRef(qualifiedNames);
     }
@@ -207,17 +207,19 @@ public class JavaPoetBuilder extends BuilderSupport {
         typeRef("String", ClassName.get("java.lang", "String"));
     }
 
-    private List<TypeName> resolveTypes(Object names) {
-        if (names == null) {
+    private List<TypeName> resolveTypes(Object value) {
+        if (value == null) {
             return Collections.emptyList();
         }
         List<TypeName> typeNames = Lists.newArrayList();
-        if (names instanceof CharSequence) {
-            Stream.of(names.toString().split(","))
+        if (value instanceof TypeName) {
+            typeNames.add((TypeName) value);
+        } else if (value instanceof CharSequence) {
+            Stream.of(value.toString().split(","))
                     .filter(StringUtils::isNotBlank)
                     .forEach(it -> typeNames.add(typeOf(StringUtils.trim(it))));
-        } else if (names instanceof Collection) {
-            ((Collection<?>) names).forEach(it -> typeNames.add(typeOf(it)));
+        } else if (value instanceof Collection) {
+            ((Collection<?>) value).forEach(it -> typeNames.add(typeOf(it)));
         }
         return typeNames;
     }
