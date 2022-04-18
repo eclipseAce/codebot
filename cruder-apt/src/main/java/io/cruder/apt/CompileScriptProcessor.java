@@ -22,10 +22,10 @@ import java.io.Reader;
 import java.util.Set;
 
 @AutoService(Processor.class)
-@SupportedAnnotationTypes({PreCompileProcessor.TEMPLATE_ANNOTATION_NAME})
+@SupportedAnnotationTypes({CompileScriptProcessor.TEMPLATE_ANNOTATION_NAME})
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
-public class PreCompileProcessor extends AbstractProcessor {
-    public static final String TEMPLATE_ANNOTATION_NAME = "io.cruder.apt.PreCompile";
+public class CompileScriptProcessor extends AbstractProcessor {
+    public static final String TEMPLATE_ANNOTATION_NAME = "io.cruder.apt.CompileScript";
 
     private ProcessingEnvironment processingEnv;
 
@@ -38,9 +38,9 @@ public class PreCompileProcessor extends AbstractProcessor {
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         try {
-            for (TypeElement element : ElementFilter.typesIn(roundEnv.getElementsAnnotatedWith(PreCompile.class))) {
+            for (TypeElement element : ElementFilter.typesIn(roundEnv.getElementsAnnotatedWith(CompileScript.class))) {
                 PackageElement pkg = getPackageElement(element);
-                PreCompile annotation = element.getAnnotation(PreCompile.class);
+                CompileScript annotation = element.getAnnotation(CompileScript.class);
 
                 CompilerConfiguration config = new CompilerConfiguration();
                 config.setScriptBaseClass(ProcessingScript.class.getName());
@@ -51,7 +51,7 @@ public class PreCompileProcessor extends AbstractProcessor {
                 binding.setVariable(ProcessingScript.TARGET_ELEMENT_KEY, element);
                 GroovyShell shell = new GroovyShell(binding, config);
 
-                FileObject file = getResource(annotation.script() + ".groovy");
+                FileObject file = getResource(annotation.value() + ".groovy");
                 try (Reader r = file.openReader(true)) {
                     shell.evaluate(r);
                 }
