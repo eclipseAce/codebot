@@ -3,6 +3,7 @@ package io.cruder.apt;
 import com.google.auto.service.AutoService;
 import groovy.lang.Binding;
 import groovy.lang.GroovyShell;
+import io.cruder.apt.script.ProcessingScript;
 import org.codehaus.groovy.control.CompilerConfiguration;
 
 import javax.annotation.processing.*;
@@ -39,12 +40,12 @@ public class PreCompileProcessor extends AbstractProcessor {
                 PreCompile annotation = element.getAnnotation(PreCompile.class);
 
                 CompilerConfiguration config = new CompilerConfiguration();
-                config.setScriptBaseClass(PreCompileScript.class.getName());
+                config.setScriptBaseClass(ProcessingScript.class.getName());
 
                 Binding binding = new Binding();
-                binding.setVariable(PreCompileScript.ROUND_ENV_KEY, roundEnv);
-                binding.setVariable(PreCompileScript.PROCESSING_ENV_KEY, processingEnv);
-                binding.setVariable(PreCompileScript.TARGET_ELEMENT_KEY, element);
+                binding.setVariable(ProcessingScript.ROUND_ENV_KEY, roundEnv);
+                binding.setVariable(ProcessingScript.PROCESSING_ENV_KEY, processingEnv);
+                binding.setVariable(ProcessingScript.TARGET_ELEMENT_KEY, element);
                 GroovyShell shell = new GroovyShell(binding, config);
 
                 FileObject fo = processingEnv.getFiler()

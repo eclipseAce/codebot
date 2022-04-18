@@ -1,13 +1,38 @@
 package scripts
 
-
 import groovy.transform.BaseScript
-import io.cruder.apt.JavaFileBuilder
-import io.cruder.apt.PreCompileScript
+import io.cruder.apt.script.CrudBuilder
+import io.cruder.apt.script.JavaBuilder
+import io.cruder.apt.script.ProcessingScript
 
-@BaseScript PreCompileScript script
+@BaseScript
+ProcessingScript script
 
-new JavaFileBuilder().build {
+CrudBuilder.ofEntity(targetElement) {
+    field('username', title: '用户名')
+    field('password', title: '密码')
+    field('mobile', title: '手机号')
+    field('email', title: '邮箱')
+    field('locked', title: '是否锁定')
+    field('createdAt', title: '创建时间')
+    field('updatedAt', title: '更新时间')
+
+    insert('add', api: '/api/user/add', title: '新增用户') {
+        field('username,password', nonEmpty: true)
+        field('mobile,email')
+    }
+    update('setProfile', api: '/api/user/setProfile', title: '更新用户资料') {
+        field('mobile,email')
+    }
+    update('setLocked', api: '/api/user/setLocked', title: '修改用户锁定状态') {
+        field('locked')
+    }
+    select('getDetails', api: '/api/user/getDetails', title: '查询用户列表') {
+        field('username,password,mobile,email,locked,createdAt,updatedAt')
+    }
+}
+
+JavaBuilder.build(processingEnv.filer) {
     typeRef(
             'org.springframework.data.jpa.repository.JpaRepository',
             'org.mapstruct.Mapper',
@@ -57,6 +82,4 @@ new JavaFileBuilder().build {
             addAnnotation('Autowired')
         }
     }
-
-    writeTo(processingEnv.filer)
 }

@@ -1,4 +1,4 @@
-package io.cruder.apt;
+package io.cruder.apt.script;
 
 import groovy.lang.Script;
 
@@ -6,7 +6,7 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.element.TypeElement;
 
-public abstract class PreCompileScript extends Script {
+public abstract class ProcessingScript extends Script {
     public static final String PROCESSING_ENV_KEY = "__processingEnv";
     public static final String ROUND_ENV_KEY = "__roundEnv";
     public static final String TARGET_ELEMENT_KEY = "__targetElement";

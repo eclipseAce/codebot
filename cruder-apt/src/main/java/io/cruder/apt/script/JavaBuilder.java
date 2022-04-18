@@ -1,4 +1,4 @@
-package io.cruder.apt;
+package io.cruder.apt.script;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -20,21 +20,25 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
-public class JavaFileBuilder extends BuilderSupport {
+public class JavaBuilder extends BuilderSupport {
     private final Map<ClassName, TypeSpec.Builder> typeBuilders = Maps.newHashMap();
 
     private final Map<String, TypeName> typeRefs = Maps.newHashMap();
 
-    public JavaFileBuilder() {
+    private JavaBuilder() {
         defaultTypeRefs();
     }
 
-    public JavaFileBuilder build(@DelegatesTo(JavaFileBuilder.class) Closure<?> cl) {
-        cl.rehydrate(this, cl.getOwner(), this).call();
-        return this;
+    public static JavaBuilder build(Filer filer,
+                                    @DelegatesTo(JavaBuilder.class) Closure<?> cl)
+            throws IOException {
+        JavaBuilder builder = new JavaBuilder();
+        cl.rehydrate(builder, cl.getOwner(), builder).call();
+        builder.writeTo(filer);
+        return builder;
     }
 
-    public JavaFileBuilder typeRef(Map<String, ?> mappings, String... qualifiedNames) {
+    public JavaBuilder typeRef(Map<String, ?> mappings, String... qualifiedNames) {
         for (Map.Entry<String, ?> entry : mappings.entrySet()) {
             typeRef(entry.getKey(), typeOf(entry.getValue()));
         }
@@ -42,7 +46,7 @@ public class JavaFileBuilder extends BuilderSupport {
         return this;
     }
 
-    public JavaFileBuilder typeRef(String... qualifiedNames) {
+    public JavaBuilder typeRef(String... qualifiedNames) {
         for (String qualifiedName : qualifiedNames) {
             ClassName className = ClassName.bestGuess(qualifiedName);
             typeRef(className.simpleName(), className);
@@ -50,7 +54,7 @@ public class JavaFileBuilder extends BuilderSupport {
         return this;
     }
 
-    public JavaFileBuilder typeRef(String name, TypeName typeName) {
+    public JavaBuilder typeRef(String name, TypeName typeName) {
         if (typeRefs.containsKey(name)) {
             throw new IllegalArgumentException(
                     "Type alias '" + name + "' already mapped to '" + typeRefs.get(name) + "'");
@@ -59,7 +63,7 @@ public class JavaFileBuilder extends BuilderSupport {
         return this;
     }
 
-    public JavaFileBuilder writeTo(Filer filer) throws IOException {
+    public JavaBuilder writeTo(Filer filer) throws IOException {
         for (Map.Entry<ClassName, TypeSpec.Builder> entry : typeBuilders.entrySet()) {
             JavaFile.builder(entry.getKey().packageName(), entry.getValue().build())
                     .build()
@@ -133,7 +137,7 @@ public class JavaFileBuilder extends BuilderSupport {
 
     @Override
     protected Object createNode(Object name) {
-        return createNode(name, "");
+        return createNode(name, Collections.emptyMap(), null);
     }
 
     @Override
@@ -143,7 +147,7 @@ public class JavaFileBuilder extends BuilderSupport {
 
     @Override
     protected Object createNode(Object name, Map attributes) {
-        return createNode(name, attributes, "");
+        return createNode(name, attributes, null);
     }
 
     @Override
