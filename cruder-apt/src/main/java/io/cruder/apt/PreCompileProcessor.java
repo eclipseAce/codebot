@@ -14,7 +14,10 @@ import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.ElementFilter;
 import javax.tools.FileObject;
+import javax.tools.JavaFileManager;
 import javax.tools.StandardLocation;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.Reader;
 import java.util.Set;
 
@@ -48,9 +51,8 @@ public class PreCompileProcessor extends AbstractProcessor {
                 binding.setVariable(ProcessingScript.TARGET_ELEMENT_KEY, element);
                 GroovyShell shell = new GroovyShell(binding, config);
 
-                FileObject fo = processingEnv.getFiler()
-                        .getResource(StandardLocation.CLASS_PATH, "", annotation.script() + ".groovy");
-                try (Reader r = fo.openReader(true)) {
+                FileObject file = getResource(annotation.script() + ".groovy");
+                try (Reader r = file.openReader(true)) {
                     shell.evaluate(r);
                 }
             }
@@ -65,5 +67,19 @@ public class PreCompileProcessor extends AbstractProcessor {
             element = element.getEnclosingElement();
         }
         return (PackageElement) element;
+    }
+
+    private FileObject getResource(CharSequence relativeName) throws IOException {
+        for (JavaFileManager.Location location : new JavaFileManager.Location[]{
+                StandardLocation.SOURCE_PATH,
+                StandardLocation.CLASS_PATH,
+                StandardLocation.PLATFORM_CLASS_PATH
+        }) {
+            try {
+                return processingEnv.getFiler().getResource(location, "", relativeName);
+            } catch (FileNotFoundException e) {
+            }
+        }
+        throw new FileNotFoundException(relativeName.toString());
     }
 }

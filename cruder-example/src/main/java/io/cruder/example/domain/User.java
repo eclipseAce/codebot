@@ -1,14 +1,13 @@
 package io.cruder.example.domain;
 
 import io.cruder.apt.PreCompile;
-import io.cruder.example.autocrud.Autocrud;
 import io.cruder.example.core.BaseEntity;
 import lombok.Getter;
 import lombok.Setter;
 
 import javax.persistence.Entity;
 
-@PreCompile(script = "scripts/autocrud")
+@PreCompile(script = "autocrud")
 @Entity
 public class User extends BaseEntity {
 
