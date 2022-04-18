@@ -3,6 +3,8 @@ package io.cruder.apt;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.squareup.javapoet.*;
+import groovy.lang.Closure;
+import groovy.lang.DelegatesTo;
 import groovy.util.BuilderSupport;
 import org.apache.commons.lang3.StringUtils;
 
@@ -18,35 +20,52 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
-public class JavaPoetBuilder extends BuilderSupport {
+public class JavaFileBuilder extends BuilderSupport {
     private final Map<ClassName, TypeSpec.Builder> typeBuilders = Maps.newHashMap();
 
     private final Map<String, TypeName> typeRefs = Maps.newHashMap();
 
-    public JavaPoetBuilder() {
+    public JavaFileBuilder() {
         defaultTypeRefs();
     }
 
-    public void typeRef(Map<String, ?> mappings, String... qualifiedNames) {
+    public JavaFileBuilder build(@DelegatesTo(JavaFileBuilder.class) Closure<?> cl) {
+        cl.rehydrate(this, cl.getOwner(), this).call();
+        return this;
+    }
+
+    public JavaFileBuilder typeRef(Map<String, ?> mappings, String... qualifiedNames) {
         for (Map.Entry<String, ?> entry : mappings.entrySet()) {
             typeRef(entry.getKey(), typeOf(entry.getValue()));
         }
         typeRef(qualifiedNames);
+        return this;
     }
 
-    public void typeRef(String... qualifiedNames) {
+    public JavaFileBuilder typeRef(String... qualifiedNames) {
         for (String qualifiedName : qualifiedNames) {
             ClassName className = ClassName.bestGuess(qualifiedName);
             typeRef(className.simpleName(), className);
         }
+        return this;
     }
 
-    public void typeRef(String name, TypeName typeName) {
+    public JavaFileBuilder typeRef(String name, TypeName typeName) {
         if (typeRefs.containsKey(name)) {
             throw new IllegalArgumentException(
                     "Type alias '" + name + "' already mapped to '" + typeRefs.get(name) + "'");
         }
         typeRefs.put(name, typeName);
+        return this;
+    }
+
+    public JavaFileBuilder writeTo(Filer filer) throws IOException {
+        for (Map.Entry<ClassName, TypeSpec.Builder> entry : typeBuilders.entrySet()) {
+            JavaFile.builder(entry.getKey().packageName(), entry.getValue().build())
+                    .build()
+                    .writeTo(filer);
+        }
+        return this;
     }
 
     public TypeName typeOf(Object name) {
@@ -106,14 +125,6 @@ public class JavaPoetBuilder extends BuilderSupport {
 
     public CodeBlock code(Map<String, ?> args, String format) {
         return CodeBlock.builder().addNamed(format, args).build();
-    }
-
-    public void writeTo(Filer filer) throws IOException {
-        for (Map.Entry<ClassName, TypeSpec.Builder> entry : typeBuilders.entrySet()) {
-            JavaFile.builder(entry.getKey().packageName(), entry.getValue().build())
-                    .build()
-                    .writeTo(filer);
-        }
     }
 
     @Override
@@ -277,6 +288,10 @@ public class JavaPoetBuilder extends BuilderSupport {
     }
 
     private Object parameterBuilder(Map attributes, Object value) {
+        Object type = attributes.get("type");
+        if (type == null) {
+            throw new IllegalArgumentException("Field type is missing");
+        }
         return ParameterSpec.builder(typeOf(attributes.get("type")), (String) value)
                 .addModifiers(resolveModifiers(attributes.get("modifiers")));
     }

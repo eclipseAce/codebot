@@ -2,11 +2,12 @@ package scripts
 
 
 import groovy.transform.BaseScript
+import io.cruder.apt.JavaFileBuilder
 import io.cruder.apt.PreCompileScript
 
 @BaseScript PreCompileScript script
 
-script.javaPoet {
+new JavaFileBuilder().build {
     typeRef(
             'org.springframework.data.jpa.repository.JpaRepository',
             'org.mapstruct.Mapper',
@@ -32,9 +33,7 @@ script.javaPoet {
             theController: 'io.cruder.example.generated.controller.UserController',
     )
 
-    defInterface('theRepository', modifiers: 'public', extends: [
-            typeOf('JpaRepository', 'theEntity', 'Long')
-    ]) {
+    defInterface('theRepository', modifiers: 'public', extends: typeOf('JpaRepository', 'theEntity', 'Long')) {
         addAnnotation('Repository')
     }
 
@@ -58,5 +57,6 @@ script.javaPoet {
             addAnnotation('Autowired')
         }
     }
-}
 
+    writeTo(processingEnv.filer)
+}
