@@ -1,61 +1,63 @@
-import com.squareup.javapoet.AnnotationSpec
-import com.squareup.javapoet.ClassName
-import com.squareup.javapoet.TypeName
+package scripts
+
 import groovy.transform.BaseScript
-import io.cruder.apt.script.CrudBuilder
 import io.cruder.apt.script.JavaBuilder
 import io.cruder.apt.script.ProcessingScript
-import org.codehaus.groovy.control.CompilerConfiguration
 
-import javax.lang.model.element.Element
 import javax.lang.model.element.TypeElement
-import javax.lang.model.element.VariableElement
-import javax.lang.model.util.ElementFilter
-import java.lang.reflect.Modifier
+
+class Autocrud {
+    def fieldsFrom(TypeElement typeElement) {
+
+    }
+
+    def fieldsHint(Map hints, String ...names) {
+
+    }
+}
+
+Autocrud.define {
+    fieldsFrom(targetElement)
+    fields('id', title: '用户ID')
+    fields('username', title: '用户名', nonEmpty: true, length: [6, 20])
+    fields('password', title: '密码', nonEmpty: true, length: [8, 16])
+    fields('mobile', title: '手机号码', length: [-1, 20])
+    fields('email', title: '邮箱', length: [-1, 50])
+    fields('locked', title: '是否锁定')
+    fields('createdAt', title: '创建时间')
+    fields('updatedAt', title: '修改时间')
+    createAction('add', title: '创建用户') {
+        fields('username,password,mobile,email')
+    }
+    updateAction('setProfile', title: '修改用户资料') {
+        byId
+        fields('mobile,email')
+    }
+    updateAction('setPassword', title: '设置用户密码') {
+        byId
+        fields('password')
+    }
+    updateAction('setLocked', title: '设置用户锁定状态') {
+        byId
+        fields('locked', nonEmpty: true)
+    }
+    readAction('getDetails', title: '获取用户详情') {
+        byId
+        fields('id,username,mobile,email,locked,createdAt,updatedAt')
+    }
+    readAction('getPage', title: '查询用户') {
+        byFilter {
+            contains('username,mobile')
+            range('createdAt')
+            matches('locked')
+        }
+        fields('id,username,mobile,email,locked,createdAt,updatedAt')
+        pageable
+    }
+}
 
 @BaseScript
-ProcessingScript script
-
-class CrudDSL extends GroovyObjectSupport {
-    GroovyShell shell
-
-    CrudDSL() {
-        def config = new CompilerConfiguration()
-        config.scriptBaseClass = DelegatingScript.name
-        shell = new GroovyShell(config)
-    }
-
-    @Override
-    Object invokeMethod(String name, Object args) {
-        println(name + ' invoked with ' + args)
-        this
-    }
-
-    def run(Element element, String text) {
-        def script = shell.parse(text) as DelegatingScript
-        script.setDelegate(this)
-        script.run()
-    }
-}
-
-def dsl = new CrudDSL()
-
-for (TypeElement e = targetElement;
-     e.qualifiedName.toString() != 'java.lang.Object';
-     e = processingEnv.typeUtils.asElement(e.superclass) as TypeElement) {
-    def elements = [targetElement as Element]
-    ElementFilter.fieldsIn(e.enclosedElements)
-            .findAll { !it.modifiers.contains(Modifier.STATIC) }
-            .each { elements.add(it) }
-    elements.each { element ->
-        element.annotationMirrors
-                .collect { AnnotationSpec.get(it) }
-                .findAll { it.type.toString() == 'io.cruder.example.core.CRUD' }
-                .collectMany { it.members['value'] }
-                .collect { it.toString().replaceAll('^"|"$', '') }
-                .each { dsl.run(it) }
-    }
-}
+ProcessingScript theScript
 
 JavaBuilder.build(processingEnv.filer) {
     def entityName = classOf(targetElement).simpleName()
