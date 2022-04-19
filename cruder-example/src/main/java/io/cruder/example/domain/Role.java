@@ -1,8 +1,8 @@
 package io.cruder.example.domain;
 
-import io.cruder.apt.CompileMeta;
 import io.cruder.apt.CompileScript;
 import io.cruder.example.core.BaseEntity;
+import io.cruder.example.core.CRUD;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -15,13 +15,13 @@ import java.util.Set;
 @Entity
 public class Role extends BaseEntity {
 
-    @CompileMeta({"field(title: '角色名')", "forCreate('add', nonEmpty: true)"})
+    @CRUD("field(title: '角色名') forCreate('add', nonEmpty: true)")
     private @Getter @Setter String name;
 
-    @CompileMeta({"field(title: '是否禁用')", "forUpdate('setDisabled', nonEmpty: true)"})
+    @CRUD("field(title: '是否禁用') forUpdate('setDisabled', nonEmpty: true)")
     private @Getter @Setter boolean disabled;
 
-    @CompileMeta({"field(title: '权限')", "forCreate('add')"})
+    @CRUD("field(title: '权限') forCreate('add')")
     @ElementCollection
     private @Getter @Setter Set<String> permissions = new HashSet<>();
 }

@@ -1,41 +1,61 @@
-
-
+import com.squareup.javapoet.AnnotationSpec
+import com.squareup.javapoet.ClassName
+import com.squareup.javapoet.TypeName
 import groovy.transform.BaseScript
 import io.cruder.apt.script.CrudBuilder
 import io.cruder.apt.script.JavaBuilder
 import io.cruder.apt.script.ProcessingScript
+import org.codehaus.groovy.control.CompilerConfiguration
+
+import javax.lang.model.element.Element
+import javax.lang.model.element.TypeElement
+import javax.lang.model.element.VariableElement
+import javax.lang.model.util.ElementFilter
+import java.lang.reflect.Modifier
 
 @BaseScript
 ProcessingScript script
 
-//CrudBuilder.ofEntity(targetElement) {
-//    fields {
-//        field('username', title: '用户名')
-//        field('password', title: '密码')
-//        field('mobile', title: '手机号')
-//        field('email', title: '邮箱')
-//        field('locked', title: '是否锁定')
-//        field('createdAt', title: '创建时间')
-//        field('updatedAt', title: '更新时间')
-//    }
-//
-//    insert('add', title: '新增用户', path: '/api/user/add') {
-//        field('username,password', nonEmpty: true)
-//        field('mobile,email')
-//    }
-//    update('setProfile', title: '更新用户资料', path: '/api/user/setProfile') {
-//        field('mobile,email')
-//    }
-//    update('setLocked', title: '修改用户锁定状态', path: '/api/user/setLocked') {
-//        field('locked')
-//    }
-//    select('getDetails', title: '查询用户列表', path: '/api/user/getDetails') {
-//        field('username,password,mobile,email,locked,createdAt,updatedAt')
-//    }
-//}
+class CrudDSL extends GroovyObjectSupport {
+    GroovyShell shell
 
-def shell = new GroovyShell()
+    CrudDSL() {
+        def config = new CompilerConfiguration()
+        config.scriptBaseClass = DelegatingScript.name
+        shell = new GroovyShell(config)
+    }
 
+    @Override
+    Object invokeMethod(String name, Object args) {
+        println(name + ' invoked with ' + args)
+        this
+    }
+
+    def run(Element element, String text) {
+        def script = shell.parse(text) as DelegatingScript
+        script.setDelegate(this)
+        script.run()
+    }
+}
+
+def dsl = new CrudDSL()
+
+for (TypeElement e = targetElement;
+     e.qualifiedName.toString() != 'java.lang.Object';
+     e = processingEnv.typeUtils.asElement(e.superclass) as TypeElement) {
+    def elements = [targetElement as Element]
+    ElementFilter.fieldsIn(e.enclosedElements)
+            .findAll { !it.modifiers.contains(Modifier.STATIC) }
+            .each { elements.add(it) }
+    elements.each { element ->
+        element.annotationMirrors
+                .collect { AnnotationSpec.get(it) }
+                .findAll { it.type.toString() == 'io.cruder.example.core.CRUD' }
+                .collectMany { it.members['value'] }
+                .collect { it.toString().replaceAll('^"|"$', '') }
+                .each { dsl.run(it) }
+    }
+}
 
 JavaBuilder.build(processingEnv.filer) {
     def entityName = classOf(targetElement).simpleName()
