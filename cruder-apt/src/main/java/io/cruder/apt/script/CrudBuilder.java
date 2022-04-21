@@ -13,9 +13,10 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.ElementFilter;
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -63,7 +64,9 @@ public class CrudBuilder extends BuilderSupport {
     protected Object createNode(Object name, Map attributes, Object value) {
         switch ((String) name) {
             case "field": {
-                return resolveFieldName(value)entityFields.get((String) value).clone(attributes);
+                return resolveFields(value).stream()
+                        .map(it -> it.clone(attributes))
+                        .collect(Collectors.toCollection(FieldNodes::new));
             }
             case "create": {
                 return createActions.put((String) value,
@@ -75,13 +78,13 @@ public class CrudBuilder extends BuilderSupport {
 
     @Override
     protected void nodeCompleted(Object parent, Object node) {
-        if (node instanceof FieldNode) {
-            FieldNode fieldNode = (FieldNode) node;
+        if (node instanceof FieldNodes) {
+            FieldNodes fieldNodes = (FieldNodes) node;
             if (parent instanceof CreateActionNode) {
-                ((CreateActionNode) parent).putField(fieldNode);
+                fieldNodes.forEach(it -> ((CreateActionNode) parent).putField(it));
             } else if ("fields".equals(parent)) {
-                entityFields.computeIfPresent(fieldNode.getFieldName(),
-                        (k, v) -> v.putAttrs(fieldNode.getFieldAttrs()));
+                fieldNodes.forEach(it -> entityFields.computeIfPresent(it.getFieldName(),
+                        (k, v) -> v.putAttrs(it.getFieldAttrs())));
             }
         } else if ("actions".equals(parent)) {
             if (node instanceof CreateActionNode) {
@@ -95,11 +98,13 @@ public class CrudBuilder extends BuilderSupport {
         System.out.println(entityFields);
     }
 
-    private List<String> resolveFieldName(Object name) {
-        return name == null ? Collections.emptyList() : Stream.of(((String) name).split(","))
+    private FieldNodes resolveFields(Object name) {
+        return name == null ? new FieldNodes() : Stream.of(((String) name).split(","))
                 .map(StringUtils::trim)
                 .filter(StringUtils::isNotBlank)
-                .collect(Collectors.toList());
+                .map(entityFields::get)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(FieldNodes::new));
     }
 
     @Getter
@@ -143,5 +148,7 @@ public class CrudBuilder extends BuilderSupport {
         }
     }
 
-    private
+    private static class FieldNodes extends ArrayList<FieldNode> {
+
+    }
 }
