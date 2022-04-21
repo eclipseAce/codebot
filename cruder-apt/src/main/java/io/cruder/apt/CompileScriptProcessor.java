@@ -1,7 +1,6 @@
 package io.cruder.apt;
 
 import com.google.auto.service.AutoService;
-import groovy.lang.Binding;
 import groovy.lang.GroovyShell;
 import io.cruder.apt.script.ProcessingScript;
 import org.codehaus.groovy.control.CompilerConfiguration;
@@ -45,15 +44,15 @@ public class CompileScriptProcessor extends AbstractProcessor {
                 CompilerConfiguration config = new CompilerConfiguration();
                 config.setScriptBaseClass(ProcessingScript.class.getName());
 
-                Binding binding = new Binding();
-                binding.setVariable(ProcessingScript.ROUND_ENV_KEY, roundEnv);
-                binding.setVariable(ProcessingScript.PROCESSING_ENV_KEY, processingEnv);
-                binding.setVariable(ProcessingScript.TARGET_ELEMENT_KEY, element);
-                GroovyShell shell = new GroovyShell(binding, config);
+                GroovyShell shell = new GroovyShell(config);
 
                 FileObject file = getResource(annotation.value() + ".groovy");
                 try (Reader r = file.openReader(true)) {
-                    shell.evaluate(r);
+                    ProcessingScript script = (ProcessingScript) shell.parse(r);
+                    script.setProcessingEnv(processingEnv);
+                    script.setRoundEnv(roundEnv);
+                    script.setElement(element);
+                    script.run();
                 }
             }
         } catch (Exception e) {

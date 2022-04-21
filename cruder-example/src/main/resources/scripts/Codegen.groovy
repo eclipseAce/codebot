@@ -1,58 +1,47 @@
 package scripts
 
+
 import groovy.transform.BaseScript
+import io.cruder.apt.script.CrudBuilder
 import io.cruder.apt.script.JavaBuilder
 import io.cruder.apt.script.ProcessingScript
 
-import javax.lang.model.element.TypeElement
-
-class Autocrud {
-    def fieldsFrom(TypeElement typeElement) {
-
+CrudBuilder.of(processingEnv, element) {
+    fields {
+        field('id', label: '用户ID')
+        field('username', label: '用户名', nonEmpty: true, length: [6, 20])
+        field('password', label: '密码', nonEmpty: true, length: [8, 16])
+        field('mobile', label: '手机号码', length: [-1, 20])
+        field('email', label: '邮箱', length: [-1, 50])
+        field('locked', label: '是否锁定')
+        field('createdAt', label: '创建时间')
+        field('updatedAt', label: '修改时间')
     }
 
-    def fieldsHint(Map hints, String ...names) {
-
-    }
-}
-
-Autocrud.define {
-    fieldsFrom(targetElement)
-    fields('id', title: '用户ID')
-    fields('username', title: '用户名', nonEmpty: true, length: [6, 20])
-    fields('password', title: '密码', nonEmpty: true, length: [8, 16])
-    fields('mobile', title: '手机号码', length: [-1, 20])
-    fields('email', title: '邮箱', length: [-1, 50])
-    fields('locked', title: '是否锁定')
-    fields('createdAt', title: '创建时间')
-    fields('updatedAt', title: '修改时间')
-    createAction('add', title: '创建用户') {
-        fields('username,password,mobile,email')
-    }
-    updateAction('setProfile', title: '修改用户资料') {
-        byId
-        fields('mobile,email')
-    }
-    updateAction('setPassword', title: '设置用户密码') {
-        byId
-        fields('password')
-    }
-    updateAction('setLocked', title: '设置用户锁定状态') {
-        byId
-        fields('locked', nonEmpty: true)
-    }
-    readAction('getDetails', title: '获取用户详情') {
-        byId
-        fields('id,username,mobile,email,locked,createdAt,updatedAt')
-    }
-    readAction('getPage', title: '查询用户') {
-        byFilter {
-            contains('username,mobile')
-            range('createdAt')
-            matches('locked')
+    actions {
+        create('add', label: '创建用户') {
+            field('username,password,mobile,email')
         }
-        fields('id,username,mobile,email,locked,createdAt,updatedAt')
-        pageable
+        update('setProfile', label: '修改用户资料') {
+            field('mobile,email')
+        }
+        update('setPassword', label: '设置用户密码') {
+            field('password')
+        }
+        update('setLocked', label: '设置用户锁定状态') {
+            field('locked', nonEmpty: true)
+        }
+        read('getDetails', label: '获取用户详情') {
+            field('id,username,mobile,email,locked,createdAt,updatedAt')
+        }
+        read('getPage', label: '获取用户列表') {
+            findByFilter {
+                contains('username,mobile')
+                range('createdAt')
+                matches('locked')
+            }
+            field('id,username,mobile,email,locked,createdAt,updatedAt')
+        }
     }
 }
 
@@ -60,7 +49,7 @@ Autocrud.define {
 ProcessingScript theScript
 
 JavaBuilder.build(processingEnv.filer) {
-    def entityName = classOf(targetElement).simpleName()
+    def entityName = classOf(element).simpleName()
     typeRef(
             'org.springframework.data.jpa.repository.JpaRepository',
             'org.springframework.data.jpa.repository.JpaSpecificationExecutor',
@@ -80,7 +69,7 @@ JavaBuilder.build(processingEnv.filer) {
             'io.cruder.example.core.BusinessErrors',
             'io.swagger.v3.oas.annotations.media.Schema',
 
-            theEntity: classOf(targetElement),
+            theEntity: classOf(element),
             theRepository: "io.cruder.example.generated.repository.${entityName}Repository",
             theConverter: "io.cruder.example.generated.converter.${entityName}Converter",
             theService: "io.cruder.example.generated.service.${entityName}Service",
