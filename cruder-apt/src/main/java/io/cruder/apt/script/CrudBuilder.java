@@ -7,12 +7,17 @@ import groovy.lang.DelegatesTo;
 import groovy.util.BuilderSupport;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.ElementFilter;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class CrudBuilder extends BuilderSupport {
     private final Map<String, FieldNode> entityFields = Maps.newLinkedHashMap();
@@ -46,7 +51,7 @@ public class CrudBuilder extends BuilderSupport {
 
     @Override
     protected Object createNode(Object name, Object value) {
-        return createNode(name, Maps.newHashMap(), value);
+        return createNode(name, Collections.emptyMap(), value);
     }
 
     @Override
@@ -58,7 +63,7 @@ public class CrudBuilder extends BuilderSupport {
     protected Object createNode(Object name, Map attributes, Object value) {
         switch ((String) name) {
             case "field": {
-                return entityFields.get((String) value).clone(attributes);
+                return resolveFieldName(value)entityFields.get((String) value).clone(attributes);
             }
             case "create": {
                 return createActions.put((String) value,
@@ -84,6 +89,17 @@ public class CrudBuilder extends BuilderSupport {
                 createActions.put(actionNode.getActionName(), actionNode);
             }
         }
+    }
+
+    public void debug() {
+        System.out.println(entityFields);
+    }
+
+    private List<String> resolveFieldName(Object name) {
+        return name == null ? Collections.emptyList() : Stream.of(((String) name).split(","))
+                .map(StringUtils::trim)
+                .filter(StringUtils::isNotBlank)
+                .collect(Collectors.toList());
     }
 
     @Getter
@@ -126,4 +142,6 @@ public class CrudBuilder extends BuilderSupport {
             return this;
         }
     }
+
+    private
 }

@@ -6,7 +6,7 @@ import io.cruder.apt.script.CrudBuilder
 import io.cruder.apt.script.JavaBuilder
 import io.cruder.apt.script.ProcessingScript
 
-CrudBuilder.of(processingEnv, element) {
+def crud = CrudBuilder.of(processingEnv, element) {
     fields {
         field('id', label: '用户ID')
         field('username', label: '用户名', nonEmpty: true, length: [6, 20])
@@ -44,6 +44,8 @@ CrudBuilder.of(processingEnv, element) {
         }
     }
 }
+
+crud.debug()
 
 @BaseScript
 ProcessingScript theScript
