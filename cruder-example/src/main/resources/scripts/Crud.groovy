@@ -1,56 +1,12 @@
 package scripts
 
-
 import groovy.transform.BaseScript
-import io.cruder.apt.script.CrudBuilder
-import io.cruder.apt.script.JavaBuilder
-import io.cruder.apt.script.ProcessingScript
-
-def crud = CrudBuilder.of(processingEnv, element) {
-    fields {
-        field('id', label: '用户ID')
-        field('username', label: '用户名', nonEmpty: true, length: [6, 20])
-        field('password', label: '密码', nonEmpty: true, length: [8, 16])
-        field('mobile', label: '手机号码', length: [-1, 20])
-        field('email', label: '邮箱', length: [-1, 50])
-        field('locked', label: '是否锁定')
-        field('createdAt', label: '创建时间')
-        field('updatedAt', label: '修改时间')
-    }
-
-    actions {
-        create('add', label: '创建用户') {
-            field('username,password,mobile,email')
-        }
-        update('setProfile', label: '修改用户资料') {
-            field('mobile,email')
-        }
-        update('setPassword', label: '设置用户密码') {
-            field('password')
-        }
-        update('setLocked', label: '设置用户锁定状态') {
-            field('locked', nonEmpty: true)
-        }
-        read('getDetails', label: '获取用户详情') {
-            field('id,username,mobile,email,locked,createdAt,updatedAt')
-        }
-        read('getPage', label: '获取用户列表') {
-            findByFilter {
-                contains('username,mobile')
-                range('createdAt')
-                matches('locked')
-            }
-            field('id,username,mobile,email,locked,createdAt,updatedAt')
-        }
-    }
-}
-
-crud.debug()
+import io.cruder.apt.CodegenScript
 
 @BaseScript
-ProcessingScript theScript
+CodegenScript theScript
 
-JavaBuilder.build(processingEnv.filer) {
+codegen {
     def entityName = classOf(element).simpleName()
     typeRef(
             'org.springframework.data.jpa.repository.JpaRepository',

@@ -6,7 +6,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.CLASS)
-@Target(ElementType.TYPE)
-public @interface CompileScript {
+@Target({ElementType.TYPE, ElementType.METHOD, ElementType.FIELD})
+public @interface Codegen {
     String value();
 }

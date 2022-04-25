@@ -1,4 +1,4 @@
-package io.cruder.apt.script;
+package io.cruder.apt;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -20,25 +20,25 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
-public class JavaBuilder extends BuilderSupport {
+public class CodegenBuilder extends BuilderSupport {
     private final Map<ClassName, TypeSpec.Builder> typeBuilders = Maps.newHashMap();
 
     private final Map<String, TypeName> typeRefs = Maps.newHashMap();
 
-    private JavaBuilder() {
+    private CodegenBuilder() {
         defaultTypeRefs();
     }
 
-    public static JavaBuilder build(Filer filer,
-                                    @DelegatesTo(JavaBuilder.class) Closure<?> cl)
+    public static CodegenBuilder codegen(Filer filer,
+                                         @DelegatesTo(CodegenBuilder.class) Closure<?> cl)
             throws IOException {
-        JavaBuilder builder = new JavaBuilder();
+        CodegenBuilder builder = new CodegenBuilder();
         cl.rehydrate(builder, cl.getOwner(), builder).call();
         builder.writeTo(filer);
         return builder;
     }
 
-    public JavaBuilder typeRef(Map<String, ?> mappings, String... qualifiedNames) {
+    public CodegenBuilder typeRef(Map<String, ?> mappings, String... qualifiedNames) {
         for (Map.Entry<String, ?> entry : mappings.entrySet()) {
             typeRef(entry.getKey(), typeOf(entry.getValue()));
         }
@@ -46,7 +46,7 @@ public class JavaBuilder extends BuilderSupport {
         return this;
     }
 
-    public JavaBuilder typeRef(String... qualifiedNames) {
+    public CodegenBuilder typeRef(String... qualifiedNames) {
         for (String qualifiedName : qualifiedNames) {
             ClassName className = ClassName.bestGuess(qualifiedName);
             typeRef(className.simpleName(), className);
@@ -54,7 +54,7 @@ public class JavaBuilder extends BuilderSupport {
         return this;
     }
 
-    public JavaBuilder typeRef(String name, TypeName typeName) {
+    public CodegenBuilder typeRef(String name, TypeName typeName) {
         if (typeRefs.containsKey(name)) {
             throw new IllegalArgumentException(
                     "Type alias '" + name + "' already mapped to '" + typeRefs.get(name) + "'");
@@ -63,7 +63,7 @@ public class JavaBuilder extends BuilderSupport {
         return this;
     }
 
-    public JavaBuilder writeTo(Filer filer) throws IOException {
+    public CodegenBuilder writeTo(Filer filer) throws IOException {
         for (Map.Entry<ClassName, TypeSpec.Builder> entry : typeBuilders.entrySet()) {
             JavaFile.builder(entry.getKey().packageName(), entry.getValue().build())
                     .build()

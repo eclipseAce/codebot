@@ -1,15 +1,14 @@
 package io.cruder.apt;
 
 import com.google.auto.service.AutoService;
+import com.google.common.collect.ImmutableSet;
 import groovy.lang.GroovyShell;
-import io.cruder.apt.script.ProcessingScript;
 import org.codehaus.groovy.control.CompilerConfiguration;
 
-import javax.annotation.processing.*;
+import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.Processor;
+import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.ElementFilter;
 import javax.tools.FileObject;
@@ -21,34 +20,31 @@ import java.io.Reader;
 import java.util.Set;
 
 @AutoService(Processor.class)
-@SupportedAnnotationTypes({CompileScriptProcessor.TEMPLATE_ANNOTATION_NAME})
-@SupportedSourceVersion(SourceVersion.RELEASE_8)
-public class CompileScriptProcessor extends AbstractProcessor {
-    public static final String TEMPLATE_ANNOTATION_NAME = "io.cruder.apt.CompileScript";
-
-    private ProcessingEnvironment processingEnv;
+public class CodegenProcessor extends AbstractProcessor {
+    @Override
+    public Set<String> getSupportedAnnotationTypes() {
+        return ImmutableSet.of(Codegen.class.getName());
+    }
 
     @Override
-    public synchronized void init(ProcessingEnvironment processingEnv) {
-        super.init(processingEnv);
-        this.processingEnv = processingEnv;
+    public SourceVersion getSupportedSourceVersion() {
+        return SourceVersion.latestSupported();
     }
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         try {
-            for (TypeElement element : ElementFilter.typesIn(roundEnv.getElementsAnnotatedWith(CompileScript.class))) {
-                PackageElement pkg = getPackageElement(element);
-                CompileScript annotation = element.getAnnotation(CompileScript.class);
+            for (TypeElement element : ElementFilter.typesIn(roundEnv.getElementsAnnotatedWith(Codegen.class))) {
+                Codegen annotation = element.getAnnotation(Codegen.class);
 
                 CompilerConfiguration config = new CompilerConfiguration();
-                config.setScriptBaseClass(ProcessingScript.class.getName());
+                config.setScriptBaseClass(CodegenScript.class.getName());
 
                 GroovyShell shell = new GroovyShell(config);
 
                 FileObject file = getResource(annotation.value() + ".groovy");
                 try (Reader r = file.openReader(true)) {
-                    ProcessingScript script = (ProcessingScript) shell.parse(r);
+                    CodegenScript script = (CodegenScript) shell.parse(r);
                     script.setProcessingEnv(processingEnv);
                     script.setRoundEnv(roundEnv);
                     script.setElement(element);
@@ -59,13 +55,6 @@ public class CompileScriptProcessor extends AbstractProcessor {
             e.printStackTrace();
         }
         return false;
-    }
-
-    private PackageElement getPackageElement(Element element) {
-        while (element != null && element.getKind() != ElementKind.PACKAGE) {
-            element = element.getEnclosingElement();
-        }
-        return (PackageElement) element;
     }
 
     private FileObject getResource(CharSequence relativeName) throws IOException {

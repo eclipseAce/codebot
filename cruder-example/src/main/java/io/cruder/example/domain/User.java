@@ -1,13 +1,13 @@
 package io.cruder.example.domain;
 
-import io.cruder.apt.CompileScript;
+import io.cruder.apt.Codegen;
 import io.cruder.example.core.BaseEntity;
 import lombok.Getter;
 import lombok.Setter;
 
 import javax.persistence.Entity;
 
-@CompileScript("scripts/Codegen")
+@Codegen("scripts/Crud")
 @Entity
 public class User extends BaseEntity {
 
