@@ -6,50 +6,59 @@ import com.squareup.javapoet.*;
 import groovy.util.BuilderSupport;
 import org.apache.commons.lang3.StringUtils;
 
-import javax.annotation.processing.Filer;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class CodegenBuilder extends BuilderSupport {
     private final Map<ClassName, TypeSpec.Builder> typeBuilders = Maps.newHashMap();
 
-    private final Map<String, TypeName> typeRefs = Maps.newHashMap();
+    private final Map<String, TypeName> typeAliases = Maps.newHashMap();
 
     public CodegenBuilder() {
-        defaultTypeRefs();
+        addDefaultTypeAliases();
     }
 
-    public CodegenBuilder typeRef(Map<String, ?> mappings, String... qualifiedNames) {
+    public Map<ClassName, TypeSpec.Builder> getTypeBuilders() {
+        return Collections.unmodifiableMap(typeBuilders);
+    }
+
+    public CodegenBuilder typeAlias(Map<String, ?> mappings, String... qualifiedNames) {
         for (Map.Entry<String, ?> entry : mappings.entrySet()) {
-            typeRef(entry.getKey(), typeOf(entry.getValue()));
+            typeAlias(entry.getKey(), typeOf(entry.getValue()));
         }
-        typeRef(qualifiedNames);
+        typeAlias(qualifiedNames);
         return this;
     }
 
-    public CodegenBuilder typeRef(String... qualifiedNames) {
+    public CodegenBuilder typeAlias(String... qualifiedNames) {
         for (String qualifiedName : qualifiedNames) {
             ClassName className = ClassName.bestGuess(qualifiedName);
-            typeRef(className.simpleName(), className);
+            typeAlias(className.simpleName(), className);
         }
         return this;
     }
 
-    public CodegenBuilder typeRef(String name, TypeName typeName) {
-        if (typeRefs.containsKey(name)) {
+    public CodegenBuilder typeAlias(String name, TypeName typeName) {
+        if (typeAliases.containsKey(name)) {
             throw new IllegalArgumentException(
-                    "Type alias '" + name + "' already mapped to '" + typeRefs.get(name) + "'");
+                    "Type alias '" + name + "' already mapped to '" + typeAliases.get(name) + "'");
         }
-        typeRefs.put(name, typeName);
+        typeAliases.put(name, typeName);
         return this;
+    }
+
+    public List<JavaFile> build() {
+        return typeBuilders.entrySet().stream()
+                .map(it -> JavaFile.builder(it.getKey().packageName(), it.getValue().build()).build())
+                .collect(Collectors.toList());
     }
 
     public TypeName typeOf(Object name) {
@@ -60,7 +69,7 @@ public class CodegenBuilder extends BuilderSupport {
                 nameStr = nameStr.substring(0, nameStr.length() - 2);
                 arrayDepth++;
             }
-            TypeName typeName = typeRefs.get(nameStr);
+            TypeName typeName = typeAliases.get(nameStr);
             if (typeName == null) {
                 typeName = ClassName.bestGuess(nameStr);
             }
@@ -184,26 +193,26 @@ public class CodegenBuilder extends BuilderSupport {
         }
     }
 
-    private void defaultTypeRefs() {
-        typeRef("boolean", TypeName.BOOLEAN);
-        typeRef("byte", TypeName.BYTE);
-        typeRef("short", TypeName.SHORT);
-        typeRef("int", TypeName.INT);
-        typeRef("long", TypeName.LONG);
-        typeRef("char", TypeName.CHAR);
-        typeRef("float", TypeName.FLOAT);
-        typeRef("double", TypeName.DOUBLE);
-        typeRef("Boolean", TypeName.BOOLEAN.box());
-        typeRef("Byte", TypeName.BYTE.box());
-        typeRef("Short", TypeName.SHORT.box());
-        typeRef("Integer", TypeName.INT.box());
-        typeRef("Long", TypeName.LONG.box());
-        typeRef("Character", TypeName.CHAR.box());
-        typeRef("Float", TypeName.FLOAT.box());
-        typeRef("Double", TypeName.DOUBLE.box());
-        typeRef("Object", TypeName.OBJECT);
-        typeRef("String", ClassName.get("java.lang", "String"));
-        typeRef("Void", ClassName.get("java.lang", "Void"));
+    private void addDefaultTypeAliases() {
+        typeAlias("boolean", TypeName.BOOLEAN);
+        typeAlias("byte", TypeName.BYTE);
+        typeAlias("short", TypeName.SHORT);
+        typeAlias("int", TypeName.INT);
+        typeAlias("long", TypeName.LONG);
+        typeAlias("char", TypeName.CHAR);
+        typeAlias("float", TypeName.FLOAT);
+        typeAlias("double", TypeName.DOUBLE);
+        typeAlias("Boolean", TypeName.BOOLEAN.box());
+        typeAlias("Byte", TypeName.BYTE.box());
+        typeAlias("Short", TypeName.SHORT.box());
+        typeAlias("Integer", TypeName.INT.box());
+        typeAlias("Long", TypeName.LONG.box());
+        typeAlias("Character", TypeName.CHAR.box());
+        typeAlias("Float", TypeName.FLOAT.box());
+        typeAlias("Double", TypeName.DOUBLE.box());
+        typeAlias("Object", TypeName.OBJECT);
+        typeAlias("String", ClassName.get("java.lang", "String"));
+        typeAlias("Void", ClassName.get("java.lang", "Void"));
     }
 
     private List<TypeName> resolveTypes(Object value) {

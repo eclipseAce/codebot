@@ -1,8 +1,6 @@
 package io.cruder.apt;
 
-import com.google.common.collect.Maps;
-import com.squareup.javapoet.ClassName;
-import com.squareup.javapoet.TypeSpec;
+import com.squareup.javapoet.JavaFile;
 import groovy.lang.Closure;
 import groovy.lang.DelegatesTo;
 import groovy.lang.Script;
@@ -11,32 +9,39 @@ import lombok.Setter;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
-import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
 import java.io.IOException;
-import java.util.Set;
-import java.util.concurrent.ConcurrentMap;
+import java.util.List;
 
 @Getter
 @Setter
 public abstract class CodegenScript extends Script {
-    private final ConcurrentMap<ClassName, TypeSpec.Builder> typeBuilders = Maps.newConcurrentMap();
-
     private ProcessingEnvironment processingEnv;
 
     private RoundEnvironment roundEnv;
 
-    private TypeElement element;
+    private List<String> args;
 
-    public CodegenBuilder codegen(@DelegatesTo(CodegenBuilder.class) Closure<?> cl)
+    public void codegen(@DelegatesTo(CodegenBuilder.class) Closure<?> cl)
             throws IOException {
         CodegenBuilder builder = new CodegenBuilder();
         cl.rehydrate(builder, cl.getOwner(), builder).call();
-        builder.writeTo(filer);
-        return builder;
+        for (JavaFile file : builder.build()) {
+            file.writeTo(processingEnv.getFiler());
+        }
     }
 
-    public Set<? extends Element> elementsAnnotatedWith(CharSequence qualifiedName) {
-        return roundEnv.getElementsAnnotatedWith(processingEnv.getElementUtils().getTypeElement(qualifiedName));
+    public Elements getElementUtils() {
+        return processingEnv.getElementUtils();
+    }
+
+    public Types getTypeUtils() {
+        return processingEnv.getTypeUtils();
+    }
+
+    public TypeElement typeElementOf(CharSequence qualifiedName) {
+        return getElementUtils().getTypeElement(qualifiedName);
     }
 }

@@ -7,6 +7,6 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.CLASS)
 @Target(ElementType.TYPE)
-public @interface DtoAction {
+public @interface CreatingDTO {
     Class<?> value();
 }
