@@ -1,24 +1,32 @@
 package io.cruder.example.domain;
 
-import io.cruder.apt.Codegen;
 import io.cruder.example.core.BaseEntity;
 import lombok.Getter;
 import lombok.Setter;
 
 import javax.persistence.Entity;
 
-@Codegen("scripts/Crud")
 @Entity
 public class User extends BaseEntity {
 
-    private @Getter @Setter String username;
+    @Getter
+    @Setter
+    private String username;
 
-    private @Getter @Setter String password;
+    @Getter
+    @Setter
+    private String password;
 
-    private @Getter @Setter String mobile;
+    @Getter
+    @Setter
+    private String mobile;
 
-    private @Getter @Setter String email;
+    @Getter
+    @Setter
+    private String email;
 
-    private @Getter @Setter boolean locked;
+    @Getter
+    @Setter
+    private boolean locked;
 
 }

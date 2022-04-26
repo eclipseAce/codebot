@@ -3,8 +3,6 @@ package io.cruder.apt;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.squareup.javapoet.*;
-import groovy.lang.Closure;
-import groovy.lang.DelegatesTo;
 import groovy.util.BuilderSupport;
 import org.apache.commons.lang3.StringUtils;
 
@@ -25,17 +23,8 @@ public class CodegenBuilder extends BuilderSupport {
 
     private final Map<String, TypeName> typeRefs = Maps.newHashMap();
 
-    private CodegenBuilder() {
+    public CodegenBuilder() {
         defaultTypeRefs();
-    }
-
-    public static CodegenBuilder codegen(Filer filer,
-                                         @DelegatesTo(CodegenBuilder.class) Closure<?> cl)
-            throws IOException {
-        CodegenBuilder builder = new CodegenBuilder();
-        cl.rehydrate(builder, cl.getOwner(), builder).call();
-        builder.writeTo(filer);
-        return builder;
     }
 
     public CodegenBuilder typeRef(Map<String, ?> mappings, String... qualifiedNames) {
@@ -60,15 +49,6 @@ public class CodegenBuilder extends BuilderSupport {
                     "Type alias '" + name + "' already mapped to '" + typeRefs.get(name) + "'");
         }
         typeRefs.put(name, typeName);
-        return this;
-    }
-
-    public CodegenBuilder writeTo(Filer filer) throws IOException {
-        for (Map.Entry<ClassName, TypeSpec.Builder> entry : typeBuilders.entrySet()) {
-            JavaFile.builder(entry.getKey().packageName(), entry.getValue().build())
-                    .build()
-                    .writeTo(filer);
-        }
         return this;
     }
 
@@ -152,7 +132,7 @@ public class CodegenBuilder extends BuilderSupport {
 
     @Override
     protected Object createNode(Object name, Map attributes, Object value) {
-        switch ((String) name) {
+        switch (String.valueOf(name)) {
             case "defClass":
                 return classBuilder(attributes, value);
             case "defInterface":
@@ -197,6 +177,9 @@ public class CodegenBuilder extends BuilderSupport {
             } //
             else if (parent instanceof MethodSpec.Builder) {
                 ((MethodSpec.Builder) parent).addAnnotation(((AnnotationSpec.Builder) node).build());
+            } //
+            else if (parent instanceof ParameterSpec.Builder) {
+                ((ParameterSpec.Builder) parent).addAnnotation(((AnnotationSpec.Builder) node).build());
             }
         }
     }
@@ -220,6 +203,7 @@ public class CodegenBuilder extends BuilderSupport {
         typeRef("Double", TypeName.DOUBLE.box());
         typeRef("Object", TypeName.OBJECT);
         typeRef("String", ClassName.get("java.lang", "String"));
+        typeRef("Void", ClassName.get("java.lang", "Void"));
     }
 
     private List<TypeName> resolveTypes(Object value) {
@@ -275,12 +259,12 @@ public class CodegenBuilder extends BuilderSupport {
     }
 
     private FieldSpec.Builder fieldBuilder(Map attributes, Object value) {
-        return FieldSpec.builder(typeOf(attributes.get("type")), (String) value)
+        return FieldSpec.builder(typeOf(attributes.get("type")), String.valueOf(value))
                 .addModifiers(resolveModifiers(attributes.get("modifiers")));
     }
 
     private Object methodBuilder(Map attributes, Object value) {
-        MethodSpec.Builder builder = MethodSpec.methodBuilder((String) value)
+        MethodSpec.Builder builder = MethodSpec.methodBuilder(String.valueOf(value))
                 .addModifiers(resolveModifiers(attributes.get("modifiers")));
         Object returns = attributes.get("returns");
         if (returns != null) {
@@ -296,7 +280,7 @@ public class CodegenBuilder extends BuilderSupport {
         if (type == null) {
             throw new IllegalArgumentException("Field type is missing");
         }
-        return ParameterSpec.builder(typeOf(attributes.get("type")), (String) value)
+        return ParameterSpec.builder(typeOf(attributes.get("type")), String.valueOf(value))
                 .addModifiers(resolveModifiers(attributes.get("modifiers")));
     }
 
@@ -304,13 +288,13 @@ public class CodegenBuilder extends BuilderSupport {
         AnnotationSpec.Builder builder = AnnotationSpec.builder(classOf(value));
         attributes.forEach((key, val) -> {
             if (val instanceof CharSequence) {
-                builder.addMember((String) key, "$S", val.toString());
+                builder.addMember(String.valueOf(key), "$S", val.toString());
             } else if (val instanceof CodeBlock) {
-                builder.addMember((String) key, (CodeBlock) val);
+                builder.addMember(String.valueOf(key), (CodeBlock) val);
             } else if (val instanceof TypeName) {
-                builder.addMember((String) key, "$T.class", val);
+                builder.addMember(String.valueOf(key), "$T.class", val);
             } else {
-                builder.addMember((String) key, "$L", val);
+                builder.addMember(String.valueOf(key), "$L", val);
             }
         });
         return builder;
@@ -328,7 +312,7 @@ public class CodegenBuilder extends BuilderSupport {
             if (statement) {
                 builder.addStatement(CodeBlock.builder().addNamed(value.toString(), attributes).build());
             } else {
-                builder.addNamed((String) value, attributes);
+                builder.addNamed(String.valueOf(value), attributes);
             }
         }
         return builder;
