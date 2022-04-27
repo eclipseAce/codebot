@@ -1,5 +1,6 @@
 package io.cruder.apt;
 
+import com.google.auto.common.MoreElements;
 import com.google.auto.service.AutoService;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -63,15 +64,11 @@ public class CodegenProcessor extends AbstractProcessor {
                     script.run();
                 }
             } catch (Exception e) {
-                AnnotationMirror am = element.getAnnotationMirrors().stream()
-                        .filter(it -> ((TypeElement) it.getAnnotationType().asElement())
-                                .getQualifiedName().contentEquals(Codegen.class.getName()))
-                        .findFirst().orElse(null);
                 processingEnv.getMessager().printMessage(
                         Diagnostic.Kind.ERROR,
                         String.format("Error while executing codegen script '%s' for type %s, cause: %s\n%s",
                                 annotation.script(), element.asType(), e.getMessage(), Throwables.getStackTraceAsString(e)),
-                        element, am);
+                        element, MoreElements.getAnnotationMirror(element, Codegen.class).orNull());
                 break;
             }
         }

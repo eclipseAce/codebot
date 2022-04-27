@@ -6,6 +6,7 @@ import com.squareup.javapoet.*;
 import groovy.util.BuilderSupport;
 import org.apache.commons.lang3.StringUtils;
 
+import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
@@ -273,6 +274,10 @@ public class CodegenBuilder extends BuilderSupport {
     }
 
     private Object methodBuilder(Map attributes, Object value) {
+        Object overrides = attributes.get("overrides");
+        if (overrides != null) {
+            return MethodSpec.overriding((ExecutableElement) overrides);
+        }
         MethodSpec.Builder builder = MethodSpec.methodBuilder(String.valueOf(value))
                 .addModifiers(resolveModifiers(attributes.get("modifiers")));
         Object returns = attributes.get("returns");

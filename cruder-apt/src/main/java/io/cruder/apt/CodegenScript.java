@@ -12,6 +12,7 @@ import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
+import javax.tools.Diagnostic;
 import java.io.IOException;
 import java.util.List;
 
@@ -30,6 +31,9 @@ public abstract class CodegenScript extends Script {
         cl.rehydrate(builder, cl.getOwner(), builder).call();
         for (JavaFile file : builder.build()) {
             file.writeTo(processingEnv.getFiler());
+            processingEnv.getMessager().printMessage(
+                    Diagnostic.Kind.NOTE,
+                    String.format("Class generated: '%s.%s'", file.packageName, file.typeSpec.name));
         }
     }
 
@@ -39,9 +43,5 @@ public abstract class CodegenScript extends Script {
 
     public Types getTypeUtils() {
         return processingEnv.getTypeUtils();
-    }
-
-    public TypeElement typeElementOf(CharSequence qualifiedName) {
-        return getElementUtils().getTypeElement(qualifiedName);
     }
 }

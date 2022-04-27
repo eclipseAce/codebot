@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
-@Codegen(script = "scripts/DtoCodegen")
+@Codegen(script = "scripts/AutoService")
 @EnableJpaAuditing
 @EnableJpaRepositories
 @SpringBootApplication

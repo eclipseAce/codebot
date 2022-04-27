@@ -7,6 +7,18 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.CLASS)
 @Target(ElementType.TYPE)
-public @interface CreatingDTO {
+public @interface AutoService {
     Class<?> value();
+
+    @Retention(RetentionPolicy.CLASS)
+    @Target(ElementType.METHOD)
+    @interface Creating {
+
+    }
+
+    @Retention(RetentionPolicy.CLASS)
+    @Target(ElementType.METHOD)
+    @interface Updating {
+
+    }
 }
