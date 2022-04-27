@@ -9,16 +9,4 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 public @interface AutoService {
     Class<?> value();
-
-    @Retention(RetentionPolicy.CLASS)
-    @Target(ElementType.METHOD)
-    @interface Creating {
-
-    }
-
-    @Retention(RetentionPolicy.CLASS)
-    @Target(ElementType.METHOD)
-    @interface Updating {
-
-    }
 }

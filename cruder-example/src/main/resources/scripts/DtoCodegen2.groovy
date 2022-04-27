@@ -16,7 +16,7 @@ def entities = roundEnv.getElementsAnnotatedWith(typeElementOf('javax.persistenc
         def entityElement = element.annotationMirrors
                 .find { it.annotationType.asElement() == anno }
                 .elementValues.entrySet()
-                .find { it.key.simpleName.contentEquals('value') }
+                .findById { it.key.simpleName.contentEquals('value') }
                 .value.value.asElement()
         entities[entityElement] << [action: action, element: element]
     }

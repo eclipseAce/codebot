@@ -1,11 +1,11 @@
-package io.cruder.example.dto;
+package io.cruder.example.dto.user;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 @Data
 @Schema(description = "用户新增")
-public class UserAdd {
+public class UserCreate {
 
     @Schema(description = "用户名")
     private String username;

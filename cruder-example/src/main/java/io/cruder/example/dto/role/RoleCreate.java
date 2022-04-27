@@ -1,4 +1,4 @@
-package io.cruder.example.dto;
+package io.cruder.example.dto.role;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
@@ -7,7 +7,7 @@ import java.util.Set;
 
 @Data
 @Schema(description = "角色新增")
-public class RoleAdd {
+public class RoleCreate {
 
     @Schema(description = "角色名称")
     private String username;
