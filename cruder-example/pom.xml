@@ -32,6 +32,12 @@
 			<artifactId>cruder-apt</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>cruder-autoservice</artifactId>
+			<version>${project.version}</version>
+			<scope>compile</scope>
+		</dependency>
 
 		<dependency>
 			<groupId>org.projectlombok</groupId>
@@ -102,21 +108,21 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 				<configuration>
 					<annotationProcessorPaths>
-						<annotationProcessorPath>
+						<path>
 							<groupId>org.projectlombok</groupId>
 							<artifactId>lombok</artifactId>
 							<version>1.18.22</version>
-						</annotationProcessorPath>
-						<annotationProcessorPath>
+						</path>
+						<path>
 							<groupId>org.mapstruct</groupId>
 							<artifactId>mapstruct-processor</artifactId>
 							<version>1.4.2.Final</version>
-						</annotationProcessorPath>
-						<annotationProcessorPath>
+						</path>
+						<path>
 							<groupId>${project.groupId}</groupId>
 							<artifactId>cruder-apt</artifactId>
 							<version>${project.version}</version>
-						</annotationProcessorPath>
+						</path>
 					</annotationProcessorPaths>
 				</configuration>
 			</plugin>

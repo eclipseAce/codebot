@@ -1,6 +1,6 @@
 package io.cruder.example.service;
 
-import io.cruder.example.codegen.AutoService;
+import io.cruder.autoservice.AutoService;
 import io.cruder.example.domain.User;
 import io.cruder.example.dto.user.*;
 import org.springframework.data.domain.Page;

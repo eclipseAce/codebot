@@ -1,4 +1,4 @@
-package io.cruder.example.codegen;
+package io.cruder.autoservice;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

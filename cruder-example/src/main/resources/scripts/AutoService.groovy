@@ -1,8 +1,6 @@
 package scripts
 
 import com.google.auto.common.MoreElements
-import com.google.auto.common.MoreTypes
-import com.squareup.javapoet.ParameterizedTypeName
 import groovy.transform.BaseScript
 import io.cruder.apt.CodegenScript
 
@@ -10,13 +8,12 @@ import javax.lang.model.element.ExecutableElement
 import javax.lang.model.element.TypeElement
 import javax.lang.model.type.DeclaredType
 import javax.lang.model.util.ElementFilter
-import java.lang.reflect.Modifier
 
 @BaseScript
 CodegenScript theScript
 
 def services = roundEnv.getElementsAnnotatedWith(
-        elementUtils.getTypeElement('io.cruder.example.codegen.AutoService')
+        elementUtils.getTypeElement('io.cruder.autoservice.AutoService')
 ).collect { it as TypeElement }
 
 
@@ -68,6 +65,8 @@ codegen {
             'org.springframework.web.bind.annotation.RequestMethod',
             'org.springframework.web.bind.annotation.RequestParam',
             'org.springframework.web.bind.annotation.PathVariable',
+            'org.springframework.data.domain.Pageable',
+            'org.springframework.data.domain.Page',
             'javax.validation.Valid',
             'io.cruder.example.core.ApiReply',
             'io.cruder.example.core.BusinessErrors',
@@ -76,7 +75,7 @@ codegen {
 
     services.each { serviceElement ->
         def theEntity = classOf(
-                MoreElements.getAnnotationMirror(serviceElement, 'io.cruder.example.codegen.AutoService')
+                MoreElements.getAnnotationMirror(serviceElement, 'io.cruder.autoservice.AutoService')
                         .get().elementValues.entrySet()
                         .find { it.key.simpleName.contentEquals('value') }
                         .value.value.asElement()
@@ -267,7 +266,7 @@ codegen {
                     defClass(theController) {
                         addMethod(method.simpleName, modifiers: 'public', returns: typeOf('ApiReply', returnType)) {
                             addAnnotation('RequestMapping',
-                                    method: code('$T.POST', typeOf('RequestMethod')),
+                                    method: code('$T.GET', typeOf('RequestMethod')),
                                     path: "/api/${theEntity.simpleName().uncapitalize()}/${method.simpleName}/{id}")
                             addParameter('id', type: 'Long') {
                                 addAnnotation('PathVariable', name: 'id')
@@ -300,6 +299,23 @@ codegen {
                                         pageableParam: result.pageableParam.simpleName,
                                         mapMethod: mapMethodName
                                 ))
+                            }
+                        }
+                        defClass(theController) {
+                            addMethod(method.simpleName, modifiers: 'public',
+                                    returns: typeOf('ApiReply', typeOf('Page', result.dtoType))) {
+                                addAnnotation('RequestMapping',
+                                        method: code('$T.POST', typeOf('RequestMethod')),
+                                        path: "/api/${theEntity.simpleName().uncapitalize()}/${method.simpleName}")
+                                addParameter('pageable', type: 'Pageable')
+                                addParameter('body', type: typeOf(result.predicateParam.asType())) {
+                                    addAnnotation('RequestBody')
+                                    addAnnotation('Valid')
+                                }
+                                addCode(code('''\
+                                            return $replyType:T.ok(service.$svcMethod:L(body, pageable));
+                                        '''.stripIndent(),
+                                        replyType: typeOf('ApiReply'), svcMethod: method.simpleName))
                             }
                         }
                     }

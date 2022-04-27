@@ -10,7 +10,8 @@
 	<modules>
 		<module>cruder-apt</module>
 		<module>cruder-example</module>
-	</modules>
+        <module>cruder-autoservice</module>
+    </modules>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
