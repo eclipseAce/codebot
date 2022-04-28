@@ -1,20 +1,21 @@
 package io.cruder.autoservice;
 
+import com.google.auto.common.AnnotationMirrors;
 import com.squareup.javapoet.*;
 import io.cruder.autoservice.annotation.AutoService;
-import io.toolisticon.aptk.tools.AnnotationUtils;
-import io.toolisticon.aptk.tools.ElementUtils;
-import io.toolisticon.aptk.tools.TypeUtils;
-import lombok.RequiredArgsConstructor;
 
 import javax.annotation.processing.Filer;
+import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.*;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
 import java.io.IOException;
+import java.util.stream.Collectors;
 
-@RequiredArgsConstructor
 public class ServiceImplementor {
     private static final ClassName TRANSACTIONAL_NAME = ClassName.get(
             "org.springframework.transaction.annotation", "Transactional"
@@ -38,6 +39,10 @@ public class ServiceImplementor {
             "javax.persistence", "EntityNotFoundException"
     );
 
+    private final ProcessingEnvironment processingEnv;
+    private final Types types;
+    private final Elements elements;
+
     private final TypeElement serviceElement;
 
     private ClassName serviceImplName;
@@ -48,6 +53,13 @@ public class ServiceImplementor {
 
     private ClassName repositoryName;
     private TypeSpec.Builder repositoryBuilder;
+
+    public ServiceImplementor(ProcessingEnvironment processingEnv, TypeElement serviceElement) {
+        this.processingEnv = processingEnv;
+        this.types = processingEnv.getTypeUtils();
+        this.elements = processingEnv.getElementUtils();
+        this.serviceElement = serviceElement;
+    }
 
     public void implement() {
         serviceImplName = getServiceImplName();
@@ -71,7 +83,7 @@ public class ServiceImplementor {
                 .addAnnotation(AUTOWIRED_NAME)
                 .build());
 
-        ElementUtils.AccessEnclosedElements.getEnclosedMethods(serviceElement).forEach(method -> {
+        ElementFilter.methodsIn(serviceElement.getEnclosedElements()).forEach(method -> {
             String methodName = method.getSimpleName().toString();
             if (methodName.startsWith("create")) {
                 implementCreateMethod(method);
@@ -136,7 +148,52 @@ public class ServiceImplementor {
         if (returnType.getKind() != TypeKind.DECLARED) {
             throw new UnsupportedOperationException("Could not implement method " + method);
         }
-        if (TypeUtils.getTypes().isSameType(TypeUtils.getTypes().erasure()))
+        if (method.getParameters().size() == 1
+                && method.getParameters().get(0).asType().getKind() == TypeKind.LONG) {
+            VariableElement idParam = method.getParameters().get(0);
+            DeclaredType resultType = (DeclaredType) returnType;
+            MethodSpec mapEntityToResultMethod = addMapperMethod(getEntityType(), resultType);
+            MethodSpec.Builder methodBuilder = MethodSpec.overriding(method)
+                    .addStatement("$1T entity = repository.findById($2L).orElseThrow(() -> new $3T($4S))",
+                            getEntityType(),
+                            idParam.getSimpleName(),
+                            ENTITY_NOT_FOUND_EXCEPTION_NAME,
+                            getEntityName().simpleName() + " not found")
+                    .addStatement("$1T dto = new $1T()", resultType)
+                    .addStatement("mapper.$1L(entity, dto)", mapEntityToResultMethod.name)
+                    .addStatement("return dto");
+            serviceImplBuilder.addMethod(methodBuilder.build());
+        } else {
+            boolean returnsPage = types.isSameType(
+                    (((DeclaredType) returnType).asElement()).asType(),
+                    elements.getTypeElement("org.springframework.data.domain.Page").asType());
+            VariableElement pageableParam = method.getParameters().stream()
+                    .filter(it -> types.isAssignable(it.asType(),
+                            elements.getTypeElement("org.springframework.data.domain.Pageable").asType()))
+                    .findFirst().orElse(null);
+            VariableElement specParam = method.getParameters().stream()
+                    .filter(it -> types.isAssignable(it.asType(),
+                            types.getDeclaredType(
+                                    elements.getTypeElement("org.springframework.data.jpa.domain.Specification"),
+                                    getEntityType()
+                            )))
+                    .findFirst().orElse(null);
+            if (returnsPage && pageableParam != null) {
+                DeclaredType resultType = (DeclaredType) ((DeclaredType) returnType).getTypeArguments().get(0);
+                MethodSpec mapEntityToResultMethod = addMapperMethod(getEntityType(), resultType);
+                MethodSpec.Builder methodBuilder = MethodSpec.overriding(method)
+                        .addStatement("Page<$1T> result = repository.findAll($2L, $3L)",
+                                getEntityType(),
+                                specParam != null ? specParam.getSimpleName() : "null",
+                                pageableParam.getSimpleName())
+                        .addCode("return result.map(it -> {$>")
+                        .addStatement("$1T dto = new $1T()", resultType)
+                        .addStatement("mapper.$1L(it, dto)", mapEntityToResultMethod.name)
+                        .addStatement("return dto")
+                        .addCode("$<});");
+                serviceImplBuilder.addMethod(methodBuilder.build());
+            }
+        }
     }
 
     public void writeTo(Filer filer) throws IOException {
@@ -184,9 +241,12 @@ public class ServiceImplementor {
     }
 
     protected DeclaredType getEntityType() {
-        return (DeclaredType) AnnotationUtils.getClassAttributeFromAnnotationAsTypeMirror(
-                serviceElement, AutoService.class, "value"
-        );
+        return (DeclaredType) serviceElement.getAnnotationMirrors().stream()
+                .filter(it -> ((TypeElement) it.getAnnotationType().asElement())
+                        .getQualifiedName().contentEquals(AutoService.class.getName()))
+                .flatMap(it -> it.getElementValues().entrySet().stream())
+                .collect(Collectors.toMap(it -> it.getKey().getSimpleName().toString(), it -> it.getValue()))
+                .get("value").getValue();
     }
 
     protected ClassName getEntityName() {

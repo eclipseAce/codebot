@@ -32,7 +32,7 @@ public class AutoServiceProcessor extends AbstractProcessor {
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         for (TypeElement typeElement : ElementFilter.typesIn(roundEnv.getElementsAnnotatedWith(AutoService.class))) {
             try {
-                ServiceImplementor impl = new ServiceImplementor(typeElement);
+                ServiceImplementor impl = new ServiceImplementor(processingEnv, typeElement);
                 impl.implement();
                 impl.writeTo(processingEnv.getFiler());
             } catch (Exception e) {

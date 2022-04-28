@@ -31,9 +31,9 @@
         </dependency>
 
         <dependency>
-            <groupId>io.toolisticon.aptk</groupId>
-            <artifactId>aptk-tools</artifactId>
-            <version>0.19.2</version>
+            <groupId>com.google.auto</groupId>
+            <artifactId>auto-common</artifactId>
+            <version>1.2.1</version>
         </dependency>
 
         <dependency>
