@@ -1,6 +1,6 @@
 package io.cruder.example.service;
 
-import io.cruder.autoservice.AutoService;
+import io.cruder.autoservice.annotation.AutoService;
 import io.cruder.example.domain.Role;
 import io.cruder.example.dto.role.RoleCreate;
 

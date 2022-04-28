@@ -1,12 +1,11 @@
 package io.cruder.example;
 
-import io.cruder.apt.Codegen;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
-@Codegen(script = "scripts/AutoService")
+//@Codegen(script = "scripts/AutoService")
 @EnableJpaAuditing
 @EnableJpaRepositories
 @SpringBootApplication

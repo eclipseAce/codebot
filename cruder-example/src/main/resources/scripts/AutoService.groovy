@@ -13,7 +13,7 @@ import javax.lang.model.util.ElementFilter
 CodegenScript theScript
 
 def services = roundEnv.getElementsAnnotatedWith(
-        elementUtils.getTypeElement('io.cruder.autoservice.AutoService')
+        elementUtils.getTypeElement('io.cruder.autoservice.annotation.AutoService')
 ).collect { it as TypeElement }
 
 
@@ -75,7 +75,7 @@ codegen {
 
     services.each { serviceElement ->
         def theEntity = classOf(
-                MoreElements.getAnnotationMirror(serviceElement, 'io.cruder.autoservice.AutoService')
+                MoreElements.getAnnotationMirror(serviceElement, 'io.cruder.autoservice.annotation.AutoService')
                         .get().elementValues.entrySet()
                         .find { it.key.simpleName.contentEquals('value') }
                         .value.value.asElement()

@@ -1,6 +1,6 @@
 package io.cruder.example.service;
 
-import io.cruder.autoservice.AutoService;
+import io.cruder.autoservice.annotation.AutoService;
 import io.cruder.example.domain.User;
 import io.cruder.example.dto.user.*;
 import org.springframework.data.domain.Page;
@@ -10,6 +10,8 @@ import org.springframework.data.domain.Pageable;
 public interface UserService {
 
     long create(UserCreate dto);
+
+    long createDefault();
 
     void updatePassword(UserSetPassword dto);
 

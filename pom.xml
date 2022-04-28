@@ -11,6 +11,7 @@
 		<module>cruder-apt</module>
 		<module>cruder-example</module>
         <module>cruder-autoservice</module>
+        <module>cruder-autoservice-apt</module>
     </modules>
 
 	<properties>
