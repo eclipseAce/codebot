@@ -1,84 +1,50 @@
 package io.cruder.autoservice.util;
 
-import lombok.RequiredArgsConstructor;
-
-import javax.lang.model.element.*;
-import javax.lang.model.type.DeclaredType;
-import javax.lang.model.type.TypeKind;
+import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
-import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Stream;
 
-@RequiredArgsConstructor
 public class Models {
     public final Types types;
     public final Elements elements;
 
-    public String getQualifiedName(TypeMirror type) {
-        if (type.getKind() != TypeKind.DECLARED) {
-            throw new IllegalArgumentException("Not DeclaredType: " + type);
-        }
-        return getQualifiedName(((DeclaredType) type).asElement());
+    public Models(ProcessingEnvironment processingEnv) {
+        this.types = processingEnv.getTypeUtils();
+        this.elements = processingEnv.getElementUtils();
     }
 
-    public String getQualifiedName(Element element) {
-        if (!(element instanceof QualifiedNameable)) {
-            throw new IllegalArgumentException("Not QualifiedNameable element: " + element);
-        }
-        return ((QualifiedNameable) element).getQualifiedName().toString();
+    public TypeElement asTypeElement(TypeMirror type) {
+        return (TypeElement) types.asElement(type);
     }
 
-    public PackageElement getPackage(Element element) {
-        while (element.getKind() != ElementKind.PACKAGE) {
-            element = element.getEnclosingElement();
-        }
-        return (PackageElement) element;
+    public boolean isAssignable(TypeMirror type, String fqn, TypeMirror... typeArgs) {
+        return types.isAssignable(type, types.getDeclaredType(elements.getTypeElement(fqn), typeArgs));
     }
 
-    public PackageElement getParentPackage(PackageElement packageElement) {
-        String fqn = getQualifiedName(packageElement);
-        int sepIndex = fqn.lastIndexOf('.');
-        if (sepIndex > -1) {
-            return elements.getPackageElement(fqn.substring(0, sepIndex));
-        }
-        return null;
+    public boolean isTypeOfName(TypeMirror type, String fqn) {
+        return types.isSameType(type, elements.getTypeElement(fqn).asType());
     }
 
-    public String getPackageQualifiedName(Element element) {
-        return getQualifiedName(getPackage(element));
+    public boolean isAnnotationPresent(Element element, String annotationFqn) {
+        return findAnnotation(element, annotationFqn).isPresent();
     }
 
-    public Optional<? extends AnnotationMirror> findAnnotation(
-            Element element, String annotation) {
+    public Optional<? extends AnnotationMirror> findAnnotation(Element element, String annotationFqn) {
         return element.getAnnotationMirrors().stream()
-                .filter(it -> getQualifiedName(it.getAnnotationType()).equals(annotation))
+                .filter(anno -> isTypeOfName(anno.getAnnotationType(), annotationFqn))
                 .findFirst();
     }
 
-    public Optional<? extends AnnotationValue> findAnnotationValue(
-            Element element, String annotation, String member) {
-        return findAnnotation(element, annotation)
-                .flatMap(anno -> anno.getElementValues().entrySet().stream()
-                        .filter(entry -> entry.getKey().getSimpleName().contentEquals(member))
-                        .findFirst())
-                .map(Map.Entry::getValue);
-    }
-
-    public Optional<? extends DeclaredType> findClassAnnotationValue(
-            Element element, String annotation, String member) {
-        return findAnnotationValue(element, annotation, member)
-                .filter(it -> it instanceof DeclaredType)
-                .map(it -> (DeclaredType) it);
-    }
-
-    public boolean isAnnotationPresent(Element element, String annotation) {
-        return findAnnotation(element, annotation).isPresent();
-    }
-
-    public boolean isTypeKindOf(TypeMirror type, TypeKind ...kinds) {
-        return Stream.of(kinds).anyMatch(kind -> type.getKind() == kind);
+    public Optional<? extends TypeMirror> findClassAnnotationValue(AnnotationMirror annotation, String member) {
+        return annotation.getElementValues().entrySet().stream()
+                .filter(it -> member.contentEquals(it.getKey().getSimpleName())
+                        && (it.getValue().getValue() instanceof TypeMirror))
+                .map(it -> (TypeMirror) it.getValue().getValue())
+                .findFirst();
     }
 }

@@ -1,10 +1,10 @@
 package io.cruder.autoservice.processor;
 
-import com.google.auto.common.MoreElements;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
-import io.cruder.autoservice.ServiceImplementor;
 import io.cruder.autoservice.annotation.AutoService;
+import io.cruder.autoservice.info.ServiceInfo;
+import io.cruder.autoservice.util.Models;
 
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
@@ -30,17 +30,21 @@ public class AutoServiceProcessor extends AbstractProcessor {
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-        for (TypeElement typeElement : ElementFilter.typesIn(roundEnv.getElementsAnnotatedWith(AutoService.class))) {
+        Models models = new Models(processingEnv);
+        for (TypeElement serviceElement : ElementFilter.typesIn(roundEnv.getElementsAnnotatedWith(AutoService.class))) {
             try {
-                ServiceImplementor impl = new ServiceImplementor(processingEnv, typeElement);
-                impl.implement();
-                impl.writeTo(processingEnv.getFiler());
+//                ServiceImplementor impl = new ServiceImplementor(processingEnv, typeElement);
+//                impl.implement();
+//                impl.writeTo(processingEnv.getFiler());
+                ServiceInfo service = ServiceInfo.of(models, serviceElement);
+                System.out.println(service.toString());
+
             } catch (Exception e) {
                 processingEnv.getMessager().printMessage(
                         Diagnostic.Kind.ERROR,
                         String.format("Error while processing AutoService for type %s, cause: %s\n%s",
-                                typeElement.asType(), e.getMessage(), Throwables.getStackTraceAsString(e)),
-                        typeElement, MoreElements.getAnnotationMirror(typeElement, AutoService.class).orNull());
+                                serviceElement.asType(), e.getMessage(), Throwables.getStackTraceAsString(e)),
+                        serviceElement, models.findAnnotation(serviceElement, AutoService.class.getName()).orElse(null));
             }
 
         }
