@@ -14,7 +14,7 @@ import javax.lang.model.util.ElementFilter;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
-public final class EntityInfo {
+public final class EntityDescriptor {
     private TypeElement entityElement;
     private VariableElement idFieldElement;
 
@@ -31,8 +31,8 @@ public final class EntityInfo {
         return ToStringBuilder.reflectionToString(this, ToStringStyle.MULTI_LINE_STYLE);
     }
 
-    public static EntityInfo of(Models models, TypeElement entity) {
-        EntityInfo info = new EntityInfo();
+    public static EntityDescriptor of(Models models, TypeElement entity) {
+        EntityDescriptor info = new EntityDescriptor();
         info.entityElement = entity;
         TypeElement e = entity;
         while (!models.isTypeOfName(e.asType(), "java.lang.Object")) {

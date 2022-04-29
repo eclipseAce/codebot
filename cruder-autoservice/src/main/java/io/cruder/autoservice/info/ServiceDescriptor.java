@@ -18,18 +18,18 @@ import java.util.stream.Collectors;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
-public final class ServiceInfo {
+public final class ServiceDescriptor {
     private TypeElement serviceElement;
-    private EntityInfo entity;
-    private List<MethodInfo> methods;
+    private EntityDescriptor entity;
+    private List<MethodDescriptor> methods;
 
     @Override
     public String toString() {
         return ToStringBuilder.reflectionToString(this, ToStringStyle.MULTI_LINE_STYLE);
     }
 
-    public static ServiceInfo of(Models models, TypeElement service) {
-        ServiceInfo info = new ServiceInfo();
+    public static ServiceDescriptor of(Models models, TypeElement service) {
+        ServiceDescriptor info = new ServiceDescriptor();
         info.serviceElement = service;
 
         AnnotationMirror anno = models.findAnnotation(service, AutoService.class.getName())
@@ -37,10 +37,10 @@ public final class ServiceInfo {
         TypeMirror type = models.findClassAnnotationValue(anno, "value")
                 .filter(it -> it.getKind() == TypeKind.DECLARED)
                 .orElseThrow(() -> new IllegalArgumentException("Not DeclaredType for entity"));
-        info.entity = EntityInfo.of(models, models.asTypeElement(type));
+        info.entity = EntityDescriptor.of(models, models.asTypeElement(type));
 
         info.methods = ElementFilter.methodsIn(service.getEnclosedElements()).stream()
-                .map(method -> MethodInfo.of(models, info, method))
+                .map(method -> MethodDescriptor.of(models, info, method))
                 .collect(Collectors.toList());
         return info;
     }

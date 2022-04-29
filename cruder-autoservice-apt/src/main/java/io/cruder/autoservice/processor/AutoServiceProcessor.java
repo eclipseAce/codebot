@@ -3,7 +3,7 @@ package io.cruder.autoservice.processor;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
 import io.cruder.autoservice.annotation.AutoService;
-import io.cruder.autoservice.info.ServiceInfo;
+import io.cruder.autoservice.info.ServiceDescriptor;
 import io.cruder.autoservice.util.Models;
 
 import javax.annotation.processing.AbstractProcessor;
@@ -36,7 +36,7 @@ public class AutoServiceProcessor extends AbstractProcessor {
 //                ServiceImplementor impl = new ServiceImplementor(processingEnv, typeElement);
 //                impl.implement();
 //                impl.writeTo(processingEnv.getFiler());
-                ServiceInfo service = ServiceInfo.of(models, serviceElement);
+                ServiceDescriptor service = ServiceDescriptor.of(models, serviceElement);
                 System.out.println(service.toString());
 
             } catch (Exception e) {

@@ -22,7 +22,7 @@ import java.util.function.Function;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
-public class MethodInfo {
+public class MethodDescriptor {
     private ExecutableElement methodElement;
     private MethodKind methodKind;
     private ResultKind resultKind;
@@ -52,8 +52,8 @@ public class MethodInfo {
     private static final String SPRING_DATA_PAGE_FQN = "org.springframework.data.domain.Page";
     private static final String SPRING_DATA_PAGEABLE_FQN = "org.springframework.data.domain.Pageable";
 
-    public static MethodInfo of(Models models, ServiceInfo service, ExecutableElement method) {
-        MethodInfo info = new MethodInfo();
+    public static MethodDescriptor of(Models models, ServiceDescriptor service, ExecutableElement method) {
+        MethodDescriptor info = new MethodDescriptor();
         info.methodElement = method;
 
         String methodName = method.getSimpleName().toString();
