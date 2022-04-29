@@ -1,7 +1,6 @@
-package io.cruder.autoservice.metadata;
+package io.cruder.autoservice;
 
 import io.cruder.autoservice.annotation.AutoService;
-import io.cruder.autoservice.util.Models;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -28,19 +27,19 @@ public final class ServiceDescriptor {
         return ToStringBuilder.reflectionToString(this, ToStringStyle.MULTI_LINE_STYLE);
     }
 
-    public static ServiceDescriptor of(Models models, TypeElement service) {
+    public static ServiceDescriptor of(Context ctx, TypeElement service) {
         ServiceDescriptor info = new ServiceDescriptor();
         info.serviceElement = service;
 
-        AnnotationMirror anno = models.findAnnotation(service, AutoService.class.getName())
+        AnnotationMirror anno = ctx.findAnnotation(service, AutoService.class.getName())
                 .orElseThrow(() -> new IllegalArgumentException("No @AutoService present"));
-        TypeMirror type = models.findClassAnnotationValue(anno, "value")
+        TypeMirror type = ctx.findClassAnnotationValue(anno, "value")
                 .filter(it -> it.getKind() == TypeKind.DECLARED)
                 .orElseThrow(() -> new IllegalArgumentException("Not DeclaredType for entity"));
-        info.entity = EntityDescriptor.of(models, models.asTypeElement(type));
+        info.entity = EntityDescriptor.of(ctx, ctx.asTypeElement(type));
 
         info.methods = ElementFilter.methodsIn(service.getEnclosedElements()).stream()
-                .map(method -> MethodDescriptor.of(models, info, method))
+                .map(method -> MethodDescriptor.of(ctx, info, method))
                 .collect(Collectors.toList());
         return info;
     }

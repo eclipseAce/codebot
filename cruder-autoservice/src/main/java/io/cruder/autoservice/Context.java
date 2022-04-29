@@ -1,5 +1,6 @@
-package io.cruder.autoservice.util;
+package io.cruder.autoservice;
 
+import javax.annotation.processing.Filer;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
@@ -9,13 +10,15 @@ import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import java.util.Optional;
 
-public class Models {
+public class Context {
     public final Types types;
     public final Elements elements;
+    public final Filer filer;
 
-    public Models(ProcessingEnvironment processingEnv) {
+    public Context(ProcessingEnvironment processingEnv) {
         this.types = processingEnv.getTypeUtils();
         this.elements = processingEnv.getElementUtils();
+        this.filer = processingEnv.getFiler();
     }
 
     public TypeElement asTypeElement(TypeMirror type) {

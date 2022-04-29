@@ -1,9 +1,8 @@
-package io.cruder.autoservice.metadata;
+package io.cruder.autoservice;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.cruder.autoservice.util.Models;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -39,7 +38,7 @@ public final class MethodDescriptor {
     }
 
     public enum MethodKind {
-        CREATE, UPDATE, QUERY, UNKNOWN;
+        CREATE, UPDATE, QUERY, UNKNOWN
     }
 
     @Override
@@ -52,7 +51,7 @@ public final class MethodDescriptor {
     private static final String SPRING_DATA_PAGE_FQN = "org.springframework.data.domain.Page";
     private static final String SPRING_DATA_PAGEABLE_FQN = "org.springframework.data.domain.Pageable";
 
-    public static MethodDescriptor of(Models models, ServiceDescriptor service, ExecutableElement method) {
+    public static MethodDescriptor of(Context ctx, ServiceDescriptor service, ExecutableElement method) {
         MethodDescriptor info = new MethodDescriptor();
         info.methodElement = method;
 
@@ -61,41 +60,41 @@ public final class MethodDescriptor {
             info.methodKind = MethodKind.CREATE;
         } else if (methodName.startsWith("update")) {
             info.methodKind = MethodKind.UPDATE;
-        } else if (methodName.startsWith("query")) {
+        } else if (methodName.startsWith("find")) {
             info.methodKind = MethodKind.QUERY;
         } else {
             info.methodKind = MethodKind.UNKNOWN;
         }
 
         TypeMirror returnType = method.getReturnType();
-        if (models.isAssignable(returnType, LIST_FQN, models.types.getWildcardType(null, null))) {
-            info.resultContainerElement = models.elements.getTypeElement(LIST_FQN);
+        if (ctx.isAssignable(returnType, LIST_FQN, ctx.types.getWildcardType(null, null))) {
+            info.resultContainerElement = ctx.elements.getTypeElement(LIST_FQN);
             info.resultType = ((DeclaredType) returnType).getTypeArguments().get(0);
-        } else if (models.isAssignable(returnType, SPRING_DATA_PAGE_FQN, models.types.getWildcardType(null, null))) {
-            info.resultContainerElement = models.elements.getTypeElement(SPRING_DATA_PAGE_FQN);
+        } else if (ctx.isAssignable(returnType, SPRING_DATA_PAGE_FQN, ctx.types.getWildcardType(null, null))) {
+            info.resultContainerElement = ctx.elements.getTypeElement(SPRING_DATA_PAGE_FQN);
             info.resultType = ((DeclaredType) returnType).getTypeArguments().get(0);
         } else {
             info.resultType = returnType;
         }
         if (info.resultType.getKind() == TypeKind.VOID) {
             info.resultKind = ResultKind.NONE;
-        } else if (models.types.isAssignable(info.resultType, service.getEntity().getIdFieldType())) {
+        } else if (ctx.types.isAssignable(info.resultType, service.getEntity().getIdField().getType())) {
             info.resultKind = ResultKind.IDENTIFIER;
         } else if (info.resultType.getKind() == TypeKind.DECLARED) {
             info.resultKind = ResultKind.DATA_OBJECT;
-            info.resultElement = models.asTypeElement(info.resultType);
+            info.resultElement = ctx.asTypeElement(info.resultType);
         }
 
         List<VariableElement> parameters = Lists.newLinkedList(method.getParameters());
         info.pageableParameterElements = recognize(parameters,
-                v -> models.isAssignable(v.asType(), SPRING_DATA_PAGEABLE_FQN));
+                v -> ctx.isAssignable(v.asType(), SPRING_DATA_PAGEABLE_FQN));
 
         info.specificationParameterElements = recognize(parameters,
-                v -> models.isAssignable(v.asType(), SPRING_DATA_SPECIFICATION_FQN,
+                v -> ctx.isAssignable(v.asType(), SPRING_DATA_SPECIFICATION_FQN,
                         service.getEntity().getEntityElement().asType()));
 
         info.entityIdParameterElements = recognize(parameters,
-                v -> service.getEntity().getIdFieldName().contentEquals(v.getSimpleName()));
+                v -> service.getEntity().getIdField().getName().contentEquals(v.getSimpleName()));
 
         info.unrecognizedParameterElements = recognize(parameters, v -> true);
 
