@@ -1,4 +1,4 @@
-package io.cruder.autoservice.info;
+package io.cruder.autoservice.metadata;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;

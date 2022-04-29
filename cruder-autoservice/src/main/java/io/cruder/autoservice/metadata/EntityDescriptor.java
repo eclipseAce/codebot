@@ -1,4 +1,4 @@
-package io.cruder.autoservice.info;
+package io.cruder.autoservice.metadata;
 
 import io.cruder.autoservice.util.Models;
 import lombok.AccessLevel;

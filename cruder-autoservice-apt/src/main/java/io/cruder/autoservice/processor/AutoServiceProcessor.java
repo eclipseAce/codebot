@@ -3,7 +3,7 @@ package io.cruder.autoservice.processor;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
 import io.cruder.autoservice.annotation.AutoService;
-import io.cruder.autoservice.info.ServiceDescriptor;
+import io.cruder.autoservice.metadata.ServiceDescriptor;
 import io.cruder.autoservice.util.Models;
 
 import javax.annotation.processing.AbstractProcessor;

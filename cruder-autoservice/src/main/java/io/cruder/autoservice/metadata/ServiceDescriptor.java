@@ -1,4 +1,4 @@
-package io.cruder.autoservice.info;
+package io.cruder.autoservice.metadata;
 
 import io.cruder.autoservice.annotation.AutoService;
 import io.cruder.autoservice.util.Models;
