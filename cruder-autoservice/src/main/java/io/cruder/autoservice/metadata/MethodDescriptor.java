@@ -22,7 +22,7 @@ import java.util.function.Function;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
-public class MethodDescriptor {
+public final class MethodDescriptor {
     private ExecutableElement methodElement;
     private MethodKind methodKind;
     private ResultKind resultKind;
