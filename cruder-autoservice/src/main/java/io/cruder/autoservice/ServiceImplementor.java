@@ -38,10 +38,7 @@ public class ServiceImplementor {
                     getServicePackageQualifiedName(), getServiceName().simpleName() + "Mapper");
             TypeSpec mapper = TypeSpec.interfaceBuilder(mapperName)
                     .addModifiers(Modifier.PUBLIC)
-                    .addAnnotation(AnnotationSpec
-                            .builder(ClassName.get("org.mapstruct", "Mapper"))
-                            .addMember("componentModel", "$S", "spring")
-                            .build())
+                    .addAnnotation(ClassName.get("org.mapstruct", "Mapper"))
                     .addMethods(mapperMethods.stream()
                             .map(method -> MethodSpec
                                     .methodBuilder(method.getMethodName())
@@ -55,8 +52,10 @@ public class ServiceImplementor {
                     .build();
             JavaFile.builder(mapperName.packageName(), mapper).build().writeTo(ctx.filer);
             this.builder.addField(FieldSpec
-                    .builder(mapperName, "mapper", Modifier.PRIVATE)
-                    .addAnnotation(ClassName.get("org.springframework.beans.factory.annotation", "Autowired"))
+                    .builder(mapperName, "mapper", Modifier.PRIVATE, Modifier.FINAL)
+                    .initializer("$1T.getMapper($2T.class)",
+                            ClassName.get("org.mapstruct.factory", "Mappers"),
+                            mapperName)
                     .build());
         }
 
