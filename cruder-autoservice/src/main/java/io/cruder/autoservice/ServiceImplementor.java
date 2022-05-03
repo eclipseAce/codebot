@@ -1,26 +1,27 @@
 package io.cruder.autoservice;
 
-import com.google.common.collect.Sets;
 import com.squareup.javapoet.*;
-import lombok.Value;
 
-import javax.lang.model.element.*;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.Modifier;
+import javax.lang.model.element.PackageElement;
 import javax.lang.model.type.TypeKind;
 import java.io.IOException;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 public class ServiceImplementor {
-    private final Context ctx;
+    private final ProcessingContext ctx;
     private final ServiceDescriptor service;
     private final TypeSpec.Builder builder;
 
-    private final Set<MapperMethod> mapperMethods = Sets.newLinkedHashSet();
+    private final MapperComponent mapperComponent;
+    private final RepositoryComponent repositoryComponent;
 
-    public ServiceImplementor(Context ctx, ServiceDescriptor service) throws IOException {
+    public ServiceImplementor(ProcessingContext ctx, ServiceDescriptor service) throws IOException {
         this.ctx = ctx;
         this.service = service;
         this.builder = createServiceImplBuilder();
+        this.mapperComponent = MapperComponent.forService(ctx, service);
+        this.repositoryComponent = RepositoryComponent.forEntity(ctx, service.getEntity());
 
         for (MethodDescriptor method : service.getMethods()) {
             switch (method.getMethodKind()) {
@@ -33,75 +34,63 @@ public class ServiceImplementor {
             }
         }
 
-        if (!mapperMethods.isEmpty()) {
-            ClassName mapperName = ClassName.get(
-                    getServicePackageQualifiedName(), getServiceName().simpleName() + "Mapper");
-            TypeSpec mapper = TypeSpec.interfaceBuilder(mapperName)
-                    .addModifiers(Modifier.PUBLIC)
-                    .addAnnotation(ClassName.get("org.mapstruct", "Mapper"))
-                    .addMethods(mapperMethods.stream()
-                            .map(method -> MethodSpec
-                                    .methodBuilder(method.getMethodName())
-                                    .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
-                                    .addParameter(method.getFrom(), "from")
-                                    .addParameter(ParameterSpec.builder(method.getTo(), "to")
-                                            .addAnnotation(ClassName.get("org.mapstruct", "MappingTarget"))
-                                            .build())
-                                    .build())
-                            .collect(Collectors.toList()))
-                    .build();
-            JavaFile.builder(mapperName.packageName(), mapper).build().writeTo(ctx.filer);
-            this.builder.addField(FieldSpec
-                    .builder(mapperName, "mapper", Modifier.PRIVATE, Modifier.FINAL)
+        if (mapperComponent.isNecessary()) {
+            JavaFile mapper = mapperComponent.createComponent();
+            builder.addField(FieldSpec
+                    .builder(mapperComponent.getName(), "mapper", Modifier.PRIVATE, Modifier.FINAL)
                     .initializer("$1T.getMapper($2T.class)",
                             ClassName.get("org.mapstruct.factory", "Mappers"),
-                            mapperName)
+                            mapperComponent.getName())
                     .build());
+            mapper.writeTo(ctx.filer);
         }
 
-        JavaFile.builder(getServiceImplName().packageName(), builder.build()).build().writeTo(ctx.filer);
+        if (repositoryComponent.isNecessary()) {
+            JavaFile repository = repositoryComponent.createComponent();
+            builder.addField(FieldSpec
+                    .builder(repositoryComponent.getName(), "repository", Modifier.PRIVATE)
+                    .addAnnotation(ClassName.get("org.springframework.beans.factory.annotation", "Autowired"))
+                    .build());
+            repository.writeTo(ctx.filer);
+        }
+
+        JavaFile.builder(getServiceImplName().packageName(), builder.build())
+                .build().writeTo(ctx.filer);
     }
 
     private MethodSpec implementCreateMethod(MethodDescriptor method) {
+        NameAllocator nameAlloc = method.newNameAllocator();
+        String entityVar = nameAlloc.newName("entity");
+
         MethodSpec.Builder builder = MethodSpec.overriding(method.getMethodElement())
                 .addAnnotation(ClassName.get("org.springframework.transaction.annotation", "Transactional"))
-                .addStatement("$1T entity = new $1T()", service.getEntity().getEntityElement());
+                .addStatement("$1T $2N = new $1T()", service.getEntity().getEntityElement(), entityVar);
+
         method.getUnrecognizedParameterElements().entrySet().stream()
                 .filter(entry -> entry.getValue().asType().getKind() == TypeKind.DECLARED)
                 .forEach(entry -> {
-                    builder.addStatement("mapper.$1L($2L, entity)",
-                            getMapperMethod(entry.getValue(), service.getEntity().getEntityElement()).getMethodName(),
-                            entry.getKey());
+                    builder.addStatement("mapper.$1L($2L, $3N)",
+                            mapperComponent.mapping(entry.getValue(), service.getEntity()),
+                            entry.getKey(),
+                            entityVar);
                 });
-        builder.addStatement("repository.save(entity)");
+
+        builder.addStatement("repository.save($1N)", entityVar);
         if (method.getResultKind() == MethodDescriptor.ResultKind.IDENTIFIER) {
             if (!service.getEntity().getIdField().isReadable()) {
                 throw new IllegalArgumentException("Entity ID field is unreadable: "
                         + service.getEntity().getEntityElement());
             }
-            builder.addStatement("return entity.$1L()", service.getEntity().getIdField().getGetterName());
+            builder.addStatement("return $1N.$2L()", entityVar, service.getEntity().getIdField().getGetterName());
         } //
         else if (method.getResultKind() == MethodDescriptor.ResultKind.DATA_OBJECT) {
-            builder.addStatement("$1T dto = new $1T()", method.getResultElement());
-            builder.addStatement("mapper.$1L(entity, dto)",
-                    getMapperMethod(method.getResultElement(), service.getEntity().getEntityElement()));
-            builder.addStatement("return dto");
+            String dtoVar = nameAlloc.newName("dto");
+            String mappingFn = mapperComponent.mapping(service.getEntity(), method.getResultElement());
+            builder.addStatement("$1T $2N = new $1T()", method.getResultElement(), dtoVar);
+            builder.addStatement("mapper.$1L($2N, $3N)", mappingFn, entityVar, dtoVar);
+            builder.addStatement("return $1N", dtoVar);
         }
         return builder.build();
-    }
-
-    private MapperMethod getMapperMethod(ClassName from, ClassName to) {
-        MapperMethod method = new MapperMethod(from, to);
-        mapperMethods.add(method);
-        return method;
-    }
-
-    private MapperMethod getMapperMethod(TypeElement from, TypeElement to) {
-        return getMapperMethod(ClassName.get(from), ClassName.get(to));
-    }
-
-    private MapperMethod getMapperMethod(VariableElement from, TypeElement to) {
-        return getMapperMethod(ClassName.get(ctx.asTypeElement(from.asType())), ClassName.get(to));
     }
 
     private String getServicePackageQualifiedName() {
@@ -130,13 +119,5 @@ public class ServiceImplementor {
         return builder;
     }
 
-    @Value
-    private static class MapperMethod {
-        ClassName from;
-        ClassName to;
 
-        public String getMethodName() {
-            return String.format("map%sTo%s", from.simpleName(), to.simpleName());
-        }
-    }
 }

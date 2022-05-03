@@ -47,11 +47,11 @@ public final class FieldDescriptor {
         return setterElement != null;
     }
 
-    public Optional<? extends AnnotationMirror> findAnnotation(Context ctx, String annotaionFqn) {
+    public Optional<? extends AnnotationMirror> findAnnotation(ProcessingContext ctx, String annotaionFqn) {
         return ctx.findAnnotation(fieldElement, annotaionFqn);
     }
 
-    public boolean isAnnotationPresent(Context ctx, String annotaionFqn) {
+    public boolean isAnnotationPresent(ProcessingContext ctx, String annotaionFqn) {
         return findAnnotation(ctx, annotaionFqn).isPresent();
     }
 
@@ -60,7 +60,7 @@ public final class FieldDescriptor {
         return ToStringBuilder.reflectionToString(this, ToStringStyle.MULTI_LINE_STYLE);
     }
 
-    public static FieldDescriptor of(Context ctx, VariableElement field) {
+    public static FieldDescriptor of(ProcessingContext ctx, VariableElement field) {
         FieldDescriptor descriptor = new FieldDescriptor();
         descriptor.fieldElement = field;
 

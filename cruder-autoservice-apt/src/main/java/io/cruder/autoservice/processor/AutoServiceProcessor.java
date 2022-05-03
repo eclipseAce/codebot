@@ -5,7 +5,7 @@ import com.google.common.collect.ImmutableSet;
 import io.cruder.autoservice.ServiceImplementor;
 import io.cruder.autoservice.annotation.AutoService;
 import io.cruder.autoservice.ServiceDescriptor;
-import io.cruder.autoservice.Context;
+import io.cruder.autoservice.ProcessingContext;
 
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
@@ -31,7 +31,7 @@ public class AutoServiceProcessor extends AbstractProcessor {
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-        Context ctx = new Context(processingEnv);
+        ProcessingContext ctx = new ProcessingContext(processingEnv);
         for (TypeElement serviceElement : ElementFilter.typesIn(roundEnv.getElementsAnnotatedWith(AutoService.class))) {
             try {
                 ServiceDescriptor service = ServiceDescriptor.of(ctx, serviceElement);

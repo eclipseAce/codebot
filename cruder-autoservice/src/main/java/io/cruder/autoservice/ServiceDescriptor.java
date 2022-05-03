@@ -27,7 +27,7 @@ public final class ServiceDescriptor {
         return ToStringBuilder.reflectionToString(this, ToStringStyle.MULTI_LINE_STYLE);
     }
 
-    public static ServiceDescriptor of(Context ctx, TypeElement service) {
+    public static ServiceDescriptor of(ProcessingContext ctx, TypeElement service) {
         ServiceDescriptor info = new ServiceDescriptor();
         info.serviceElement = service;
 

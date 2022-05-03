@@ -8,9 +8,7 @@ import org.apache.commons.lang3.builder.ToStringStyle;
 
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.VariableElement;
 import javax.lang.model.util.ElementFilter;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -27,7 +25,7 @@ public final class EntityDescriptor {
         return ToStringBuilder.reflectionToString(this, ToStringStyle.MULTI_LINE_STYLE);
     }
 
-    public static EntityDescriptor of(Context ctx, TypeElement entity) {
+    public static EntityDescriptor of(ProcessingContext ctx, TypeElement entity) {
         EntityDescriptor info = new EntityDescriptor();
         info.entityElement = entity;
 

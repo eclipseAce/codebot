@@ -10,12 +10,12 @@ import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import java.util.Optional;
 
-public class Context {
+public class ProcessingContext {
     public final Types types;
     public final Elements elements;
     public final Filer filer;
 
-    public Context(ProcessingEnvironment processingEnv) {
+    public ProcessingContext(ProcessingEnvironment processingEnv) {
         this.types = processingEnv.getTypeUtils();
         this.elements = processingEnv.getElementUtils();
         this.filer = processingEnv.getFiler();

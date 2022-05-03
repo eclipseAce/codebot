@@ -11,6 +11,8 @@ public interface UserService {
 
     long create(UserCreate dto);
 
+    UserDetails createAndGet(UserCreate create);
+
     long createDefault();
 
     void updatePassword(UserSetPassword dto);

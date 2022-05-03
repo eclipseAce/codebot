@@ -1,8 +1,7 @@
 package io.cruder.autoservice;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import com.google.common.collect.*;
+import com.squareup.javapoet.NameAllocator;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -18,6 +17,7 @@ import javax.lang.model.type.TypeMirror;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
@@ -28,6 +28,7 @@ public final class MethodDescriptor {
     private TypeMirror resultType;
     private TypeElement resultElement;
     private TypeElement resultContainerElement;
+    private Map<String, VariableElement> allParameterElements;
     private Map<String, VariableElement> pageableParameterElements;
     private Map<String, VariableElement> specificationParameterElements;
     private Map<String, VariableElement> entityIdParameterElements;
@@ -46,12 +47,18 @@ public final class MethodDescriptor {
         return ToStringBuilder.reflectionToString(this, ToStringStyle.MULTI_LINE_STYLE);
     }
 
+    public NameAllocator newNameAllocator() {
+        NameAllocator alloc = new NameAllocator();
+        allParameterElements.keySet().forEach(alloc::newName);
+        return alloc;
+    }
+
     private static final String LIST_FQN = "java.util.List";
     private static final String SPRING_DATA_SPECIFICATION_FQN = "org.springframework.data.jpa.domain.Specification";
     private static final String SPRING_DATA_PAGE_FQN = "org.springframework.data.domain.Page";
     private static final String SPRING_DATA_PAGEABLE_FQN = "org.springframework.data.domain.Pageable";
 
-    public static MethodDescriptor of(Context ctx, ServiceDescriptor service, ExecutableElement method) {
+    public static MethodDescriptor of(ProcessingContext ctx, ServiceDescriptor service, ExecutableElement method) {
         MethodDescriptor info = new MethodDescriptor();
         info.methodElement = method;
 
@@ -86,6 +93,10 @@ public final class MethodDescriptor {
         }
 
         List<VariableElement> parameters = Lists.newLinkedList(method.getParameters());
+
+        info.allParameterElements = parameters.stream().collect(Collectors.toMap(
+                it -> it.getSimpleName().toString(), Function.identity()));
+
         info.pageableParameterElements = recognize(parameters,
                 v -> ctx.isAssignable(v.asType(), SPRING_DATA_PAGEABLE_FQN));
 
