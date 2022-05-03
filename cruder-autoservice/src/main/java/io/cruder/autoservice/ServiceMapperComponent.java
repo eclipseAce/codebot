@@ -14,15 +14,16 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
-public class MapperComponent {
-    private final ProcessingContext ctx;
+public final class ServiceMapperComponent implements Component {
     private final @Getter ClassName name;
+
     private final Set<Map.Entry<ClassName, ClassName>> conversions = Sets.newLinkedHashSet();
 
-    public static MapperComponent forService(ProcessingContext ctx, ServiceDescriptor service) {
-        ClassName serviceName = ClassName.get(service.getServiceElement());
-        ClassName mapperName = ClassName.get(serviceName.packageName(), serviceName.simpleName() + "Mapper");
-        return new MapperComponent(ctx, mapperName);
+    private ProcessingContext ctx;
+
+    @Override
+    public void init(ProcessingContext ctx) {
+        this.ctx = ctx;
     }
 
     public String mapping(ClassName from, ClassName to) {
@@ -43,18 +44,15 @@ public class MapperComponent {
     }
 
     public String mapping(VariableElement from, TypeElement to) {
-        return mapping(ctx.asTypeElement(from.asType()), to);
+        return mapping(ctx.utils.asTypeElement(from.asType()), to);
     }
 
     public String mapping(VariableElement from, EntityDescriptor to) {
         return mapping(from, to.getEntityElement());
     }
 
-    public boolean isNecessary() {
-        return !conversions.isEmpty();
-    }
-
-    public JavaFile createComponent() {
+    @Override
+    public JavaFile createJavaFile() {
         TypeSpec type = TypeSpec.interfaceBuilder(name)
                 .addModifiers(Modifier.PUBLIC)
                 .addAnnotation(ClassName.get("org.mapstruct", "Mapper"))

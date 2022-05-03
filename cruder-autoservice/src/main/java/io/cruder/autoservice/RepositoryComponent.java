@@ -7,27 +7,16 @@ import lombok.RequiredArgsConstructor;
 import javax.lang.model.element.Modifier;
 
 @RequiredArgsConstructor
-public class RepositoryComponent {
-    private final ProcessingContext ctx;
+public final class RepositoryComponent implements Component {
     private final @Getter ClassName name;
     private final @Getter EntityDescriptor entity;
 
-    public static RepositoryComponent forEntity(ProcessingContext ctx, EntityDescriptor entity) {
-        ClassName entityName = ClassName.get(entity.getEntityElement());
-        String pkg = entityName.packageName();
-        int sepIndex = pkg.lastIndexOf('.');
-        if (sepIndex > -1) {
-            pkg = pkg.substring(0, sepIndex) + ".repository";
-        }
-        ClassName repositoryName = ClassName.get(pkg, entityName.simpleName() + "Repository");
-        return new RepositoryComponent(ctx, repositoryName, entity);
+    @Override
+    public void init(ProcessingContext ctx) {
     }
 
-    public boolean isNecessary() {
-        return true;
-    }
-
-    public JavaFile createComponent() {
+    @Override
+    public JavaFile createJavaFile() {
         TypeSpec type = TypeSpec.interfaceBuilder(name)
                 .addModifiers(Modifier.PUBLIC)
                 .addSuperinterface(ParameterizedTypeName.get(

@@ -1,6 +1,8 @@
 package io.cruder.autoservice;
 
-import com.google.common.collect.*;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.squareup.javapoet.NameAllocator;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -74,22 +76,22 @@ public final class MethodDescriptor {
         }
 
         TypeMirror returnType = method.getReturnType();
-        if (ctx.isAssignable(returnType, LIST_FQN, ctx.types.getWildcardType(null, null))) {
-            info.resultContainerElement = ctx.elements.getTypeElement(LIST_FQN);
+        if (ctx.utils.isAssignable(returnType, LIST_FQN, ctx.utils.types.getWildcardType(null, null))) {
+            info.resultContainerElement = ctx.utils.elements.getTypeElement(LIST_FQN);
             info.resultType = ((DeclaredType) returnType).getTypeArguments().get(0);
-        } else if (ctx.isAssignable(returnType, SPRING_DATA_PAGE_FQN, ctx.types.getWildcardType(null, null))) {
-            info.resultContainerElement = ctx.elements.getTypeElement(SPRING_DATA_PAGE_FQN);
+        } else if (ctx.utils.isAssignable(returnType, SPRING_DATA_PAGE_FQN, ctx.utils.types.getWildcardType(null, null))) {
+            info.resultContainerElement = ctx.utils.elements.getTypeElement(SPRING_DATA_PAGE_FQN);
             info.resultType = ((DeclaredType) returnType).getTypeArguments().get(0);
         } else {
             info.resultType = returnType;
         }
         if (info.resultType.getKind() == TypeKind.VOID) {
             info.resultKind = ResultKind.NONE;
-        } else if (ctx.types.isAssignable(info.resultType, service.getEntity().getIdField().getType())) {
+        } else if (ctx.utils.types.isAssignable(info.resultType, service.getEntity().getIdField().getType())) {
             info.resultKind = ResultKind.IDENTIFIER;
         } else if (info.resultType.getKind() == TypeKind.DECLARED) {
             info.resultKind = ResultKind.DATA_OBJECT;
-            info.resultElement = ctx.asTypeElement(info.resultType);
+            info.resultElement = ctx.utils.asTypeElement(info.resultType);
         }
 
         List<VariableElement> parameters = Lists.newLinkedList(method.getParameters());
@@ -98,10 +100,10 @@ public final class MethodDescriptor {
                 it -> it.getSimpleName().toString(), Function.identity()));
 
         info.pageableParameterElements = recognize(parameters,
-                v -> ctx.isAssignable(v.asType(), SPRING_DATA_PAGEABLE_FQN));
+                v -> ctx.utils.isAssignable(v.asType(), SPRING_DATA_PAGEABLE_FQN));
 
         info.specificationParameterElements = recognize(parameters,
-                v -> ctx.isAssignable(v.asType(), SPRING_DATA_SPECIFICATION_FQN,
+                v -> ctx.utils.isAssignable(v.asType(), SPRING_DATA_SPECIFICATION_FQN,
                         service.getEntity().getEntityElement().asType()));
 
         info.entityIdParameterElements = recognize(parameters,

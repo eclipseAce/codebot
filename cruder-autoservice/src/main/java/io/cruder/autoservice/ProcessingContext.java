@@ -1,53 +1,71 @@
 package io.cruder.autoservice;
 
-import javax.annotation.processing.Filer;
-import javax.annotation.processing.ProcessingEnvironment;
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.type.TypeMirror;
-import javax.lang.model.util.Elements;
-import javax.lang.model.util.Types;
-import java.util.Optional;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.squareup.javapoet.ClassName;
 
-public class ProcessingContext {
-    public final Types types;
-    public final Elements elements;
-    public final Filer filer;
+import javax.annotation.processing.ProcessingEnvironment;
+import java.util.Collection;
+import java.util.Map;
+
+public final class ProcessingContext {
+    public final ProcessingEnvironment processingEnv;
+    public final ProcessingUtils utils;
+
+    private final Map<ClassName, RepositoryComponent> repositories = Maps.newLinkedHashMap();
+    private final Map<ClassName, ServiceImplComponent> serviceImpls = Maps.newLinkedHashMap();
+    private final Map<ClassName, ServiceMapperComponent> serviceMappers = Maps.newLinkedHashMap();
 
     public ProcessingContext(ProcessingEnvironment processingEnv) {
-        this.types = processingEnv.getTypeUtils();
-        this.elements = processingEnv.getElementUtils();
-        this.filer = processingEnv.getFiler();
+        this.processingEnv = processingEnv;
+        this.utils = new ProcessingUtils(processingEnv);
     }
 
-    public TypeElement asTypeElement(TypeMirror type) {
-        return (TypeElement) types.asElement(type);
+    public Collection<? extends Component> getComponents() {
+        return Lists.newArrayList(Iterables.concat(
+                repositories.values(),
+                serviceImpls.values(),
+                serviceMappers.values()));
     }
 
-    public boolean isAssignable(TypeMirror type, String fqn, TypeMirror... typeArgs) {
-        return types.isAssignable(type, types.getDeclaredType(elements.getTypeElement(fqn), typeArgs));
+    public RepositoryComponent getRepositoryComponent(EntityDescriptor entity) {
+        ClassName entityName = ClassName.get(entity.getEntityElement());
+        return repositories.computeIfAbsent(entityName, k -> {
+            String pkg = entityName.packageName();
+            int sepIndex = pkg.lastIndexOf('.');
+            if (sepIndex > -1) {
+                pkg = pkg.substring(0, sepIndex) + ".repository";
+            }
+            RepositoryComponent c = new RepositoryComponent(
+                    ClassName.get(pkg, entityName.simpleName() + "Repository"),
+                    entity
+            );
+            c.init(this);
+            return c;
+        });
     }
 
-    public boolean isTypeOfName(TypeMirror type, String fqn) {
-        return types.isSameType(type, elements.getTypeElement(fqn).asType());
+    public ServiceImplComponent getServiceImplComponent(ServiceDescriptor service) {
+        ClassName serviceName = ClassName.get(service.getServiceElement());
+        return serviceImpls.computeIfAbsent(serviceName, k -> {
+            ServiceImplComponent c = new ServiceImplComponent(
+                    ClassName.get(serviceName.packageName(), serviceName.simpleName() + "Impl"),
+                    service
+            );
+            c.init(this);
+            return c;
+        });
     }
 
-    public boolean isAnnotationPresent(Element element, String annotationFqn) {
-        return findAnnotation(element, annotationFqn).isPresent();
-    }
-
-    public Optional<? extends AnnotationMirror> findAnnotation(Element element, String annotationFqn) {
-        return element.getAnnotationMirrors().stream()
-                .filter(anno -> isTypeOfName(anno.getAnnotationType(), annotationFqn))
-                .findFirst();
-    }
-
-    public Optional<? extends TypeMirror> findClassAnnotationValue(AnnotationMirror annotation, String member) {
-        return annotation.getElementValues().entrySet().stream()
-                .filter(it -> member.contentEquals(it.getKey().getSimpleName())
-                        && (it.getValue().getValue() instanceof TypeMirror))
-                .map(it -> (TypeMirror) it.getValue().getValue())
-                .findFirst();
+    public ServiceMapperComponent getServiceMapperComponent(ServiceDescriptor service) {
+        ClassName serviceName = ClassName.get(service.getServiceElement());
+        return serviceMappers.computeIfAbsent(serviceName, k -> {
+            ServiceMapperComponent c = new ServiceMapperComponent(
+                    ClassName.get(serviceName.packageName(), serviceName.simpleName() + "Mapper")
+            );
+            c.init(this);
+            return c;
+        });
     }
 }

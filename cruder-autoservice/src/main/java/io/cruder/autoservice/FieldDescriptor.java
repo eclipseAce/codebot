@@ -48,7 +48,7 @@ public final class FieldDescriptor {
     }
 
     public Optional<? extends AnnotationMirror> findAnnotation(ProcessingContext ctx, String annotaionFqn) {
-        return ctx.findAnnotation(fieldElement, annotaionFqn);
+        return ctx.utils.findAnnotation(fieldElement, annotaionFqn);
     }
 
     public boolean isAnnotationPresent(ProcessingContext ctx, String annotaionFqn) {
@@ -77,14 +77,14 @@ public final class FieldDescriptor {
                             descriptor.getterElement = method;
                         } //
                         else if (methodName.equals("get" + capFieldName)
-                                && ctx.types.isSameType(method.getReturnType(), field.asType())) {
+                                && ctx.utils.types.isSameType(method.getReturnType(), field.asType())) {
                             descriptor.getterElement = method;
                         }
                     } //
                     else if (descriptor.setterElement == null
                             && methodName.equals("set" + capFieldName)
                             && method.getParameters().size() == 1
-                            && ctx.types.isSameType(method.getParameters().get(0).asType(), field.asType())) {
+                            && ctx.utils.types.isSameType(method.getParameters().get(0).asType(), field.asType())) {
                         descriptor.setterElement = method;
                     }
                 });

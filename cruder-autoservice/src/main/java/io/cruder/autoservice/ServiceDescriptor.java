@@ -31,12 +31,12 @@ public final class ServiceDescriptor {
         ServiceDescriptor info = new ServiceDescriptor();
         info.serviceElement = service;
 
-        AnnotationMirror anno = ctx.findAnnotation(service, AutoService.class.getName())
+        AnnotationMirror anno = ctx.utils.findAnnotation(service, AutoService.class.getName())
                 .orElseThrow(() -> new IllegalArgumentException("No @AutoService present"));
-        TypeMirror type = ctx.findClassAnnotationValue(anno, "value")
+        TypeMirror type = ctx.utils.findClassAnnotationValue(anno, "value")
                 .filter(it -> it.getKind() == TypeKind.DECLARED)
                 .orElseThrow(() -> new IllegalArgumentException("Not DeclaredType for entity"));
-        info.entity = EntityDescriptor.of(ctx, ctx.asTypeElement(type));
+        info.entity = EntityDescriptor.of(ctx, ctx.utils.asTypeElement(type));
 
         info.methods = ElementFilter.methodsIn(service.getEnclosedElements()).stream()
                 .map(method -> MethodDescriptor.of(ctx, info, method))

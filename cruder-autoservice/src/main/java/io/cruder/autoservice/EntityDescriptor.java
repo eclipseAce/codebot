@@ -30,7 +30,7 @@ public final class EntityDescriptor {
         info.entityElement = entity;
 
         TypeElement e = entity;
-        while (!ctx.isTypeOfName(e.asType(), "java.lang.Object")) {
+        while (!ctx.utils.isTypeOfName(e.asType(), "java.lang.Object")) {
             info.fields = ElementFilter.fieldsIn(e.getEnclosedElements()).stream()
                     .filter(field -> !field.getModifiers().contains(Modifier.STATIC))
                     .map(field -> {
@@ -41,7 +41,7 @@ public final class EntityDescriptor {
                         return fd;
                     })
                     .collect(Collectors.toMap(fd -> fd.getName(), Function.identity()));
-            e = ctx.asTypeElement(e.getSuperclass());
+            e = ctx.utils.asTypeElement(e.getSuperclass());
         }
         return info;
     }
