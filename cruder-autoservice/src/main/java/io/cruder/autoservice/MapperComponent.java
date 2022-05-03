@@ -14,7 +14,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
-public final class ServiceMapperComponent implements Component {
+public class MapperComponent implements Component {
     private final @Getter ClassName name;
 
     private final Set<Map.Entry<ClassName, ClassName>> conversions = Sets.newLinkedHashSet();
@@ -36,11 +36,11 @@ public final class ServiceMapperComponent implements Component {
     }
 
     public String mapping(EntityDescriptor from, TypeElement to) {
-        return mapping(from.getEntityElement(), to);
+        return mapping(from.getBeanElement(), to);
     }
 
     public String mapping(TypeElement from, EntityDescriptor to) {
-        return mapping(from, to.getEntityElement());
+        return mapping(from, to.getBeanElement());
     }
 
     public String mapping(VariableElement from, TypeElement to) {
@@ -48,7 +48,7 @@ public final class ServiceMapperComponent implements Component {
     }
 
     public String mapping(VariableElement from, EntityDescriptor to) {
-        return mapping(from, to.getEntityElement());
+        return mapping(from, to.getBeanElement());
     }
 
     @Override

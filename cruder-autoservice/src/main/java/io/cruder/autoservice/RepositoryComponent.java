@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 import javax.lang.model.element.Modifier;
 
 @RequiredArgsConstructor
-public final class RepositoryComponent implements Component {
+public class RepositoryComponent implements Component {
     private final @Getter ClassName name;
     private final @Getter EntityDescriptor entity;
 
@@ -21,12 +21,12 @@ public final class RepositoryComponent implements Component {
                 .addModifiers(Modifier.PUBLIC)
                 .addSuperinterface(ParameterizedTypeName.get(
                         ClassName.get("org.springframework.data.jpa.repository", "JpaRepository"),
-                        ClassName.get(entity.getEntityElement()),
-                        TypeName.get(entity.getIdField().getType()).box()
+                        entity.getClassName(),
+                        TypeName.get(entity.getIdProperty().getType()).box()
                 ))
                 .addSuperinterface(ParameterizedTypeName.get(
                         ClassName.get("org.springframework.data.jpa.repository", "JpaSpecificationExecutor"),
-                        ClassName.get(entity.getEntityElement())
+                        entity.getClassName()
                 ))
                 .addAnnotation(ClassName.get("org.springframework.stereotype", "Repository"))
                 .build();

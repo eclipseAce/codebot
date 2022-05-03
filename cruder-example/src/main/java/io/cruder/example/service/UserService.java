@@ -17,6 +17,8 @@ public interface UserService {
 
     void updatePassword(UserSetPassword dto);
 
+    UserDetails updatePassword(long id, UserSetPassword dto);
+
     void updateProfile(UserSetProfile dto);
 
     void updateLocked(UserSetLocked dto);

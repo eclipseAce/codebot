@@ -4,6 +4,7 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.PrimitiveType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
@@ -28,6 +29,16 @@ public final class ProcessingUtils {
 
     public boolean isTypeOfName(TypeMirror type, String fqn) {
         return types.isSameType(type, elements.getTypeElement(fqn).asType());
+    }
+
+    public boolean isSameType(TypeMirror t1, TypeMirror t2, boolean boxed) {
+        if (boxed && t1.getKind().isPrimitive()) {
+            t1 = types.boxedClass((PrimitiveType) t1).asType();
+        }
+        if (boxed && t2.getKind().isPrimitive()) {
+            t2 = types.boxedClass((PrimitiveType) t2).asType();
+        }
+        return types.isSameType(t1, t2);
     }
 
     public boolean isAnnotationPresent(Element element, String annotationFqn) {

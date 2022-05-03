@@ -15,7 +15,7 @@ public final class ProcessingContext {
 
     private final Map<ClassName, RepositoryComponent> repositories = Maps.newLinkedHashMap();
     private final Map<ClassName, ServiceImplComponent> serviceImpls = Maps.newLinkedHashMap();
-    private final Map<ClassName, ServiceMapperComponent> serviceMappers = Maps.newLinkedHashMap();
+    private final Map<ClassName, MapperComponent> serviceMappers = Maps.newLinkedHashMap();
 
     public ProcessingContext(ProcessingEnvironment processingEnv) {
         this.processingEnv = processingEnv;
@@ -30,7 +30,7 @@ public final class ProcessingContext {
     }
 
     public RepositoryComponent getRepositoryComponent(EntityDescriptor entity) {
-        ClassName entityName = ClassName.get(entity.getEntityElement());
+        ClassName entityName = ClassName.get(entity.getBeanElement());
         return repositories.computeIfAbsent(entityName, k -> {
             String pkg = entityName.packageName();
             int sepIndex = pkg.lastIndexOf('.');
@@ -58,10 +58,10 @@ public final class ProcessingContext {
         });
     }
 
-    public ServiceMapperComponent getServiceMapperComponent(ServiceDescriptor service) {
+    public MapperComponent getServiceMapperComponent(ServiceDescriptor service) {
         ClassName serviceName = ClassName.get(service.getServiceElement());
         return serviceMappers.computeIfAbsent(serviceName, k -> {
-            ServiceMapperComponent c = new ServiceMapperComponent(
+            MapperComponent c = new MapperComponent(
                     ClassName.get(serviceName.packageName(), serviceName.simpleName() + "Mapper")
             );
             c.init(this);
