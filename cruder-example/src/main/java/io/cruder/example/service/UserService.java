@@ -9,6 +9,11 @@ import org.springframework.data.domain.Pageable;
 @AutoService(User.class)
 public interface UserService {
 
+    /**
+     * 创建用户
+     * @param dto
+     * @return
+     */
     long create(UserCreate dto);
 
     UserDetails createAndGet(UserCreate create);

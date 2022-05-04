@@ -16,6 +16,7 @@ public final class ProcessingContext {
     private final Map<ClassName, RepositoryComponent> repositories = Maps.newLinkedHashMap();
     private final Map<ClassName, ServiceImplComponent> serviceImpls = Maps.newLinkedHashMap();
     private final Map<ClassName, MapperComponent> serviceMappers = Maps.newLinkedHashMap();
+    private final Map<ClassName, ServiceControllerComponent> serviceControllers = Maps.newLinkedHashMap();
 
     public ProcessingContext(ProcessingEnvironment processingEnv) {
         this.processingEnv = processingEnv;
@@ -26,21 +27,17 @@ public final class ProcessingContext {
         return Lists.newArrayList(Iterables.concat(
                 repositories.values(),
                 serviceImpls.values(),
-                serviceMappers.values()));
+                serviceMappers.values(),
+                serviceControllers.values()));
     }
 
     public RepositoryComponent getRepositoryComponent(EntityDescriptor entity) {
         ClassName entityName = ClassName.get(entity.getBeanElement());
         return repositories.computeIfAbsent(entityName, k -> {
-            String pkg = entityName.packageName();
-            int sepIndex = pkg.lastIndexOf('.');
-            if (sepIndex > -1) {
-                pkg = pkg.substring(0, sepIndex) + ".repository";
-            }
-            RepositoryComponent c = new RepositoryComponent(
-                    ClassName.get(pkg, entityName.simpleName() + "Repository"),
-                    entity
-            );
+            ClassName repositoryName = ClassName.get(
+                    getSiblingPackage(entityName.packageName(), "repository"),
+                    entityName.simpleName() + "Repository");
+            RepositoryComponent c = new RepositoryComponent(repositoryName, entity);
             c.init(this);
             return c;
         });
@@ -67,5 +64,25 @@ public final class ProcessingContext {
             c.init(this);
             return c;
         });
+    }
+
+    public ServiceControllerComponent getServiceControllerComponent(ServiceDescriptor service) {
+        ClassName serviceName = ClassName.get(service.getServiceElement());
+        return serviceControllers.computeIfAbsent(serviceName, k -> {
+            ClassName serviceControllerName = ClassName.get(
+                    getSiblingPackage(serviceName.packageName(), "controller"),
+                    serviceName.simpleName() + "Controller");
+            ServiceControllerComponent c = new ServiceControllerComponent(serviceControllerName, service);
+            c.init(this);
+            return c;
+        });
+    }
+
+    private String getSiblingPackage(String pkg, String sibling) {
+        int sepIndex = pkg.lastIndexOf('.');
+        if (sepIndex > -1) {
+            pkg = pkg.substring(0, sepIndex) + "." + sibling;
+        }
+        return pkg;
     }
 }

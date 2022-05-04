@@ -5,6 +5,7 @@ import lombok.Getter;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 
 public class ParameterDescriptor {
     private final ProcessingContext ctx;
@@ -30,18 +31,21 @@ public class ParameterDescriptor {
         return parameterElement.getSimpleName().toString();
     }
 
+    public TypeMirror getType() {
+        return parameterElement.asType();
+    }
+
     public boolean isDeclaredType() {
         return parameterElement.asType().getKind() == TypeKind.DECLARED;
     }
 
     public boolean isPageable() {
-        return ctx.utils.isAssignable(parameterElement.asType(),
-                "org.springframework.data.domain.Pageable");
+        return ctx.utils.isAssignable(parameterElement.asType(), ClassNames.SpringData.Pageable.canonicalName());
     }
 
     public boolean isJpaSpecification(EntityDescriptor entity) {
         return ctx.utils.isAssignable(parameterElement.asType(),
-                "org.springframework.data.jpa.domain.Specification",
+                ClassNames.SpringData.Specification.canonicalName(),
                 entity.getBeanElement().asType());
     }
 

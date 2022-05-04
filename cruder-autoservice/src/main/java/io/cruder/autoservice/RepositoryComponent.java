@@ -20,15 +20,15 @@ public class RepositoryComponent implements Component {
         TypeSpec type = TypeSpec.interfaceBuilder(name)
                 .addModifiers(Modifier.PUBLIC)
                 .addSuperinterface(ParameterizedTypeName.get(
-                        ClassName.get("org.springframework.data.jpa.repository", "JpaRepository"),
+                        ClassNames.SpringData.JpaRepository,
                         entity.getClassName(),
                         TypeName.get(entity.getIdProperty().getType()).box()
                 ))
                 .addSuperinterface(ParameterizedTypeName.get(
-                        ClassName.get("org.springframework.data.jpa.repository", "JpaSpecificationExecutor"),
+                        ClassNames.SpringData.JpaSpecificationExecutor,
                         entity.getClassName()
                 ))
-                .addAnnotation(ClassName.get("org.springframework.stereotype", "Repository"))
+                .addAnnotation(ClassNames.Spring.Repository)
                 .build();
         return JavaFile.builder(name.packageName(), type).build();
     }

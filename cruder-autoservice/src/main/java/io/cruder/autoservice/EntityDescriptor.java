@@ -10,7 +10,7 @@ public class EntityDescriptor extends BeanDescriptor {
     public EntityDescriptor(ProcessingContext ctx, TypeElement entity) {
         super(ctx, entity);
         this.idProperty = getProperties().values().stream()
-                .filter(it -> it.isAnnotationPresent("javax.persistence.Id"))
+                .filter(it -> it.isAnnotationPresent(ClassNames.JavaxPersistence.Id.canonicalName()))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Can't determin id field of entity " + entity));
     }

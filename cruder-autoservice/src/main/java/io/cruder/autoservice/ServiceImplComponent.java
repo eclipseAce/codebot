@@ -25,7 +25,8 @@ public class ServiceImplComponent implements Component {
     @Override
     public JavaFile createJavaFile() {
         TypeSpec.Builder builder = TypeSpec.classBuilder(name)
-                .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT);
+                .addModifiers(Modifier.PUBLIC)
+                .addAnnotation(ClassNames.Spring.Service);
         if (service.getServiceElement().getKind() == ElementKind.INTERFACE) {
             builder.addSuperinterface(ClassName.get(service.getServiceElement()));
         } else {
@@ -49,13 +50,11 @@ public class ServiceImplComponent implements Component {
         }
         builder.addField(FieldSpec
                 .builder(mapper.getName(), "mapper", Modifier.PRIVATE, Modifier.FINAL)
-                .initializer("$1T.getMapper($2T.class)",
-                        ClassName.get("org.mapstruct.factory", "Mappers"),
-                        mapper.getName())
+                .initializer("$1T.getMapper($2T.class)", ClassNames.MapStruct.Mappers, mapper.getName())
                 .build());
         builder.addField(FieldSpec
                 .builder(repository.getName(), "repository", Modifier.PRIVATE)
-                .addAnnotation(ClassName.get("org.springframework.beans.factory.annotation", "Autowired"))
+                .addAnnotation(ClassNames.Spring.Autowired)
                 .build());
         return JavaFile.builder(name.packageName(), builder.build()).build();
     }
@@ -64,7 +63,7 @@ public class ServiceImplComponent implements Component {
         String entityVar = nameAlloc.newName("entity");
 
         MethodSpec.Builder builder = MethodSpec.overriding(method.getMethodElement())
-                .addAnnotation(ClassName.get("org.springframework.transaction.annotation", "Transactional"))
+                .addAnnotation(ClassNames.Spring.Transactional)
                 .addStatement("$1T $2N = new $1T()", service.getEntityClassName(), entityVar);
 
         builder.addCode(buildMappingCode(method, entityVar));
@@ -77,13 +76,13 @@ public class ServiceImplComponent implements Component {
         String entityVar = nameAlloc.newName("entity");
 
         MethodSpec.Builder builder = MethodSpec.overriding(method.getMethodElement())
-                .addAnnotation(ClassName.get("org.springframework.transaction.annotation", "Transactional"))
+                .addAnnotation(ClassNames.Spring.Transactional)
                 .addStatement(
                         "$1T $2N = repository.findById($3L).orElseThrow(() -> new $4T($5S))",
                         service.getEntityClassName(),
                         entityVar,
                         buildIdExpression(method),
-                        ClassName.get("javax.persistence", "EntityNotFoundException"),
+                        ClassNames.JavaxPersistence.EntityNotFoundException,
                         service.getEntityClassName().simpleName() + " not exists"
                 );
 

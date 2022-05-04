@@ -34,7 +34,9 @@ public class AutoServiceProcessor extends AbstractProcessor {
         ProcessingContext ctx = new ProcessingContext(processingEnv);
         for (TypeElement serviceElement : ElementFilter.typesIn(roundEnv.getElementsAnnotatedWith(AutoService.class))) {
             try {
-                ctx.getServiceImplComponent(new ServiceDescriptor(ctx, serviceElement));
+                ServiceDescriptor service = new ServiceDescriptor(ctx, serviceElement);
+                ctx.getServiceImplComponent(service);
+                ctx.getServiceControllerComponent(service);
             } catch (Exception e) {
                 processingEnv.getMessager().printMessage(
                         Diagnostic.Kind.ERROR,

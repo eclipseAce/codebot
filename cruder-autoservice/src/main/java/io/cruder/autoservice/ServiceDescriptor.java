@@ -32,6 +32,10 @@ public class ServiceDescriptor {
                 .collect(Collectors.toList());
     }
 
+    public ClassName getName() {
+        return ClassName.get(serviceElement);
+    }
+
     public ClassName getEntityClassName() {
         return entity.getClassName();
     }

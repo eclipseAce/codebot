@@ -15,9 +15,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class MethodDescriptor {
-    private static final String LIST_FQN = "java.util.List";
-    private static final String SPRING_DATA_PAGE_FQN = "org.springframework.data.domain.Page";
-
+    private final ProcessingContext ctx;
     private final @Getter ExecutableElement methodElement;
     private final @Getter MethodKind methodKind;
     private final @Getter ResultKind resultKind;
@@ -35,6 +33,7 @@ public class MethodDescriptor {
     }
 
     public MethodDescriptor(ProcessingContext ctx, ServiceDescriptor service, ExecutableElement method) {
+        this.ctx = ctx;
         this.methodElement = method;
 
         String methodName = method.getSimpleName().toString();
@@ -49,26 +48,36 @@ public class MethodDescriptor {
         }
 
         TypeMirror returnType = method.getReturnType();
-        if (ctx.utils.isAssignable(returnType, LIST_FQN, ctx.utils.types.getWildcardType(null, null))) {
-            this.resultContainerElement = ctx.utils.elements.getTypeElement(LIST_FQN);
+        if (ctx.utils.isAssignable(returnType,
+                ClassNames.List.canonicalName(),
+                ctx.utils.types.getWildcardType(null, null))) {
+            this.resultContainerElement = ctx.utils.elements.getTypeElement(ClassNames.List.canonicalName());
             this.resultType = ((DeclaredType) returnType).getTypeArguments().get(0);
-        } else if (ctx.utils.isAssignable(returnType, SPRING_DATA_PAGE_FQN, ctx.utils.types.getWildcardType(null, null))) {
-            this.resultContainerElement = ctx.utils.elements.getTypeElement(SPRING_DATA_PAGE_FQN);
+        } //
+        else if (ctx.utils.isAssignable(returnType,
+                ClassNames.SpringData.Page.canonicalName(),
+                ctx.utils.types.getWildcardType(null, null))) {
+            this.resultContainerElement = ctx.utils.elements.getTypeElement(ClassNames.SpringData.Page.canonicalName());
             this.resultType = ((DeclaredType) returnType).getTypeArguments().get(0);
-        } else {
+        } //
+        else {
             this.resultContainerElement = null;
             this.resultType = returnType;
         }
+
         if (this.resultType.getKind() == TypeKind.VOID) {
             this.resultKind = ResultKind.NONE;
             this.resultElement = null;
-        } else if (ctx.utils.types.isAssignable(this.resultType, service.getEntity().getIdProperty().getType())) {
+        } //
+        else if (ctx.utils.types.isAssignable(this.resultType, service.getEntity().getIdProperty().getType())) {
             this.resultKind = ResultKind.IDENTIFIER;
             this.resultElement = null;
-        } else if (this.resultType.getKind() == TypeKind.DECLARED) {
+        } //
+        else if (this.resultType.getKind() == TypeKind.DECLARED) {
             this.resultKind = ResultKind.DATA_OBJECT;
             this.resultElement = ctx.utils.asTypeElement(this.resultType);
-        } else {
+        } //
+        else {
             this.resultKind = ResultKind.UNKNOWN;
             this.resultElement = null;
         }
@@ -80,6 +89,14 @@ public class MethodDescriptor {
 
     public String getName() {
         return methodElement.getSimpleName().toString();
+    }
+
+    public TypeMirror getReturnType() {
+        return methodElement.getReturnType();
+    }
+
+    public String getDocComment() {
+        return ctx.utils.elements.getDocComment(methodElement);
     }
 
     public List<ParameterDescriptor> findParameters(Predicate<ParameterDescriptor> condition) {

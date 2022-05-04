@@ -55,14 +55,14 @@ public class MapperComponent implements Component {
     public JavaFile createJavaFile() {
         TypeSpec type = TypeSpec.interfaceBuilder(name)
                 .addModifiers(Modifier.PUBLIC)
-                .addAnnotation(ClassName.get("org.mapstruct", "Mapper"))
+                .addAnnotation(ClassNames.MapStruct.Mapper)
                 .addMethods(conversions.stream()
                         .map(conv -> MethodSpec
                                 .methodBuilder(mapping(conv.getKey(), conv.getValue()))
                                 .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
                                 .addParameter(conv.getKey(), "from")
                                 .addParameter(ParameterSpec.builder(conv.getValue(), "to")
-                                        .addAnnotation(ClassName.get("org.mapstruct", "MappingTarget"))
+                                        .addAnnotation(ClassNames.MapStruct.MappingTarget)
                                         .build())
                                 .build())
                         .collect(Collectors.toList()))
