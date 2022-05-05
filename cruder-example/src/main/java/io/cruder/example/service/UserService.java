@@ -1,12 +1,12 @@
 package io.cruder.example.service;
 
-import io.cruder.autoservice.annotation.AutoService;
+import io.cruder.autoservice.annotation.EntityService;
 import io.cruder.example.domain.User;
 import io.cruder.example.dto.user.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-@AutoService(User.class)
+@EntityService(User.class)
 public interface UserService {
 
     /**
