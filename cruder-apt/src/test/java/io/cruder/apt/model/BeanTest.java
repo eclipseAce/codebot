@@ -26,7 +26,8 @@ class BeanTest {
                 .compile(
                         JavaFileObjects.forResource("Dummy.java"),
                         JavaFileObjects.forResource("EntityL1.java"),
-                        JavaFileObjects.forResource("EntityL2.java")
+                        JavaFileObjects.forResource("EntityL2.java"),
+                        JavaFileObjects.forResource("EntityL3.java")
                 );
 
         CompilationSubject.assertThat(compilation).succeeded();
@@ -39,7 +40,7 @@ class BeanTest {
             Elements elementUtils = processingEnv.getElementUtils();
             Types typeUtils = processingEnv.getTypeUtils();
 
-            DeclaredType type = typeUtils.getDeclaredType(elementUtils.getTypeElement("test.EntityL2"));
+            DeclaredType type = typeUtils.getDeclaredType(elementUtils.getTypeElement("test.EntityL3"));
             Bean bean = new Bean.Factory(processingEnv).getBean(type);
 
             System.out.println(ToStringBuilder.reflectionToString(bean, ToStringStyle.MULTI_LINE_STYLE));

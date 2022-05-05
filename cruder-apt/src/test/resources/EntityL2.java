@@ -1,7 +1,7 @@
 package test;
 
 @Dummy
-public class EntityL2 extends EntityL1<Long> {
+public class EntityL2<T> extends EntityL1<T> {
     private String field1;
     private int field2;
 

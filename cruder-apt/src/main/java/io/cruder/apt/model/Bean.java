@@ -83,9 +83,9 @@ public class Bean {
 
             DeclaredType type = declaredType;
             TypeElement element = (TypeElement) type.asElement();
+            TypeResolver typeResolver = new TypeResolver(type, null);
             while (element.getKind() == ElementKind.CLASS
                     && !element.getQualifiedName().contentEquals("java.lang.Object")) {
-                TypeResolver typeResolver = new TypeResolver(type);
                 for (ExecutableElement method : ElementFilter.methodsIn(element.getEnclosedElements())) {
                     String name = method.getSimpleName().toString();
                     TypeMirror returnType = typeResolver.resolve(method.getReturnType());
@@ -115,6 +115,7 @@ public class Bean {
 
                 type = (DeclaredType) element.getSuperclass();
                 element = (TypeElement) type.asElement();
+                typeResolver = new TypeResolver(type, typeResolver);
             }
             return new Bean(
                     (TypeElement) declaredType.asElement(),
@@ -127,13 +128,15 @@ public class Bean {
     private static class TypeResolver {
         private final Map<TypeVariable, TypeMirror> typeVars = Maps.newHashMap();
 
-        public TypeResolver(DeclaredType type) {
-            TypeElement element = (TypeElement) type.asElement();
+        public TypeResolver(DeclaredType declaredType, TypeResolver typeResolver) {
+            TypeElement element = (TypeElement) declaredType.asElement();
             for (int i = 0; i < element.getTypeParameters().size(); i++) {
-                typeVars.put(
-                        (TypeVariable) element.getTypeParameters().get(i).asType(),
-                        type.getTypeArguments().get(i)
-                );
+                TypeVariable typeVar = (TypeVariable) element.getTypeParameters().get(i).asType();
+                TypeMirror type = declaredType.getTypeArguments().get(i);
+                if (typeResolver != null) {
+                    type = typeResolver.resolve(type);
+                }
+                typeVars.put(typeVar, type);
             }
         }
 
