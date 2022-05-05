@@ -8,10 +8,8 @@
 	<packaging>pom</packaging>
 
 	<modules>
+		<module>cruder-core</module>
 		<module>cruder-apt</module>
-		<module>cruder-example</module>
-        <module>cruder-autoservice-core</module>
-        <module>cruder-autoservice-apt</module>
     </modules>
 
 	<properties>
