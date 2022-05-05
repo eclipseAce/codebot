@@ -1,7 +1,7 @@
 package test;
 
 @Dummy
-public class TestBean {
+public class EntityL2 extends EntityL1<Long> {
     private String field1;
     private int field2;
 
