@@ -39,9 +39,10 @@ class BeanTest {
         public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
             Elements elementUtils = processingEnv.getElementUtils();
             Types typeUtils = processingEnv.getTypeUtils();
+            ModelFactory factory = new ModelFactory(processingEnv);
 
             DeclaredType type = typeUtils.getDeclaredType(elementUtils.getTypeElement("test.EntityL3"));
-            Bean bean = new Bean.Factory(processingEnv).getBean(type);
+            Bean bean = factory.getBean(type);
 
             System.out.println(ToStringBuilder.reflectionToString(bean, ToStringStyle.MULTI_LINE_STYLE));
 
