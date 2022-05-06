@@ -4,7 +4,9 @@ import com.google.common.collect.Maps;
 
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.*;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class TypeResolver {
     private final Map<TypeVariable, TypeMirror> typeVars = Maps.newHashMap();
@@ -35,5 +37,9 @@ public class TypeResolver {
             return upper;
         }
         return type;
+    }
+
+    public List<TypeMirror> resolveAll(List<? extends TypeMirror> types) {
+        return types.stream().map(this::resolve).collect(Collectors.toList());
     }
 }
