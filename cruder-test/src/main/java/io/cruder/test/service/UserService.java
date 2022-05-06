@@ -1,12 +1,12 @@
 package io.cruder.test.service;
 
-import io.cruder.JpaService;
+import io.cruder.CrudService;
 import io.cruder.test.domain.User;
 import io.cruder.test.dto.user.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-@JpaService(User.class)
+@CrudService(User.class)
 public interface UserService {
 
     long create(UserCreate dto);
