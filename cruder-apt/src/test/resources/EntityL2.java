@@ -1,7 +1,7 @@
 package test;
 
 @Dummy
-public class EntityL2<T> extends EntityL1<T> {
+public class EntityL2<T> extends EntityL1<T> implements Testable<String> {
     private String field1;
     private int field2;
     private T field3;
@@ -28,5 +28,10 @@ public class EntityL2<T> extends EntityL1<T> {
 
     public void setField3(T field3) {
         this.field3 = field3;
+    }
+
+    @Override
+    public void test(String value) {
+
     }
 }

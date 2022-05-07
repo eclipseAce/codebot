@@ -22,7 +22,10 @@ class BeanTest {
                         JavaFileObjects.forResource("Dummy.java"),
                         JavaFileObjects.forResource("EntityL1.java"),
                         JavaFileObjects.forResource("EntityL2.java"),
-                        JavaFileObjects.forResource("EntityL3.java")
+                        JavaFileObjects.forResource("EntityL3.java"),
+                        JavaFileObjects.forResource("Testable.java"),
+                        JavaFileObjects.forResource("Testable2.java"),
+                        JavaFileObjects.forResource("Testable3.java")
                 );
 
         CompilationSubject.assertThat(compilation).succeeded();
@@ -32,6 +35,9 @@ class BeanTest {
     static class TestProcessor extends AbstractProcessor {
         @Override
         public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+            TypeFactory typeFactory = new TypeFactory(processingEnv);
+            Type type1 = typeFactory.getType("test.EntityL3");
+            Type type2 = typeFactory.getType("test.Testable2");
             return false;
         }
     }

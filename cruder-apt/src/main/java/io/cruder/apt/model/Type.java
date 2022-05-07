@@ -36,12 +36,4 @@ public class Type {
         this.methods = methods != null ? ImmutableList.copyOf(methods) : ImmutableList.of();
         this.accessors = accessors != null ? ImmutableList.copyOf(accessors) : ImmutableList.of();
     }
-
-    Type(TypeFactory factory, PrimitiveType primitiveType) {
-        this(factory, primitiveType, null, null, null, null);
-    }
-
-    Type(TypeFactory factory, DeclaredType declaredType) {
-        this(factory, declaredType, (TypeElement) declaredType.asElement())
-    }
 }
