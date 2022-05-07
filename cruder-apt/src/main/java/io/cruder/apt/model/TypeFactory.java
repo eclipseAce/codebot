@@ -1,6 +1,7 @@
 package io.cruder.apt.model;
 
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
@@ -23,12 +24,14 @@ public class TypeFactory {
     }
 
     public Type getType(String qualifiedName) {
-        return getType(elementUtils.getTypeElement(qualifiedName).asType());
+        return getType(elementUtils.getTypeElement(qualifiedName));
+    }
+
+    public Type getType(TypeElement typeElement) {
+        return getType(typeElement.asType());
     }
 
     public Type getType(TypeMirror typeMirror) {
         return new Type(this, typeMirror);
     }
-
-
 }
