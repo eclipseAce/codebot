@@ -11,7 +11,10 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.*;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.ExecutableType;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
@@ -20,6 +23,8 @@ import java.util.Set;
 
 public class Type {
     private final TypeFactory typeFactory;
+    private final Elements elementUtils;
+    private final Types typeUtils;
 
     private final TypeMirror typeMirror;
     private final TypeElement typeElement;
@@ -30,61 +35,43 @@ public class Type {
 
     Type(TypeFactory typeFactory, TypeMirror typeMirror) {
         this.typeFactory = typeFactory;
+        this.elementUtils = typeFactory.getElementUtils();
+        this.typeUtils = typeFactory.getTypeUtils();
+
         this.typeMirror = typeMirror;
 
-        this.typeElement = isDeclared() ? (TypeElement) getTypeUtils().asElement(typeMirror) : null;
-
-        this.fields = Suppliers.memoize(() -> isDeclared()
-                ? ImmutableList.copyOf(findFields((DeclaredType) typeMirror, Lists.newArrayList()))
-                : ImmutableList.of()
-        );
-
-        this.methods = Suppliers.memoize(() -> isDeclared()
-                ? ImmutableList.copyOf(findMethods((DeclaredType) typeMirror, Lists.newArrayList(), Sets.newHashSet()))
-                : ImmutableList.of()
-        );
-
-        this.accessors = Suppliers.memoize(() -> isDeclared()
-                ? ImmutableList.copyOf(findAccessors((DeclaredType) typeMirror, methods.get()))
-                : ImmutableList.of()
-        );
-    }
-
-    public Elements getElementUtils() {
-        return typeFactory.getElementUtils();
-    }
-
-    public Types getTypeUtils() {
-        return typeFactory.getTypeUtils();
-    }
-
-    public boolean isDeclared() {
-        return typeMirror.getKind() == TypeKind.DECLARED;
-    }
-
-    public boolean isPrimitive() {
-        return typeMirror.getKind().isPrimitive();
-    }
-
-    public Type boxed() {
-        if (isPrimitive()) {
-            return typeFactory.getType(getTypeUtils().boxedClass((PrimitiveType) typeMirror).asType());
+        if (typeMirror.getKind() == TypeKind.DECLARED) {
+            this.typeElement = (TypeElement) typeUtils.asElement(typeMirror);
+            this.fields = Suppliers.memoize(() -> {
+                List<VariableElement> fields = Lists.newArrayList();
+                collectFieldsInHierarchy((DeclaredType) typeMirror, fields);
+                return ImmutableList.copyOf(fields);
+            });
+            this.methods = Suppliers.memoize(() -> {
+                List<ExecutableElement> methods = Lists.newArrayList();
+                collectMethodsInHierarchy((DeclaredType) typeMirror, methods, Sets.newHashSet());
+                return ImmutableList.copyOf(methods);
+            });
+            this.accessors = Suppliers.memoize(() -> {
+                return findAccessors((DeclaredType) typeMirror, methods.get());
+            });
+        } else {
+            this.typeElement = null;
+            this.fields = Suppliers.memoize(ImmutableList::of);
+            this.methods = Suppliers.memoize(ImmutableList::of);
+            this.accessors = Suppliers.memoize(ImmutableList::of);
         }
-        return this;
     }
 
-    public Type unboxed() {
-        if (!isPrimitive()) {
-            return typeFactory.getType(getTypeUtils().boxedClass((PrimitiveType) typeMirror).asType());
-        }
-        return this;
+    public TypeFactory getTypeFactory() {
+        return typeFactory;
     }
 
     private List<Accessor> findAccessors(DeclaredType declaredType,
                                          List<? extends ExecutableElement> methods) {
         List<Accessor> accessors = Lists.newArrayList();
         for (ExecutableElement method : methods) {
-            ExecutableType methodType = (ExecutableType) getTypeUtils().asMemberOf(declaredType, method);
+            ExecutableType methodType = (ExecutableType) typeUtils.asMemberOf(declaredType, method);
             String methodName = method.getSimpleName().toString();
             if (methodName.length() > 3
                     && methodName.startsWith("get")
@@ -119,51 +106,48 @@ public class Type {
                 ));
             }
         }
-        return accessors;
+        return ImmutableList.copyOf(accessors);
     }
 
-    private List<VariableElement> findFields(DeclaredType declaredType,
-                                             List<VariableElement> collected) {
+    private void collectFieldsInHierarchy(DeclaredType declaredType,
+                                          List<VariableElement> collected) {
         TypeElement element = (TypeElement) declaredType.asElement();
         if (!"java.lang.Object".contentEquals(element.getQualifiedName())) {
-            collected.addAll(ElementFilter.fieldsIn(element.getEnclosedElements()));
+            ElementFilter.fieldsIn(element.getEnclosedElements()).stream()
+                    .filter(field -> {
+                        return !field.getModifiers().contains(Modifier.STATIC);
+                    })
+                    .forEach(collected::add);
             if (element.getSuperclass().getKind() != TypeKind.NONE) {
-                findFields((DeclaredType) element.getSuperclass(), collected);
+                collectFieldsInHierarchy((DeclaredType) element.getSuperclass(), collected);
             }
         }
-        return collected;
     }
 
-    private List<ExecutableElement> findMethods(DeclaredType declaredType,
-                                                List<ExecutableElement> collected,
-                                                Set<TypeElement> visited) {
+    private void collectMethodsInHierarchy(DeclaredType declaredType,
+                                           List<ExecutableElement> collected,
+                                           Set<TypeElement> visited) {
         TypeElement element = (TypeElement) declaredType.asElement();
         if (!"java.lang.Object".contentEquals(element.getQualifiedName())) {
             visited.add(element);
-            for (ExecutableElement method : ElementFilter.methodsIn(element.getEnclosedElements())) {
-                if (isPrivateOrStatic(method) || isAlreadyOverridded(collected, method)) {
-                    continue;
-                }
-                collected.add(method);
-            }
-            for (TypeMirror iface : element.getInterfaces()) {
-                findMethods((DeclaredType) iface, collected, visited);
-            }
+            ElementFilter.methodsIn(element.getEnclosedElements()).stream()
+                    .filter(method -> {
+                        boolean isStatic = method.getModifiers().contains(Modifier.STATIC);
+                        boolean isPrivate = method.getModifiers().contains(Modifier.PRIVATE);
+                        boolean isOverridden = collected.stream().anyMatch(it -> {
+                            return elementUtils.overrides(it, method, (TypeElement) it.getEnclosingElement());
+                        });
+                        return !isStatic && !isPrivate && !isOverridden;
+                    })
+                    .forEach(collected::add);
+
+            element.getInterfaces().forEach(it -> {
+                collectMethodsInHierarchy((DeclaredType) it, collected, visited);
+            });
+
             if (element.getSuperclass().getKind() != TypeKind.NONE) {
-                findMethods((DeclaredType) element.getSuperclass(), collected, visited);
+                collectMethodsInHierarchy((DeclaredType) element.getSuperclass(), collected, visited);
             }
         }
-        return collected;
-    }
-
-    private boolean isAlreadyOverridded(List<ExecutableElement> collected,
-                                        ExecutableElement method) {
-        return collected.stream().anyMatch(it -> getElementUtils()
-                .overrides(it, method, (TypeElement) it.getEnclosingElement()));
-    }
-
-    private boolean isPrivateOrStatic(ExecutableElement method) {
-        return method.getModifiers().contains(Modifier.STATIC)
-                || method.getModifiers().contains(Modifier.PRIVATE);
     }
 }
