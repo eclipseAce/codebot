@@ -1,7 +1,7 @@
 package test;
 
 @Dummy
-public class EntityL2<T> extends EntityL1<T> implements Testable<String> {
+public abstract class EntityL2<T> extends EntityL1<T> implements Testable<String>, Testable2<Integer> {
     private String field1;
     private int field2;
     private T field3;

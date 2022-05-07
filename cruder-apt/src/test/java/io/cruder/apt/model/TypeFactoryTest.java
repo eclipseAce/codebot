@@ -9,13 +9,15 @@ import org.junit.jupiter.api.Test;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
+import javax.annotation.processing.SupportedSourceVersion;
+import javax.lang.model.SourceVersion;
 import javax.lang.model.element.TypeElement;
 import java.util.Set;
 
-class BeanTest {
+class TypeFactoryTest {
 
     @Test
-    void of() {
+    void test() {
         Compilation compilation = Compiler.javac()
                 .withProcessors(new TestProcessor())
                 .compile(
@@ -32,6 +34,7 @@ class BeanTest {
     }
 
     @SupportedAnnotationTypes("test.Dummy")
+    @SupportedSourceVersion(SourceVersion.RELEASE_8)
     static class TestProcessor extends AbstractProcessor {
         @Override
         public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
@@ -41,4 +44,7 @@ class BeanTest {
             return false;
         }
     }
+
+
+
 }
