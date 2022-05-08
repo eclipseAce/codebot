@@ -3,10 +3,11 @@ package io.cruder.test.service;
 import io.cruder.CrudService;
 import io.cruder.test.domain.User;
 import io.cruder.test.dto.user.*;
+import io.cruder.test.repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-@CrudService(User.class)
+@CrudService(entity = User.class, repository = UserRepository.class)
 public interface UserService {
 
     long create(UserCreate dto);

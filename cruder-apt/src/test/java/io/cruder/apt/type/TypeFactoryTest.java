@@ -1,4 +1,4 @@
-package io.cruder.apt.model;
+package io.cruder.apt.type;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.CompilationSubject;

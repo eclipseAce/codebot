@@ -1,4 +1,4 @@
-package io.cruder.apt.model;
+package io.cruder.apt.type;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.TypeElement;

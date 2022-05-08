@@ -8,5 +8,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.CLASS)
 @Target(ElementType.TYPE)
 public @interface CrudService {
-    Class<?> value();
+    Class<?> entity();
+
+    Class<?> repository();
 }

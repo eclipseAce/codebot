@@ -1,4 +1,4 @@
-package io.cruder.apt.model;
+package io.cruder.apt.type;
 
 public enum AccessorKind {
     READ, WRITE
