@@ -10,7 +10,7 @@ import java.util.Set;
 public class RoleCreate {
 
     @Schema(description = "角色名称")
-    private String username;
+    private String name;
 
     @Schema(description = "权限")
     private Set<String> permissions;

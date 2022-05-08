@@ -114,6 +114,22 @@ public class Type {
         return isDeclared() && typeElement.getKind() == ElementKind.INTERFACE;
     }
 
+    public boolean isSubtype(TypeMirror type) {
+        return getTypeUtils().isSubtype(typeMirror, type);
+    }
+
+    public boolean isSubtype(TypeElement typeElement, TypeMirror ...typeArgs) {
+        return isSubtype(getTypeUtils().getDeclaredType(typeElement, typeArgs));
+    }
+
+    public boolean isSubtype(String qualifiedName, TypeMirror ...typeArgs) {
+        TypeElement typeElement = getElementUtils().getTypeElement(qualifiedName);
+        if (typeElement == null) {
+            throw new IllegalArgumentException("No such type '" + qualifiedName + "'");
+        }
+        return isSubtype(typeElement, typeArgs);
+    }
+
     public List<VariableElement> getFields() {
         return fields.get();
     }
