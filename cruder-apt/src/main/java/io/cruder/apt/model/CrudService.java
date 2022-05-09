@@ -41,7 +41,7 @@ public class CrudService {
     }
 
     public JavaFile createJavaFile() {
-        ClassName className = ClassName.get(serviceType.getTypeElement());
+        ClassName className = ClassName.get(serviceType.asTypeElement());
         ClassName implementedClassName = ClassName.get(className.packageName(), className.simpleName() + "Impl");
 
         TypeSpec.Builder builder = TypeSpec.classBuilder(implementedClassName);
@@ -53,7 +53,7 @@ public class CrudService {
         }
         builder.addField(FieldSpec
                 .builder(
-                        ClassName.get(repositoryType.getTypeElement()),
+                        ClassName.get(repositoryType.asTypeElement()),
                         "repository",
                         Modifier.PRIVATE
                 )
@@ -81,10 +81,10 @@ public class CrudService {
     CodeBlock buildCreateCode(Method method) {
         String entityVar = method.nameAllocator.newName("entity");
         CodeBlock.Builder builder = CodeBlock.builder();
-        builder.addStatement("$1T $2N = new $1T()", entity.type.getTypeMirror(), entityVar);
+        builder.addStatement("$1T $2N = new $1T()", entity.type.asTypeMirror(), entityVar);
         for (Parameter param : method.parameters) {
             Accessor directSetter = entity.type
-                    .findWriteAccessor(param.name, param.type.getTypeMirror())
+                    .findWriteAccessor(param.name, param.type.asTypeMirror())
                     .orElse(null);
             if (directSetter != null) {
                 builder.addStatement("$1N.$2N($3N)",
@@ -109,11 +109,11 @@ public class CrudService {
         List<CodeBlock> mappingExpressions = Lists.newArrayList();
         for (Parameter param : method.parameters) {
             if (idExpression == null && param.name.equals(entity.idName)
-                    && param.type.isAssignableTo(entity.idType.getTypeMirror())) {
+                    && param.type.isAssignableTo(entity.idType.asTypeMirror())) {
                 idExpression = CodeBlock.of("$1N", param.name);
                 continue;
             }
-            Optional<Accessor> directSetter = entity.type.findWriteAccessor(param.name, param.type.getTypeMirror());
+            Optional<Accessor> directSetter = entity.type.findWriteAccessor(param.name, param.type.asTypeMirror());
             if (directSetter.isPresent()) {
                 mappingExpressions.add(CodeBlock.of("$1N.$2N($3N)",
                         entityVar,
@@ -141,7 +141,7 @@ public class CrudService {
             throw new IllegalArgumentException("Can't find a way to load entity");
         }
         builder.addStatement("$1T $2N = repository.getById($3L)",
-                entity.type.getTypeMirror(),
+                entity.type.asTypeMirror(),
                 entityVar,
                 idExpression
         );
@@ -190,8 +190,8 @@ public class CrudService {
                     ))
             ).reduce(Stream::concat).map(s -> s.collect(Collectors.toList())).orElseGet(Collections::emptyList);
 
-            methodBody.addStatement(
-                    "$1T $2N = ($3N, $4N, $5N) -> $5N.and(\n$6L)",
+            methodBody.add(
+                    "$1T $2N = ($3N, $4N, $5N) -> {\n$>return $5N.and(\n$>$6L\n$<);\n$<};\n",
                     ParameterizedTypeName.get(ClassName.bestGuess(SPECIFICATION_FQN), entity.typeName),
                     specVar, specRootVar, specQueryVar, specBuilderVar,
                     CodeBlock.join(predicates, ",\n")
@@ -202,7 +202,7 @@ public class CrudService {
                         "$1T $2N = repository.findAll($3N, $4N)",
                         ParameterizedTypeName.get(
                                 ClassName.bestGuess(PAGE_FQN),
-                                TypeName.get(entity.type.getTypeMirror())
+                                TypeName.get(entity.type.asTypeMirror())
                         ),
                         resultVar, specVar, ctx.pageables.get(0).name
                 );
@@ -211,28 +211,41 @@ public class CrudService {
                         "$1T $2N = repository.findAll($3N)",
                         ParameterizedTypeName.get(
                                 ClassName.bestGuess(LIST_FQN),
-                                TypeName.get(entity.type.getTypeMirror())
+                                TypeName.get(entity.type.asTypeMirror())
                         ),
                         resultVar, specVar
                 );
+            } else {
+                methodBody.addStatement(
+                        "$1T $2N = repository.findOne($3N).orElse(null)",
+                        entity.typeName, resultVar, specVar
+                );
             }
         }
+
         if (ctx.returnsPage) {
+            Type componentType = method.returnType.getTypeArguments().get(0);
             String sourceVar = method.nameAllocator.newName("source");
             String targetVar = method.nameAllocator.newName("target");
-            Type returnType = method.returnType.getTypeArguments().get(0);
 
-            methodBody.add("return $1N.map($2N -> {\n", resultVar, sourceVar);
-            methodBody.addStatement("$1T $2N = new $1T()", returnType.getTypeMirror(), targetVar);
-            buildMappingCodes(sourceVar, entity.type, targetVar, returnType)
-                    .forEach(methodBody::addStatement);
-            methodBody.add("return $1N", targetVar);
-            methodBody.add("})");
+            CodeBlock.Builder mapperBody = CodeBlock.builder();
+            mapperBody.addStatement("$1T $2N = new $1T()", componentType.asTypeMirror(), targetVar);
+            buildMappingCodes(sourceVar, entity.type, targetVar, componentType)
+                    .forEach(mapperBody::addStatement);
+            mapperBody.addStatement("return $1N", targetVar);
 
+            methodBody.add("return $1N.map($2N -> {\n$>$3L$<});", resultVar, sourceVar, mapperBody.build());
         } else if (ctx.returnsList) {
-
+            // TODO: handle list return value
         } else {
-
+            String targetVar = method.nameAllocator.newName("target");
+            methodBody.beginControlFlow("if ($N == null)", resultVar)
+                    .addStatement("return null")
+                    .endControlFlow();
+            methodBody.addStatement("$1T $2N = new $1T()", method.returnType.asTypeMirror(), targetVar);
+            buildMappingCodes(resultVar, entity.type, targetVar, method.returnType)
+                    .forEach(methodBody::addStatement);
+            methodBody.addStatement("return $1N", targetVar);
         }
         return methodBody.build();
     }
@@ -240,13 +253,13 @@ public class CrudService {
     List<CodeBlock> buildReturnCodes(Method method, String entityVar) {
         List<CodeBlock> codes = Lists.newArrayList();
         codes.add(CodeBlock.of("repository.save($N)", entityVar));
-        if (method.returnType.isAssignableFrom(entity.idType.getTypeMirror())
+        if (method.returnType.isAssignableFrom(entity.idType.asTypeMirror())
                 && entity.idReadAccessor != null) {
             codes.add(CodeBlock.of("return $1N.$2N()", entityVar, entity.idReadAccessor.getSimpleName()));
         } //
         else if (method.returnType.isDeclared()) {
             String resultVar = method.nameAllocator.newName("result");
-            codes.add(CodeBlock.of("$1T $2N = new $1T()", method.returnType.getTypeMirror(), resultVar));
+            codes.add(CodeBlock.of("$1T $2N = new $1T()", method.returnType.asTypeMirror(), resultVar));
             codes.addAll(buildMappingCodes(entityVar, entity.type, resultVar, method.returnType));
             codes.add(CodeBlock.of("return $N", resultVar));
         }
@@ -282,15 +295,15 @@ public class CrudService {
 
         Entity(Type type) {
             this.type = type;
-            this.typeName = ClassName.get(type.getTypeElement());
+            this.typeName = ClassName.get(type.asTypeElement());
             VariableElement idField = type
                     .findFields(it -> AnnotationUtils.isAnnotationPresent(it, "javax.persistence.Id"))
                     .stream().findFirst()
                     .orElseThrow(() -> new IllegalArgumentException("Can't determin ID of entity"));
-            this.idType = type.getTypeFactory().getType(type.asMember(idField));
-            this.idTypeName = TypeName.get(type.getTypeMirror());
+            this.idType = type.getFactory().getType(type.asMember(idField));
+            this.idTypeName = TypeName.get(type.asTypeMirror());
             this.idName = idField.getSimpleName().toString();
-            this.idReadAccessor = type.findReadAccessor(idName, idType.getTypeMirror()).orElse(null);
+            this.idReadAccessor = type.findReadAccessor(idName, idType.asTypeMirror()).orElse(null);
         }
     }
 
@@ -308,15 +321,15 @@ public class CrudService {
             this.element = element;
             this.type = containingType.asMember(element);
             this.containingType = containingType;
-            this.returnType = containingType.getTypeFactory().getType(type.getReturnType());
+            this.returnType = containingType.getFactory().getType(type.getReturnType());
             this.parameters = Parameter.fromMethod(containingType, element, type);
 
             this.nameAllocator = new NameAllocator();
             parameters.forEach(param -> nameAllocator.newName(param.name));
             this.builder = MethodSpec.overriding(
                     element,
-                    containingType.getDeclaredType(),
-                    containingType.getTypeUtils()
+                    containingType.asDeclaredType(),
+                    containingType.getFactory().getTypeUtils()
             );
         }
     }
@@ -338,7 +351,7 @@ public class CrudService {
             return IntStream.range(0, method.getParameters().size()).boxed()
                     .map(i -> new Parameter(
                             method.getParameters().get(i),
-                            containing.getTypeFactory().getType(methodType.getParameterTypes().get(i))
+                            containing.getFactory().getType(methodType.getParameterTypes().get(i))
                     ))
                     .collect(Collectors.collectingAndThen(Collectors.toList(), ImmutableList::copyOf));
         }
@@ -391,12 +404,12 @@ public class CrudService {
             List<Parameter> specifications = Lists.newArrayList();
             List<Parameter> pageables = Lists.newArrayList();
             for (Parameter param : method.parameters) {
-                Optional<Accessor> directGetter = entity.type.findReadAccessor(param.name, param.type.getTypeMirror());
+                Optional<Accessor> directGetter = entity.type.findReadAccessor(param.name, param.type.asTypeMirror());
                 if (directGetter.isPresent()) {
                     directValues.add(param);
                     continue;
                 }
-                if (param.type.isSubtype(SPECIFICATION_FQN, entity.type.getTypeMirror())) {
+                if (param.type.isSubtype(SPECIFICATION_FQN, entity.type.asTypeMirror())) {
                     specifications.add(param);
                     continue;
                 }

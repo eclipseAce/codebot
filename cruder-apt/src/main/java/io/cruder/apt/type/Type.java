@@ -21,10 +21,11 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public class Type {
-    private final TypeFactory typeFactory;
+    private final TypeFactory factory;
+    private final Elements elementUtils;
+    private final Types typeUtils;
 
     private final TypeMirror typeMirror;
-    private final TypeElement typeElement;
 
     private final Supplier<List<Type>> typeArguments;
 
@@ -32,18 +33,18 @@ public class Type {
     private final Supplier<List<ExecutableElement>> methods;
     private final Supplier<List<Accessor>> accessors;
 
-    Type(TypeFactory typeFactory, TypeMirror typeMirror) {
-        this.typeFactory = typeFactory;
+    Type(TypeFactory factory, TypeMirror typeMirror) {
+        this.factory = factory;
+        this.elementUtils = factory.getElementUtils();
+        this.typeUtils = factory.getTypeUtils();
         this.typeMirror = typeMirror;
 
         if (typeMirror.getKind() == TypeKind.DECLARED) {
             DeclaredType declaredType = (DeclaredType) typeMirror;
 
-            this.typeElement = (TypeElement) declaredType.asElement();
-
             this.typeArguments = Suppliers.memoize(() -> {
                 return declaredType.getTypeArguments().stream()
-                        .map(typeFactory::getType)
+                        .map(factory::getType)
                         .collect(Collectors.collectingAndThen(Collectors.toList(), ImmutableList::copyOf));
             });
 
@@ -60,10 +61,9 @@ public class Type {
             });
 
             this.accessors = Suppliers.memoize(() -> {
-                return Accessor.fromMethods(getTypeFactory(), declaredType, methods.get());
+                return Accessor.fromMethods(getFactory(), declaredType, methods.get());
             });
         } else {
-            this.typeElement = null;
             this.typeArguments = Suppliers.memoize(ImmutableList::of);
             this.fields = Suppliers.memoize(ImmutableList::of);
             this.methods = Suppliers.memoize(ImmutableList::of);
@@ -71,35 +71,32 @@ public class Type {
         }
     }
 
-    public TypeFactory getTypeFactory() {
-        return typeFactory;
+    public TypeFactory getFactory() {
+        return factory;
     }
 
-    public TypeMirror getTypeMirror() {
+    public TypeMirror asTypeMirror() {
         return typeMirror;
-    }
-
-    public DeclaredType getDeclaredType() {
-        if (!isDeclared()) {
-            throw new IllegalStateException("Not DeclaredType");
-        }
-        return (DeclaredType) typeMirror;
-    }
-
-    public TypeElement getTypeElement() {
-        return typeElement;
-    }
-
-    public Elements getElementUtils() {
-        return typeFactory.getElementUtils();
-    }
-
-    public Types getTypeUtils() {
-        return typeFactory.getTypeUtils();
     }
 
     public boolean isDeclared() {
         return typeMirror.getKind() == TypeKind.DECLARED;
+    }
+
+    private void ensureDeclared() {
+        if (!isDeclared()) {
+            throw new IllegalStateException("Not DeclaredType");
+        }
+    }
+
+    public DeclaredType asDeclaredType() {
+        ensureDeclared();
+        return (DeclaredType) typeMirror;
+    }
+
+    public TypeElement asTypeElement() {
+        ensureDeclared();
+        return (TypeElement) asDeclaredType().asElement();
     }
 
     public boolean isPrimitive() {
@@ -111,19 +108,19 @@ public class Type {
     }
 
     public boolean isInterface() {
-        return isDeclared() && typeElement.getKind() == ElementKind.INTERFACE;
+        return isDeclared() && asTypeElement().getKind() == ElementKind.INTERFACE;
     }
 
     public boolean isSubtype(TypeMirror type) {
-        return getTypeUtils().isSubtype(typeMirror, type);
+        return typeUtils.isSubtype(typeMirror, type);
     }
 
-    public boolean isSubtype(TypeElement typeElement, TypeMirror ...typeArgs) {
-        return isSubtype(getTypeUtils().getDeclaredType(typeElement, typeArgs));
+    public boolean isSubtype(TypeElement typeElement, TypeMirror... typeArgs) {
+        return isSubtype(typeUtils.getDeclaredType(typeElement, typeArgs));
     }
 
-    public boolean isSubtype(String qualifiedName, TypeMirror ...typeArgs) {
-        TypeElement typeElement = getElementUtils().getTypeElement(qualifiedName);
+    public boolean isSubtype(String qualifiedName, TypeMirror... typeArgs) {
+        TypeElement typeElement = elementUtils.getTypeElement(qualifiedName);
         if (typeElement == null) {
             throw new IllegalArgumentException("No such type '" + qualifiedName + "'");
         }
@@ -166,7 +163,7 @@ public class Type {
         return findAccessors(it -> {
             return it.getKind() == AccessorKind.READ
                     && it.getAccessedName().equals(name)
-                    && getTypeUtils().isAssignable(it.getAccessedType(), type);
+                    && typeUtils.isAssignable(it.getAccessedType(), type);
         }).stream().findFirst();
     }
 
@@ -174,7 +171,7 @@ public class Type {
         return findAccessors(it -> {
             return it.getKind() == AccessorKind.WRITE
                     && it.getAccessedName().equals(name)
-                    && getTypeUtils().isAssignable(type, it.getAccessedType());
+                    && typeUtils.isAssignable(type, it.getAccessedType());
         }).stream().findFirst();
     }
 
@@ -183,31 +180,45 @@ public class Type {
     }
 
     public ExecutableType asMember(ExecutableElement method) {
-        return (ExecutableType) getTypeUtils().asMemberOf(getDeclaredType(), method);
+        return (ExecutableType) typeUtils.asMemberOf(asDeclaredType(), method);
     }
 
     public TypeMirror asMember(VariableElement variable) {
-        return getTypeUtils().asMemberOf(getDeclaredType(), variable);
+        return typeUtils.asMemberOf(asDeclaredType(), variable);
     }
 
     public boolean isAssignableTo(TypeMirror type) {
-        return getTypeUtils().isAssignable(typeMirror, type);
+        return typeUtils.isAssignable(typeMirror, type);
     }
 
     public boolean isAssignableFrom(TypeMirror type) {
-        return getTypeUtils().isAssignable(type, typeMirror);
+        return typeUtils.isAssignable(type, typeMirror);
     }
 
-    public boolean isAssignableFrom(TypeElement typeElement, TypeMirror ...typeArgs) {
-        return isAssignableFrom(getTypeUtils().getDeclaredType(typeElement, typeArgs));
+    public boolean isAssignableFrom(TypeElement typeElement, TypeMirror... typeArgs) {
+        return isAssignableFrom(typeUtils.getDeclaredType(typeElement, typeArgs));
     }
 
-    public boolean isAssignableFrom(String qualifiedName, TypeMirror ...typeArgs) {
-        return isAssignableFrom(getElementUtils().getTypeElement(qualifiedName), typeArgs);
+    public boolean isAssignableFrom(String qualifiedName, TypeMirror... typeArgs) {
+        return isAssignableFrom(elementUtils.getTypeElement(qualifiedName), typeArgs);
     }
 
     public Type erasure() {
-        return typeFactory.getType(getTypeUtils().erasure(typeMirror));
+        return factory.getType(typeUtils.erasure(typeMirror));
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Type type = (Type) o;
+        return typeUtils.isSameType(typeMirror, type.typeMirror)
+                && type.typeUtils.isSameType(type.typeMirror, typeMirror);
+    }
+
+    @Override
+    public int hashCode() {
+        return typeMirror.hashCode();
     }
 
     private void collectFieldsInHierarchy(DeclaredType declaredType,
@@ -235,7 +246,7 @@ public class Type {
                         boolean isStatic = method.getModifiers().contains(Modifier.STATIC);
                         boolean isPrivate = method.getModifiers().contains(Modifier.PRIVATE);
                         boolean isOverridden = collected.stream().anyMatch(it -> {
-                            return getElementUtils().overrides(it, method, (TypeElement) it.getEnclosingElement());
+                            return elementUtils.overrides(it, method, (TypeElement) it.getEnclosingElement());
                         });
                         return !isStatic && !isPrivate && !isOverridden;
                     })
