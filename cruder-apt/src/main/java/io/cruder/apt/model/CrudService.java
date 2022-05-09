@@ -2,7 +2,6 @@ package io.cruder.apt.model;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.squareup.javapoet.*;
 import io.cruder.apt.type.Accessor;
 import io.cruder.apt.type.Type;
@@ -12,9 +11,7 @@ import io.cruder.apt.util.AnnotationUtils;
 import javax.lang.model.element.*;
 import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeMirror;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -22,6 +19,9 @@ import java.util.stream.Stream;
 public class CrudService {
     public static final String ANNOTATION_FQN = "io.cruder.CrudService";
     public static final String SPECIFICATION_FQN = "org.springframework.data.jpa.domain.Specification";
+    public static final String PAGEABLE_FQN = "org.springframework.data.domain.Pageable";
+    public static final String PAGE_FQN = "org.springframework.data.domain.Page";
+    public static final String LIST_FQN = "java.util.List";
 
     private final Type serviceType;
     private final Entity entity;
@@ -82,7 +82,7 @@ public class CrudService {
         String entityVar = method.nameAllocator.newName("entity");
         CodeBlock.Builder builder = CodeBlock.builder();
         builder.addStatement("$1T $2N = new $1T()", entity.type.getTypeMirror(), entityVar);
-        for (MethodParameter param : method.parameters) {
+        for (Parameter param : method.parameters) {
             Accessor directSetter = entity.type
                     .findWriteAccessor(param.name, param.type.getTypeMirror())
                     .orElse(null);
@@ -107,7 +107,7 @@ public class CrudService {
         CodeBlock.Builder builder = CodeBlock.builder();
         CodeBlock idExpression = null;
         List<CodeBlock> mappingExpressions = Lists.newArrayList();
-        for (MethodParameter param : method.parameters) {
+        for (Parameter param : method.parameters) {
             if (idExpression == null && param.name.equals(entity.idName)
                     && param.type.isAssignableTo(entity.idType.getTypeMirror())) {
                 idExpression = CodeBlock.of("$1N", param.name);
@@ -154,59 +154,87 @@ public class CrudService {
     }
 
     CodeBlock buildReadCode(Method method) {
-        Map<String, CodeBlock> conditionValues = Maps.newLinkedHashMap();
-        List<String> specifications = Lists.newArrayList();
-        for (MethodParameter param : method.parameters) {
-            Optional<Accessor> directGetter = entity.type.findReadAccessor(
-                    param.name,
-                    param.type.getTypeMirror()
+        ReadingContext ctx = ReadingContext.fromMethod(entity, method);
+        if (ctx.returnsPage && !ctx.findWithPageable) {
+            throw new IllegalArgumentException("Method returns Page but no Pageable parameter present");
+        }
+
+        CodeBlock.Builder methodBody = CodeBlock.builder();
+        String resultVar = method.nameAllocator.newName("result");
+        if (ctx.findByIdFromDirectValue || ctx.findByIdFromNestedValue) {
+            CodeBlock idExpression = ctx.findByIdFromDirectValue
+                    ? CodeBlock.of("$N", ctx.directValues.get(0).name)
+                    : CodeBlock.of("$1N.$2N()", ctx.nestedValues.get(0).getKey(), ctx.nestedValues.get(0).getValue());
+            methodBody.addStatement(
+                    "$1T $2N = repository.getById($3L)",
+                    entity.typeName, resultVar, idExpression
             );
-            if (directGetter.isPresent()) {
-                conditionValues.put(param.name, CodeBlock.of("$1N", param.name));
-                continue;
-            }
-            if (param.type.isSubtype(SPECIFICATION_FQN, entity.type.getTypeMirror())) {
-                specifications.add(param.name);
-                continue;
-            }
-            for (Accessor getter : param.type.findReadAccessors()) {
-                boolean hasCorrespondingGetter = entity.type.findReadAccessor(
-                        getter.getAccessedName(),
-                        getter.getAccessedType()
-                ).isPresent();
-                if (hasCorrespondingGetter) {
-                    conditionValues.put(getter.getAccessedName(),
-                            CodeBlock.of("$1N.$2N()", param.name, getter.getSimpleName()));
-                }
+        } else {
+            String specVar = method.nameAllocator.newName("spec");
+            String specRootVar = method.nameAllocator.newName("root");
+            String specQueryVar = method.nameAllocator.newName("query");
+            String specBuilderVar = method.nameAllocator.newName("builder");
+
+            List<CodeBlock> predicates = Stream.of(
+                    ctx.directValues.stream().map(param -> CodeBlock.of(
+                            "$1N.equal($2N.get($3S), $3L)",
+                            specBuilderVar, specRootVar, param.name
+                    )),
+                    ctx.nestedValues.stream().map(entry -> CodeBlock.of(
+                            "$1N.equal($2N.get($3S), $3N.$4N())",
+                            specBuilderVar, specRootVar, entry.getKey().name, entry.getValue().getSimpleName()
+                    )),
+                    ctx.specifications.stream().map(spec -> CodeBlock.of(
+                            "$1N.toPredicate($2N, $3N, $4N)",
+                            spec.name, specRootVar, specQueryVar, specBuilderVar
+                    ))
+            ).reduce(Stream::concat).map(s -> s.collect(Collectors.toList())).orElseGet(Collections::emptyList);
+
+            methodBody.addStatement(
+                    "$1T $2N = ($3N, $4N, $5N) -> $5N.and(\n$6L)",
+                    ParameterizedTypeName.get(ClassName.bestGuess(SPECIFICATION_FQN), entity.typeName),
+                    specVar, specRootVar, specQueryVar, specBuilderVar,
+                    CodeBlock.join(predicates, ",\n")
+            );
+
+            if (ctx.returnsPage) {
+                methodBody.addStatement(
+                        "$1T $2N = repository.findAll($3N, $4N)",
+                        ParameterizedTypeName.get(
+                                ClassName.bestGuess(PAGE_FQN),
+                                TypeName.get(entity.type.getTypeMirror())
+                        ),
+                        resultVar, specVar, ctx.pageables.get(0).name
+                );
+            } else if (ctx.returnsList) {
+                methodBody.addStatement(
+                        "$1T $2N = repository.findAll($3N)",
+                        ParameterizedTypeName.get(
+                                ClassName.bestGuess(LIST_FQN),
+                                TypeName.get(entity.type.getTypeMirror())
+                        ),
+                        resultVar, specVar
+                );
             }
         }
-        if (conditionValues.size() == 1 && specifications.isEmpty()
-                && conditionValues.keySet().iterator().next().equals(entity.idName)) {
-            return CodeBlock.of("repository.findById($L);", conditionValues.values().iterator().next());
+        if (ctx.returnsPage) {
+            String sourceVar = method.nameAllocator.newName("source");
+            String targetVar = method.nameAllocator.newName("target");
+            Type returnType = method.returnType.getTypeArguments().get(0);
+
+            methodBody.add("return $1N.map($2N -> {\n", resultVar, sourceVar);
+            methodBody.addStatement("$1T $2N = new $1T()", returnType.getTypeMirror(), targetVar);
+            buildMappingCodes(sourceVar, entity.type, targetVar, returnType)
+                    .forEach(methodBody::addStatement);
+            methodBody.add("return $1N", targetVar);
+            methodBody.add("})");
+
+        } else if (ctx.returnsList) {
+
+        } else {
+
         }
-        if (conditionValues.isEmpty() && specifications.isEmpty()) {
-            return CodeBlock.of("repository.findAll();");
-        }
-        String rootVar = method.nameAllocator.newName("root");
-        String queryVar = method.nameAllocator.newName("query");
-        String criteriaBuilderVar = method.nameAllocator.newName("criteriaBuilder");
-        CodeBlock conditions = Stream.concat(
-                        conditionValues.entrySet().stream().map(entry -> CodeBlock.of(
-                                "$1N.equal($2N.get($3S), $4L)",
-                                criteriaBuilderVar, rootVar, entry.getKey(), entry.getValue()
-                        )),
-                        specifications.stream().map(name -> CodeBlock.of(
-                                "$1N.toPredicate($2N, $3N, $4N)",
-                                name, rootVar, queryVar, criteriaBuilderVar))
-                )
-                .collect(Collectors.collectingAndThen(
-                        Collectors.toList(),
-                        codes -> CodeBlock.join(codes, ",\n")
-                ));
-        return CodeBlock.of(
-                "repository.findAll(($1N, $2N, $3N) -> $3N.and($>$>\n$4L\n$<$<));",
-                rootVar, queryVar, criteriaBuilderVar, conditions
-        );
+        return methodBody.build();
     }
 
     List<CodeBlock> buildReturnCodes(Method method, String entityVar) {
@@ -246,17 +274,21 @@ public class CrudService {
 
     static class Entity {
         final Type type;
+        final ClassName typeName;
         final Type idType;
+        final TypeName idTypeName;
         final String idName;
         final Accessor idReadAccessor;
 
         Entity(Type type) {
             this.type = type;
+            this.typeName = ClassName.get(type.getTypeElement());
             VariableElement idField = type
                     .findFields(it -> AnnotationUtils.isAnnotationPresent(it, "javax.persistence.Id"))
                     .stream().findFirst()
                     .orElseThrow(() -> new IllegalArgumentException("Can't determin ID of entity"));
             this.idType = type.getTypeFactory().getType(type.asMember(idField));
+            this.idTypeName = TypeName.get(type.getTypeMirror());
             this.idName = idField.getSimpleName().toString();
             this.idReadAccessor = type.findReadAccessor(idName, idType.getTypeMirror()).orElse(null);
         }
@@ -267,7 +299,7 @@ public class CrudService {
         final ExecutableType type;
         final Type containingType;
         final Type returnType;
-        final List<MethodParameter> parameters;
+        final List<Parameter> parameters;
 
         final NameAllocator nameAllocator;
         final MethodSpec.Builder builder;
@@ -277,7 +309,7 @@ public class CrudService {
             this.type = containingType.asMember(element);
             this.containingType = containingType;
             this.returnType = containingType.getTypeFactory().getType(type.getReturnType());
-            this.parameters = MethodParameter.fromMethod(containingType, element, type);
+            this.parameters = Parameter.fromMethod(containingType, element, type);
 
             this.nameAllocator = new NameAllocator();
             parameters.forEach(param -> nameAllocator.newName(param.name));
@@ -289,26 +321,125 @@ public class CrudService {
         }
     }
 
-    static class MethodParameter {
+    static class Parameter {
         final VariableElement element;
         final String name;
         final Type type;
 
-        MethodParameter(VariableElement element, Type type) {
+        Parameter(VariableElement element, Type type) {
             this.element = element;
             this.name = element.getSimpleName().toString();
             this.type = type;
         }
 
-        static List<MethodParameter> fromMethod(Type containing,
-                                                ExecutableElement method,
-                                                ExecutableType methodType) {
+        static List<Parameter> fromMethod(Type containing,
+                                          ExecutableElement method,
+                                          ExecutableType methodType) {
             return IntStream.range(0, method.getParameters().size()).boxed()
-                    .map(i -> new MethodParameter(
+                    .map(i -> new Parameter(
                             method.getParameters().get(i),
                             containing.getTypeFactory().getType(methodType.getParameterTypes().get(i))
                     ))
                     .collect(Collectors.collectingAndThen(Collectors.toList(), ImmutableList::copyOf));
+        }
+    }
+
+    static class ReadingContext {
+        final List<Parameter> directValues;
+        final List<Map.Entry<Parameter, Accessor>> nestedValues;
+        final List<Parameter> specifications;
+        final List<Parameter> pageables;
+        final boolean findAll;
+        final boolean findByIdFromDirectValue;
+        final boolean findByIdFromNestedValue;
+        final boolean findWithPageable;
+
+        final Type returnType;
+        final boolean returnsValue;
+        final boolean returnsList;
+        final boolean returnsPage;
+
+        ReadingContext(List<Parameter> directValues,
+                       List<Map.Entry<Parameter, Accessor>> nestedValues,
+                       List<Parameter> specifications,
+                       List<Parameter> pageables,
+                       boolean findAll,
+                       boolean findByIdFromDirectValue,
+                       boolean findByIdFromNestedValue,
+                       boolean findWithPageable,
+                       Type returnType,
+                       boolean returnsValue,
+                       boolean returnsList,
+                       boolean returnsPage) {
+            this.directValues = directValues;
+            this.nestedValues = nestedValues;
+            this.specifications = specifications;
+            this.pageables = pageables;
+            this.findAll = findAll;
+            this.findByIdFromDirectValue = findByIdFromDirectValue;
+            this.findByIdFromNestedValue = findByIdFromNestedValue;
+            this.findWithPageable = findWithPageable;
+            this.returnType = returnType;
+            this.returnsValue = returnsValue;
+            this.returnsList = returnsList;
+            this.returnsPage = returnsPage;
+        }
+
+        static ReadingContext fromMethod(Entity entity, Method method) {
+            List<Parameter> directValues = Lists.newArrayList();
+            List<Map.Entry<Parameter, Accessor>> nestedValues = Lists.newArrayList();
+            List<Parameter> specifications = Lists.newArrayList();
+            List<Parameter> pageables = Lists.newArrayList();
+            for (Parameter param : method.parameters) {
+                Optional<Accessor> directGetter = entity.type.findReadAccessor(param.name, param.type.getTypeMirror());
+                if (directGetter.isPresent()) {
+                    directValues.add(param);
+                    continue;
+                }
+                if (param.type.isSubtype(SPECIFICATION_FQN, entity.type.getTypeMirror())) {
+                    specifications.add(param);
+                    continue;
+                }
+                if (param.type.isSubtype(PAGEABLE_FQN)) {
+                    pageables.add(param);
+                    continue;
+                }
+                for (Accessor getter : param.type.findReadAccessors()) {
+                    Optional<Accessor> entityGetter = entity.type
+                            .findReadAccessor(getter.getAccessedName(), getter.getAccessedType());
+                    if (entityGetter.isPresent()) {
+                        nestedValues.add(new AbstractMap.SimpleImmutableEntry<>(param, getter));
+                    }
+                }
+            }
+
+            Type returnType = method.returnType;
+            boolean returnsList = returnType.erasure().isAssignableFrom(LIST_FQN);
+            boolean returnsPage = returnType.erasure().isAssignableFrom(PAGE_FQN);
+            boolean returnsValue = !returnsList && !returnsPage;
+
+            boolean findAll = directValues.isEmpty() && nestedValues.isEmpty() && specifications.isEmpty();
+            boolean findByIdFromDirectValue = returnsValue
+                    && directValues.size() == 1
+                    && specifications.isEmpty()
+                    && nestedValues.isEmpty()
+                    && entity.idName.equals(directValues.get(0).name);
+            boolean findByIdFromNestedValue = returnsValue
+                    && nestedValues.size() == 1
+                    && specifications.isEmpty()
+                    && directValues.isEmpty()
+                    && entity.idName.equals(nestedValues.get(0).getValue().getAccessedName());
+            boolean findWithPageable = !pageables.isEmpty();
+
+            return new ReadingContext(
+                    ImmutableList.copyOf(directValues),
+                    ImmutableList.copyOf(nestedValues),
+                    ImmutableList.copyOf(specifications),
+                    ImmutableList.copyOf(pageables),
+                    findAll, findByIdFromDirectValue, findByIdFromNestedValue, findWithPageable,
+                    returnType,
+                    returnsValue, returnsList, returnsPage
+            );
         }
     }
 }

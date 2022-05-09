@@ -198,6 +198,18 @@ public class Type {
         return getTypeUtils().isAssignable(type, typeMirror);
     }
 
+    public boolean isAssignableFrom(TypeElement typeElement, TypeMirror ...typeArgs) {
+        return isAssignableFrom(getTypeUtils().getDeclaredType(typeElement, typeArgs));
+    }
+
+    public boolean isAssignableFrom(String qualifiedName, TypeMirror ...typeArgs) {
+        return isAssignableFrom(getElementUtils().getTypeElement(qualifiedName), typeArgs);
+    }
+
+    public Type erasure() {
+        return typeFactory.getType(getTypeUtils().erasure(typeMirror));
+    }
+
     private void collectFieldsInHierarchy(DeclaredType declaredType,
                                           List<VariableElement> collected) {
         TypeElement element = (TypeElement) declaredType.asElement();
