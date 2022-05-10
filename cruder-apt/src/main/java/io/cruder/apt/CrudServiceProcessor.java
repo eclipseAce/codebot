@@ -2,10 +2,10 @@ package io.cruder.apt;
 
 import com.google.auto.service.AutoService;
 import com.google.common.base.Throwables;
-import io.cruder.apt.model.CrudService;
-import io.cruder.apt.model.JpaCreateMethodImplementor;
-import io.cruder.apt.model.JpaUpdateMethodImplementor;
-import io.cruder.apt.model.Service;
+import io.cruder.apt.model.*;
+import io.cruder.apt.model.processor.CreatingMethodProcessor;
+import io.cruder.apt.model.processor.ReadingMethodProcessor;
+import io.cruder.apt.model.processor.UpdatingMethodProcessor;
 import io.cruder.apt.type.TypeFactory;
 import io.cruder.apt.util.AnnotationUtils;
 
@@ -46,8 +46,9 @@ public class CrudServiceProcessor extends AbstractProcessor {
         for (TypeElement element : ElementFilter.typesIn(roundEnv.getElementsAnnotatedWith(annotation))) {
             try {
                 Service service = new Service(typeFactory.getType(element), Arrays.asList(
-                        new JpaCreateMethodImplementor(),
-                        new JpaUpdateMethodImplementor()
+                        new CreatingMethodProcessor(),
+                        new UpdatingMethodProcessor(),
+                        new ReadingMethodProcessor()
                 ));
                 service.implement().writeTo(filer);
             } catch (Exception e) {

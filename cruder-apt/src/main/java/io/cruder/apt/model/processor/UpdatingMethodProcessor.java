@@ -1,21 +1,21 @@
-package io.cruder.apt.model;
+package io.cruder.apt.model.processor;
 
 import com.google.common.collect.Lists;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.NameAllocator;
 import com.squareup.javapoet.TypeSpec;
+import io.cruder.apt.model.*;
 import io.cruder.apt.type.Accessor;
-import io.cruder.apt.type.Type;
 
 import java.util.List;
 import java.util.Optional;
 
-public class JpaUpdateMethodImplementor implements MethodImplementor {
+public class UpdatingMethodProcessor implements MethodProcessor {
     @Override
-    public void implement(Service service, TypeSpec.Builder serviceBuilder,
-                          Method method, MethodSpec.Builder methodBuilder,
-                          NameAllocator nameAlloc) {
+    public void process(Service service, TypeSpec.Builder serviceBuilder,
+                        Method method, MethodSpec.Builder methodBuilder,
+                        NameAllocator nameAlloc) {
         if (!method.getSimpleName().startsWith("update")) {
             return;
         }

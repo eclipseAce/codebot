@@ -23,12 +23,12 @@ public class TypeFactory {
         return typeUtils;
     }
 
-    public Type getType(String qualifiedName) {
-        return getType(elementUtils.getTypeElement(qualifiedName));
+    public Type getType(String qualifiedName, TypeMirror... typeArgs) {
+        return getType(elementUtils.getTypeElement(qualifiedName), typeArgs);
     }
 
-    public Type getType(TypeElement typeElement) {
-        return getType(typeElement.asType());
+    public Type getType(TypeElement typeElement, TypeMirror... typeArgs) {
+        return getType(typeUtils.getDeclaredType(typeElement, typeArgs));
     }
 
     public Type getType(TypeMirror typeMirror) {

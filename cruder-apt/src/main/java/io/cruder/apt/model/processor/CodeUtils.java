@@ -1,13 +1,13 @@
-package io.cruder.apt.model;
+package io.cruder.apt.model.processor;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.NameAllocator;
+import io.cruder.apt.model.Entity;
 import io.cruder.apt.type.Accessor;
 import io.cruder.apt.type.Type;
 
-import java.util.Collections;
 import java.util.List;
 
 public class CodeUtils {
@@ -57,7 +57,7 @@ public class CodeUtils {
                     itVar, toType.getTypeArguments().get(0), entity, scopeNameAlloc
             ), "");
             return ImmutableList.of(CodeBlock.of(
-                    "return $1N.map($2N -> {$>\n$3L});\n",
+                    "return $1N.map($2N -> {$>\n$3L$<});\n",
                     fromVar, itVar, body
             ));
         }

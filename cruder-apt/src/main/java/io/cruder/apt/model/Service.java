@@ -21,9 +21,9 @@ public class Service {
     private final Repository repository;
     private final List<Method> abstractMethods;
 
-    private final List<MethodImplementor> methodImplementors;
+    private final List<MethodProcessor> methodProcessors;
 
-    public Service(Type type, List<MethodImplementor> methodImplementors) {
+    public Service(Type type, List<MethodProcessor> methodProcessors) {
         AnnotationMirror annotation = AnnotationUtils.find(type.asTypeElement(), CRUD_SERVICE_FQN)
                 .orElseThrow(() -> new IllegalArgumentException("No @CrudService present"));
 
@@ -40,7 +40,7 @@ public class Service {
                 .map(method -> new Method(type, method))
                 .collect(Collectors.collectingAndThen(Collectors.toList(), ImmutableList::copyOf));
 
-        this.methodImplementors = ImmutableList.copyOf(methodImplementors);
+        this.methodProcessors = ImmutableList.copyOf(methodProcessors);
     }
 
     public JavaFile implement() {
@@ -65,8 +65,8 @@ public class Service {
             NameAllocator nameAlloc = new NameAllocator();
             abstractMethod.getParameters().forEach(p -> nameAlloc.newName(p.getName()));
 
-            for (MethodImplementor implementor : methodImplementors) {
-                implementor.implement(this, serviceBuilder, abstractMethod, methodBuilder, nameAlloc);
+            for (MethodProcessor processor : methodProcessors) {
+                processor.process(this, serviceBuilder, abstractMethod, methodBuilder, nameAlloc);
             }
 
             serviceBuilder.addMethod(methodBuilder.build());
