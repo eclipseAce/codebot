@@ -23,7 +23,7 @@ public class CreatingMethodProcessor implements MethodProcessor {
                 "$1T $2N = new $1T()",
                 entity.getTypeName(), entityVar
         );
-        for (MethodParameter param : method.getParameters()) {
+        for (Parameter param : method.getParameters()) {
             Optional<Accessor> directSetter = entity.getType()
                     .findWriteAccessor(param.getName(), param.getType().asTypeMirror());
             if (directSetter.isPresent()) {

@@ -29,10 +29,10 @@ public class ReadingMethodProcessor implements MethodProcessor {
         Entity entity = service.getEntity();
 
         List<QueryParameter> queries = Lists.newArrayList();
-        List<MethodParameter> specifications = Lists.newArrayList();
-        List<MethodParameter> pageables = Lists.newArrayList();
+        List<Parameter> specifications = Lists.newArrayList();
+        List<Parameter> pageables = Lists.newArrayList();
 
-        for (MethodParameter param : method.getParameters()) {
+        for (Parameter param : method.getParameters()) {
             Optional<Accessor> directGetter = entity.getType()
                     .findReadAccessor(param.getName(), param.getType().asTypeMirror());
             if (directGetter.isPresent()) {

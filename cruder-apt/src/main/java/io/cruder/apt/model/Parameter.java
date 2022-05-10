@@ -2,11 +2,11 @@ package io.cruder.apt.model;
 
 import io.cruder.apt.type.Type;
 
-public class MethodParameter {
+public class Parameter {
     private final String name;
     private final Type type;
 
-    public MethodParameter(String name, Type type) {
+    public Parameter(String name, Type type) {
         this.name = name;
         this.type = type;
     }

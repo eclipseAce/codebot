@@ -13,7 +13,7 @@ public class Method {
     private final ExecutableElement executableElement;
     private final Type containingType;
     private final Type returnType;
-    private final List<MethodParameter> parameters;
+    private final List<Parameter> parameters;
 
     public Method(Type containingType, ExecutableElement executableElement) {
         ExecutableType executableType = containingType.asMember(executableElement);
@@ -22,7 +22,7 @@ public class Method {
         this.executableElement = executableElement;
         this.returnType = containingType.getFactory().getType(executableType.getReturnType());
         this.parameters = IntStream.range(0, executableElement.getParameters().size()).boxed()
-                .map(i -> new MethodParameter(
+                .map(i -> new Parameter(
                         executableElement.getParameters().get(i).getSimpleName().toString(),
                         containingType.getFactory().getType(executableType.getParameterTypes().get(i))
                 ))
@@ -41,7 +41,7 @@ public class Method {
         return returnType;
     }
 
-    public List<MethodParameter> getParameters() {
+    public List<Parameter> getParameters() {
         return parameters;
     }
 

@@ -23,7 +23,7 @@ public class UpdatingMethodProcessor implements MethodProcessor {
         String entityVar = nameAlloc.newName("entity");
         CodeBlock idExpr = null;
         List<CodeBlock> mappingExprs = Lists.newArrayList();
-        for (MethodParameter param : method.getParameters()) {
+        for (Parameter param : method.getParameters()) {
             if (idExpr == null
                     && entity.getIdName().equals(param.getName())
                     && entity.getIdType().isAssignableFrom(param.getType().asTypeMirror())) {
