@@ -30,7 +30,7 @@ public class CrudService {
     public CrudService(TypeFactory typeFactory, TypeElement typeElement) {
         this.serviceType = typeFactory.getType(typeElement.asType());
 
-        AnnotationMirror annotation = AnnotationUtils.findAnnotation(typeElement, ANNOTATION_FQN)
+        AnnotationMirror annotation = AnnotationUtils.find(typeElement, ANNOTATION_FQN)
                 .orElseThrow(() -> new IllegalArgumentException("No @CrudService present"));
         this.entity = new Entity(typeFactory.getType(
                 AnnotationUtils.<TypeMirror>findValue(annotation, "entity").get()
@@ -283,28 +283,6 @@ public class CrudService {
                 fromName,
                 getter.getSimpleName()
         );
-    }
-
-    static class Entity {
-        final Type type;
-        final ClassName typeName;
-        final Type idType;
-        final TypeName idTypeName;
-        final String idName;
-        final Accessor idReadAccessor;
-
-        Entity(Type type) {
-            this.type = type;
-            this.typeName = ClassName.get(type.asTypeElement());
-            VariableElement idField = type
-                    .findFields(it -> AnnotationUtils.isAnnotationPresent(it, "javax.persistence.Id"))
-                    .stream().findFirst()
-                    .orElseThrow(() -> new IllegalArgumentException("Can't determin ID of entity"));
-            this.idType = type.getFactory().getType(type.asMember(idField));
-            this.idTypeName = TypeName.get(type.asTypeMirror());
-            this.idName = idField.getSimpleName().toString();
-            this.idReadAccessor = type.findReadAccessor(idName, idType.asTypeMirror()).orElse(null);
-        }
     }
 
     static class Method {

@@ -1,11 +1,10 @@
 package io.cruder.apt.type;
 
 import com.google.common.base.Predicate;
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import io.cruder.apt.util.Lazy;
 
 import javax.lang.model.element.*;
 import javax.lang.model.type.DeclaredType;
@@ -27,48 +26,21 @@ public class Type {
 
     private final TypeMirror typeMirror;
 
-    private final Supplier<List<Type>> typeArguments;
+    private final Lazy<List<Type>> typeArguments;
 
-    private final Supplier<List<VariableElement>> fields;
-    private final Supplier<List<ExecutableElement>> methods;
-    private final Supplier<List<Accessor>> accessors;
+    private final Lazy<List<VariableElement>> fields;
+    private final Lazy<List<ExecutableElement>> methods;
+    private final Lazy<List<Accessor>> accessors;
 
     Type(TypeFactory factory, TypeMirror typeMirror) {
         this.factory = factory;
         this.elementUtils = factory.getElementUtils();
         this.typeUtils = factory.getTypeUtils();
         this.typeMirror = typeMirror;
-
-        if (typeMirror.getKind() == TypeKind.DECLARED) {
-            DeclaredType declaredType = (DeclaredType) typeMirror;
-
-            this.typeArguments = Suppliers.memoize(() -> {
-                return declaredType.getTypeArguments().stream()
-                        .map(factory::getType)
-                        .collect(Collectors.collectingAndThen(Collectors.toList(), ImmutableList::copyOf));
-            });
-
-            this.fields = Suppliers.memoize(() -> {
-                List<VariableElement> fields = Lists.newArrayList();
-                collectFieldsInHierarchy(declaredType, fields);
-                return ImmutableList.copyOf(fields);
-            });
-
-            this.methods = Suppliers.memoize(() -> {
-                List<ExecutableElement> methods = Lists.newArrayList();
-                collectMethodsInHierarchy(declaredType, methods, Sets.newHashSet());
-                return ImmutableList.copyOf(methods);
-            });
-
-            this.accessors = Suppliers.memoize(() -> {
-                return Accessor.fromMethods(getFactory(), declaredType, methods.get());
-            });
-        } else {
-            this.typeArguments = Suppliers.memoize(ImmutableList::of);
-            this.fields = Suppliers.memoize(ImmutableList::of);
-            this.methods = Suppliers.memoize(ImmutableList::of);
-            this.accessors = Suppliers.memoize(ImmutableList::of);
-        }
+        this.typeArguments = lazyTypeArguments();
+        this.fields = lazyFields();
+        this.methods = lazyMethods();
+        this.accessors = lazyAccessors();
     }
 
     public TypeFactory getFactory() {
@@ -83,20 +55,16 @@ public class Type {
         return typeMirror.getKind() == TypeKind.DECLARED;
     }
 
-    private void ensureDeclared() {
-        if (!isDeclared()) {
-            throw new IllegalStateException("Not DeclaredType");
-        }
+    public boolean isVoid() {
+        return typeMirror.getKind() == TypeKind.VOID;
     }
 
     public DeclaredType asDeclaredType() {
-        ensureDeclared();
-        return (DeclaredType) typeMirror;
+        return ensureDeclared();
     }
 
     public TypeElement asTypeElement() {
-        ensureDeclared();
-        return (TypeElement) asDeclaredType().asElement();
+        return (TypeElement) ensureDeclared().asElement();
     }
 
     public boolean isPrimitive() {
@@ -191,6 +159,14 @@ public class Type {
         return typeUtils.isAssignable(typeMirror, type);
     }
 
+    public boolean isAssignableTo(TypeElement typeElement, TypeMirror... typeArgs) {
+        return isAssignableTo(typeUtils.getDeclaredType(typeElement, typeArgs));
+    }
+
+    public boolean isAssignableTo(String qualifiedName, TypeMirror... typeArgs) {
+        return isAssignableTo(elementUtils.getTypeElement(qualifiedName), typeArgs);
+    }
+
     public boolean isAssignableFrom(TypeMirror type) {
         return typeUtils.isAssignable(type, typeMirror);
     }
@@ -211,14 +187,46 @@ public class Type {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        Type type = (Type) o;
-        return typeUtils.isSameType(typeMirror, type.typeMirror)
-                && type.typeUtils.isSameType(type.typeMirror, typeMirror);
+        return typeUtils.isSameType(typeMirror, ((Type) o).typeMirror);
     }
 
     @Override
     public int hashCode() {
         return typeMirror.hashCode();
+    }
+
+    private DeclaredType ensureDeclared() {
+        if (!isDeclared()) {
+            throw new IllegalStateException("Not DeclaredType");
+        }
+        return (DeclaredType) typeMirror;
+    }
+
+    private Lazy<List<VariableElement>> lazyFields() {
+        return !isDeclared() ? Lazy.constant(ImmutableList.of()) : Lazy.of(() -> {
+            List<VariableElement> fields = Lists.newArrayList();
+            collectFieldsInHierarchy(ensureDeclared(), fields);
+            return ImmutableList.copyOf(fields);
+        });
+    }
+
+    private Lazy<List<ExecutableElement>> lazyMethods() {
+        return !isDeclared() ? Lazy.constant(ImmutableList.of()) : Lazy.of(() -> {
+            List<ExecutableElement> methods = Lists.newArrayList();
+            collectMethodsInHierarchy(ensureDeclared(), methods, Sets.newHashSet());
+            return ImmutableList.copyOf(methods);
+        });
+    }
+
+    private Lazy<List<Accessor>> lazyAccessors() {
+        return !isDeclared() ? Lazy.constant(ImmutableList.of())
+                : Lazy.of(() -> Accessor.fromMethods(getFactory(), ensureDeclared(), methods.get()));
+    }
+
+    private Lazy<List<Type>> lazyTypeArguments() {
+        return !isDeclared() ? Lazy.constant(ImmutableList.of()) : Lazy.of(() -> ImmutableList.copyOf(
+                ensureDeclared().getTypeArguments().stream().map(factory::getType).collect(Collectors.toList())
+        ));
     }
 
     private void collectFieldsInHierarchy(DeclaredType declaredType,
