@@ -4,8 +4,12 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.codebot.apt.util.Lazy;
+import org.apache.commons.lang3.StringUtils;
 
-import javax.lang.model.element.*;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeKind;
@@ -17,8 +21,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-public class Type {
+public class Type implements TypeSupport {
     private final TypeFactory factory;
     private final Elements elementUtils;
     private final Types typeUtils;
@@ -26,12 +31,12 @@ public class Type {
     private final TypeMirror typeMirror;
 
     private final Lazy<List<Type>> lazyTypeArguments;
-    private final Lazy<List<VariableElement>> lazyFields;
-    private final Lazy<List<ExecutableElement>> lazyMethods;
+    private final Lazy<List<Variable>> lazyFields;
+    private final Lazy<List<Executable>> lazyMethods;
     private final Lazy<List<GetAccessor>> lazyGetters;
     private final Lazy<List<SetAccessor>> lazySetters;
 
-    Type(TypeFactory factory, TypeMirror typeMirror) {
+    protected Type(TypeFactory factory, TypeMirror typeMirror) {
         this.factory = factory;
         this.elementUtils = factory.elementUtils();
         this.typeUtils = factory.typeUtils();
@@ -43,6 +48,21 @@ public class Type {
         this.lazySetters = lazySetAccessors();
     }
 
+    @Override
+    public TypeMirror typeMirror() {
+        return typeMirror;
+    }
+
+    @Override
+    public Types typeUtils() {
+        return typeUtils;
+    }
+
+    @Override
+    public Elements elementUtils() {
+        return elementUtils;
+    }
+
     public TypeFactory factory() {
         return factory;
     }
@@ -51,11 +71,11 @@ public class Type {
         return lazyTypeArguments.get();
     }
 
-    public List<VariableElement> fields() {
+    public List<Variable> fields() {
         return lazyFields.get();
     }
 
-    public List<ExecutableElement> methods() {
+    public List<Executable> methods() {
         return lazyMethods.get();
     }
 
@@ -67,116 +87,30 @@ public class Type {
         return lazySetters.get();
     }
 
-    public Optional<GetAccessor> findGetter(String accessedName, Type accessedType) {
-        return findGetter(accessedName, accessedType.asTypeMirror());
+    public Optional<GetAccessor> findGetter(String accessedName, TypeSupport accessedType) {
+        return findGetter(accessedName, accessedType.typeMirror());
     }
 
     public Optional<GetAccessor> findGetter(String accessedName, TypeMirror accessedType) {
         return getters().stream()
-                .filter(it -> it.accessedName().equals(accessedName) && it.isAssignableTo(accessedType))
+                .filter(it -> it.accessedName().equals(accessedName)
+                        && it.accessedType().isAssignableTo(accessedType))
                 .findFirst();
     }
 
-    public Optional<SetAccessor> findSetter(String accessedName, Type accessedType) {
-        return findSetter(accessedName, accessedType.asTypeMirror());
+    public Optional<SetAccessor> findSetter(String accessedName, TypeSupport accessedType) {
+        return findSetter(accessedName, accessedType.typeMirror());
     }
 
     public Optional<SetAccessor> findSetter(String accessedName, TypeMirror accessedType) {
         return setters().stream()
-                .filter(it -> it.accessedName().equals(accessedName) && it.isAssignableFrom(accessedType))
+                .filter(it -> it.accessedName().equals(accessedName)
+                        && it.accessedType().isAssignableFrom(accessedType))
                 .findFirst();
     }
 
-    public TypeMirror asTypeMirror() {
-        return typeMirror;
-    }
-
-    public DeclaredType asDeclaredType() {
-        return ensureDeclared();
-    }
-
-    public TypeElement asTypeElement() {
-        return (TypeElement) ensureDeclared().asElement();
-    }
-
-    public boolean isDeclared() {
-        return typeMirror.getKind() == TypeKind.DECLARED;
-    }
-
-    public boolean isVoid() {
-        return typeMirror.getKind() == TypeKind.VOID;
-    }
-
-    public boolean isPrimitive() {
-        return typeMirror.getKind().isPrimitive();
-    }
-
-    public boolean isWildcard() {
-        return typeMirror.getKind() == TypeKind.WILDCARD;
-    }
-
-    public boolean isInterface() {
-        return isDeclared() && asTypeElement().getKind() == ElementKind.INTERFACE;
-    }
-
-    public boolean isSubtype(TypeMirror type) {
-        return typeUtils.isSubtype(typeMirror, type);
-    }
-
-    public boolean isSubtype(TypeElement typeElement, TypeMirror... typeArgs) {
-        return isSubtype(typeUtils.getDeclaredType(typeElement, typeArgs));
-    }
-
-    public boolean isSubtype(String qualifiedName, TypeMirror... typeArgs) {
-        TypeElement typeElement = elementUtils.getTypeElement(qualifiedName);
-        if (typeElement == null) {
-            throw new IllegalArgumentException("No such type '" + qualifiedName + "'");
-        }
-        return isSubtype(typeElement, typeArgs);
-    }
-
-    public ExecutableType asMember(ExecutableElement method) {
-        return (ExecutableType) typeUtils.asMemberOf(asDeclaredType(), method);
-    }
-
-    public TypeMirror asMember(VariableElement variable) {
-        return typeUtils.asMemberOf(asDeclaredType(), variable);
-    }
-
-    public boolean isAssignableTo(TypeMirror type) {
-        return typeUtils.isAssignable(typeMirror, type);
-    }
-
-    public boolean isAssignableTo(TypeElement typeElement, TypeMirror... typeArgs) {
-        return isAssignableTo(typeUtils.getDeclaredType(typeElement, typeArgs));
-    }
-
-    public boolean isAssignableTo(String qualifiedName, TypeMirror... typeArgs) {
-        return isAssignableTo(elementUtils.getTypeElement(qualifiedName), typeArgs);
-    }
-
-    public boolean isAssignableTo(Type type) {
-        return isAssignableTo(type.asTypeMirror());
-    }
-
-    public boolean isAssignableFrom(TypeMirror type) {
-        return typeUtils.isAssignable(type, typeMirror);
-    }
-
-    public boolean isAssignableFrom(TypeElement typeElement, TypeMirror... typeArgs) {
-        return isAssignableFrom(typeUtils.getDeclaredType(typeElement, typeArgs));
-    }
-
-    public boolean isAssignableFrom(String qualifiedName, TypeMirror... typeArgs) {
-        return isAssignableFrom(elementUtils.getTypeElement(qualifiedName), typeArgs);
-    }
-
-    public boolean isAssignableFrom(Type type) {
-        return isAssignableFrom(type.asTypeMirror());
-    }
-
     public Type erasure() {
-        return factory.getType(typeUtils.erasure(typeMirror));
+        return factory().getType(typeUtils().erasure(typeMirror()));
     }
 
     @Override
@@ -196,52 +130,45 @@ public class Type {
         return typeMirror.toString();
     }
 
-    private DeclaredType ensureDeclared() {
-        if (!isDeclared()) {
-            throw new IllegalStateException("Not DeclaredType");
-        }
-        return (DeclaredType) typeMirror;
-    }
-
-    private Lazy<List<VariableElement>> lazyFields() {
+    private Lazy<List<Variable>> lazyFields() {
         return !isDeclared() ? Lazy.constant(ImmutableList.of()) : Lazy.of(() -> {
-            List<VariableElement> fields = Lists.newArrayList();
-            collectFieldsInHierarchy(ensureDeclared(), fields);
+            List<VariableImpl> fields = Lists.newArrayList();
+            collectFieldsInHierarchy(asDeclaredType(), fields);
             return ImmutableList.copyOf(fields);
         });
     }
 
-    private Lazy<List<ExecutableElement>> lazyMethods() {
+    private Lazy<List<Executable>> lazyMethods() {
         return !isDeclared() ? Lazy.constant(ImmutableList.of()) : Lazy.of(() -> {
-            List<ExecutableElement> methods = Lists.newArrayList();
-            collectMethodsInHierarchy(ensureDeclared(), methods, Sets.newHashSet());
+            List<ExecutableImpl> methods = Lists.newArrayList();
+            collectMethodsInHierarchy(asDeclaredType(), methods, Sets.newHashSet());
             return ImmutableList.copyOf(methods);
         });
     }
 
     private Lazy<List<GetAccessor>> lazyGetAccessors() {
-        return !isDeclared() ? Lazy.constant(ImmutableList.of()) : Lazy.of(() -> GetAccessor.of(this));
+        return !isDeclared() ? Lazy.constant(ImmutableList.of()) : Lazy.of(() -> GetAccessor.from(this));
     }
 
     private Lazy<List<SetAccessor>> lazySetAccessors() {
-        return !isDeclared() ? Lazy.constant(ImmutableList.of()) : Lazy.of(() -> SetAccessor.of(this));
+        return !isDeclared() ? Lazy.constant(ImmutableList.of()) : Lazy.of(() -> SetAccessor.from(this));
     }
 
     private Lazy<List<Type>> lazyTypeArguments() {
         return !isDeclared() ? Lazy.constant(ImmutableList.of()) : Lazy.of(() -> ImmutableList.copyOf(
-                ensureDeclared().getTypeArguments().stream().map(factory::getType).collect(Collectors.toList())
+                asDeclaredType().getTypeArguments().stream().map(factory::getType).collect(Collectors.toList())
         ));
     }
 
     private void collectFieldsInHierarchy(DeclaredType declaredType,
-                                          List<VariableElement> collected) {
+                                          List<VariableImpl> collected) {
         TypeElement element = (TypeElement) declaredType.asElement();
         if (!"java.lang.Object".contentEquals(element.getQualifiedName())) {
             ElementFilter.fieldsIn(element.getEnclosedElements()).stream()
                     .filter(field -> {
                         return !field.getModifiers().contains(Modifier.STATIC);
                     })
-                    .forEach(collected::add);
+                    .forEach(it -> collected.add(new VariableImpl(it)));
             if (element.getSuperclass().getKind() != TypeKind.NONE) {
                 collectFieldsInHierarchy((DeclaredType) element.getSuperclass(), collected);
             }
@@ -249,7 +176,7 @@ public class Type {
     }
 
     private void collectMethodsInHierarchy(DeclaredType declaredType,
-                                           List<ExecutableElement> collected,
+                                           List<ExecutableImpl> collected,
                                            Set<TypeElement> visited) {
         TypeElement element = (TypeElement) declaredType.asElement();
         if (!"java.lang.Object".contentEquals(element.getQualifiedName()) && visited.add(element)) {
@@ -257,12 +184,12 @@ public class Type {
                     .filter(method -> {
                         boolean isStatic = method.getModifiers().contains(Modifier.STATIC);
                         boolean isPrivate = method.getModifiers().contains(Modifier.PRIVATE);
-                        boolean isOverridden = collected.stream().anyMatch(it -> {
-                            return elementUtils.overrides(it, method, (TypeElement) it.getEnclosingElement());
-                        });
+                        boolean isOverridden = collected.stream().anyMatch(it -> elementUtils.overrides(
+                                it.executableElement, method, (TypeElement) it.executableElement.getEnclosingElement()
+                        ));
                         return !isStatic && !isPrivate && !isOverridden;
                     })
-                    .forEach(collected::add);
+                    .forEach(it -> collected.add(new ExecutableImpl(it)));
 
             element.getInterfaces().forEach(it -> {
                 collectMethodsInHierarchy((DeclaredType) it, collected, visited);
@@ -271,6 +198,76 @@ public class Type {
             if (element.getSuperclass().getKind() != TypeKind.NONE) {
                 collectMethodsInHierarchy((DeclaredType) element.getSuperclass(), collected, visited);
             }
+        }
+    }
+
+    private class VariableImpl implements Variable {
+        private final VariableElement variableElement;
+        private final Type type;
+
+        public VariableImpl(VariableElement variableElement) {
+            this.variableElement = variableElement;
+            this.type = factory().getType(asMember(variableElement));
+        }
+
+        @Override
+        public VariableElement asElement() {
+            return variableElement;
+        }
+
+        @Override
+        public String simpleName() {
+            return variableElement.getSimpleName().toString();
+        }
+
+        @Override
+        public Type type() {
+            return type;
+        }
+    }
+
+    private class ExecutableImpl implements Executable {
+        private final ExecutableElement executableElement;
+        private final Lazy<ExecutableType> lazyExecutableType;
+        private final Lazy<Type> lazyReturnType;
+        private final Lazy<List<Variable>> lazyParameters;
+        private final Lazy<List<Type>> lazyThrownTypes;
+
+        public ExecutableImpl(ExecutableElement executableElement) {
+            this.executableElement = executableElement;
+            this.lazyExecutableType = Lazy.of(() -> asMember(executableElement));
+            this.lazyReturnType = Lazy.of(() -> factory().getType(lazyExecutableType.get().getReturnType()));
+            this.lazyParameters = Lazy.of(() -> ImmutableList.copyOf(
+                    executableElement.getParameters().stream().map(VariableImpl::new).iterator()
+            ));
+            this.lazyThrownTypes = Lazy.of(() -> ImmutableList.copyOf(
+                    lazyExecutableType.get().getThrownTypes().stream().map(it -> factory().getType(it)).iterator()
+            ));
+        }
+
+        @Override
+        public ExecutableElement asElement() {
+            return executableElement;
+        }
+
+        @Override
+        public String simpleName() {
+            return executableElement.getSimpleName().toString();
+        }
+
+        @Override
+        public Type returnType() {
+            return lazyReturnType.get();
+        }
+
+        @Override
+        public List<Variable> parameters() {
+            return lazyParameters.get();
+        }
+
+        @Override
+        public List<Type> thrownTypes() {
+            return lazyThrownTypes.get();
         }
     }
 }

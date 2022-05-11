@@ -1,28 +1,21 @@
 package io.codebot.apt.type;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import org.apache.commons.lang3.StringUtils;
 
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeKind;
-import javax.lang.model.type.TypeMirror;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class GetAccessor implements Accessor {
-    private static final String GETTER_PREFIX = "get";
-    private static final String BOOLEAN_GETTER_PREFIX = "is";
-
     private final String accessedName;
     private final Type accessedType;
-    private final ExecutableElement executableElement;
+    private final Executable executable;
 
-    protected GetAccessor(String accessedName, Type accessedType, ExecutableElement executableElement) {
+    protected GetAccessor(String accessedName, Type accessedType, Executable executable) {
         this.accessedName = accessedName;
         this.accessedType = accessedType;
-        this.executableElement = executableElement;
+        this.executable = executable;
     }
 
     @Override
@@ -35,39 +28,32 @@ public class GetAccessor implements Accessor {
         return accessedType;
     }
 
-    public String simpleName() {
-        return executableElement.getSimpleName().toString();
+    public Executable executable() {
+        return executable;
     }
 
-    public boolean isAssignableTo(TypeMirror type) {
-        return accessedType.isAssignableTo(type);
-    }
+    private static final String GETTER_PREFIX = "get";
+    private static final String BOOLEAN_GETTER_PREFIX = "is";
 
-    public static List<GetAccessor> of(Type type) {
-        return type.methods().stream().flatMap(method -> {
-            String methodName = method.getSimpleName().toString();
-            ExecutableType methodType = type.asMember(method);
+    public static List<GetAccessor> from(Type type) {
+        List<GetAccessor> getters = Lists.newArrayList();
+        for (Executable method : type.methods()) {
+            String methodName = method.simpleName();
             if (methodName.length() > GETTER_PREFIX.length()
                     && methodName.startsWith(GETTER_PREFIX)
-                    && method.getParameters().isEmpty()
-                    && methodType.getReturnType().getKind() != TypeKind.VOID) {
-                return Stream.of(new GetAccessor(
-                        StringUtils.uncapitalize(methodName.substring(GETTER_PREFIX.length())),
-                        type.factory().getType(methodType.getReturnType()),
-                        method
-                ));
-            }
-            if (methodName.length() > BOOLEAN_GETTER_PREFIX.length()
+                    && method.parameters().isEmpty()
+                    && !method.returnType().isVoid()) {
+                String accessedName = StringUtils.uncapitalize(methodName.substring(GETTER_PREFIX.length()));
+                getters.add(new GetAccessor(accessedName, method.returnType(), method));
+            } //
+            else if (methodName.length() > BOOLEAN_GETTER_PREFIX.length()
                     && methodName.startsWith(BOOLEAN_GETTER_PREFIX)
-                    && method.getParameters().isEmpty()
-                    && methodType.getReturnType().getKind() == TypeKind.BOOLEAN) {
-                return Stream.of(new GetAccessor(
-                        StringUtils.uncapitalize(methodName.substring(BOOLEAN_GETTER_PREFIX.length())),
-                        type.factory().getType(methodType.getReturnType()),
-                        method
-                ));
+                    && method.parameters().isEmpty()
+                    && method.returnType().typeMirror().getKind() == TypeKind.BOOLEAN) {
+                String accessedName = StringUtils.uncapitalize(methodName.substring(BOOLEAN_GETTER_PREFIX.length()));
+                getters.add(new GetAccessor(accessedName, method.returnType(), method));
             }
-            return Stream.empty();
-        }).collect(Collectors.collectingAndThen(Collectors.toList(), ImmutableList::copyOf));
+        }
+        return ImmutableList.copyOf(getters);
     }
 }

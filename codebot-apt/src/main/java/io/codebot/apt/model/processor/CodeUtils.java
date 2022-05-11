@@ -34,7 +34,7 @@ public class CodeUtils {
 
     public static List<CodeBlock> newAndMap(Type fromType, String fromVar, Type toType, String toVar) {
         List<CodeBlock> statements = Lists.newArrayList();
-        statements.add(CodeBlock.of("$[$1T $2N = new $1T();\n$]", toType.asTypeMirror(), toVar));
+        statements.add(CodeBlock.of("$[$1T $2N = new $1T();\n$]", toType.typeMirror(), toVar));
         statements.addAll(map(fromType, fromVar, toType, toVar));
         return statements;
     }
@@ -50,7 +50,7 @@ public class CodeUtils {
 
     public static List<CodeBlock> mapFromEntityAndReturn(Type fromType, String fromVar, Type toType,
                                                          Entity entity, NameAllocator nameAlloc) {
-        if (fromType.isSubtype(PAGE_FQN, entity.getType().asTypeMirror())
+        if (fromType.isSubtype(PAGE_FQN, entity.getType().typeMirror())
                 && toType.erasure().isAssignableTo(PAGE_FQN)) {
             NameAllocator scopeNameAlloc = nameAlloc.clone();
             String itVar = scopeNameAlloc.newName("it");
@@ -68,14 +68,14 @@ public class CodeUtils {
     private static List<CodeBlock> mapFromEntityAndReturnInternal(String entityVar, Type toType,
                                                                   Entity entity, NameAllocator nameAlloc) {
         List<CodeBlock> statements = Lists.newArrayList();
-        if (toType.isAssignableFrom(entity.getIdType()) && entity.getIdReadAccessor() != null) {
-            statements.add(CodeBlock.of("$[return $1N.$2N();\n$]", entityVar, entity.getIdReadAccessor().simpleName()));
+        if (toType.isAssignableFrom(entity.getIdType()) && entity.getIdGetter() != null) {
+            statements.add(CodeBlock.of("$[return $1N.$2N();\n$]", entityVar, entity.getIdGetter().simpleName()));
         } //
         else if (toType.isDeclared()) {
             statements.addAll(CodeUtils.newAndMapAndReturn(entity.getType(), entityVar, toType, nameAlloc));
         } //
         else if (!toType.isVoid()){
-            throw new IllegalArgumentException("Can't handle result type " + toType.asTypeMirror());
+            throw new IllegalArgumentException("Can't handle result type " + toType.typeMirror());
         }
         return statements;
     }

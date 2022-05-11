@@ -39,7 +39,7 @@ public class ReadingMethodProcessor implements MethodProcessor {
                 queries.add(new QueryParameter(param.getName(), null));
                 continue;
             }
-            if (param.getType().isSubtype(SPECIFICATION_FQN, entity.getType().asTypeMirror())) {
+            if (param.getType().isSubtype(SPECIFICATION_FQN, entity.getType().typeMirror())) {
                 specifications.add(param);
                 continue;
             }
@@ -85,15 +85,15 @@ public class ReadingMethodProcessor implements MethodProcessor {
             specBuilder.add("\n$<)");
 
             if (!pageables.isEmpty() && method.getReturnType().erasure().isAssignableFrom(PAGE_FQN)) {
-                resultType = entity.getType().factory().getType(PAGE_FQN, entity.getType().asTypeMirror());
+                resultType = entity.getType().factory().getType(PAGE_FQN, entity.getType().typeMirror());
                 methodBuilder.addCode(
                         "$1T $2N = specificationExecutor.findAll($3L, $4N);\n",
-                        resultType.asTypeMirror(), resultVar, specBuilder.build(), pageables.get(0).getName()
+                        resultType.typeMirror(), resultVar, specBuilder.build(), pageables.get(0).getName()
                 );
             } else {
                 methodBuilder.addCode(
                         "$1T $2N = specificationExecutor.findOne($3L).orElse(null);\n",
-                        resultType.asTypeMirror(), resultVar, specBuilder.build()
+                        resultType.typeMirror(), resultVar, specBuilder.build()
                 );
             }
         }

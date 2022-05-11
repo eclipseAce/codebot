@@ -36,11 +36,12 @@ public class CreatingMethodProcessor implements MethodProcessor {
                         .forEach(methodBuilder::addCode);
             } //
             else {
-                throw new IllegalArgumentException("Can't handle parameter type " + param.getType().asTypeMirror());
+                throw new IllegalArgumentException("Can't handle parameter type " + param.getType());
             }
         }
         methodBuilder.addStatement("repository.save($N)", entityVar);
-        CodeUtils.mapFromEntityAndReturn(entity.getType(), entityVar, method.getReturnType(), entity, nameAlloc)
-                .forEach(methodBuilder::addCode);
+        CodeUtils.mapFromEntityAndReturn(
+                entity.getType(), entityVar, method.getReturnType(), entity, nameAlloc
+        ).forEach(methodBuilder::addCode);
     }
 }

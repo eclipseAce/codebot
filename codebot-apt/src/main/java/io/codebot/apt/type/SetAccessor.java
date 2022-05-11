@@ -1,26 +1,20 @@
 package io.codebot.apt.type;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import org.apache.commons.lang3.StringUtils;
 
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.type.ExecutableType;
-import javax.lang.model.type.TypeMirror;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class SetAccessor implements Accessor {
-    private static final String SETTER_PREFIX = "set";
-
     private final String accessedName;
     private final Type accessedType;
-    private final ExecutableElement executableElement;
+    private final Executable executable;
 
-    protected SetAccessor(String accessedName, Type accessedType, ExecutableElement executableElement) {
+    protected SetAccessor(String accessedName, Type accessedType, Executable executable) {
         this.accessedName = accessedName;
         this.accessedType = accessedType;
-        this.executableElement = executableElement;
+        this.executable = executable;
     }
 
     @Override
@@ -33,28 +27,23 @@ public class SetAccessor implements Accessor {
         return accessedType;
     }
 
-    public String simpleName() {
-        return executableElement.getSimpleName().toString();
+    public Executable executable() {
+        return executable;
     }
 
-    public boolean isAssignableFrom(TypeMirror type) {
-        return accessedType.isAssignableFrom(type);
-    }
+    private static final String SETTER_PREFIX = "set";
 
-    public static List<SetAccessor> of(Type type) {
-        return type.methods().stream().flatMap(method -> {
-            String methodName = method.getSimpleName().toString();
-            ExecutableType methodType = type.asMember(method);
+    public static List<SetAccessor> from(Type type) {
+        List<SetAccessor> setters = Lists.newArrayList();
+        for (Executable method : type.methods()) {
+            String methodName = method.simpleName();
             if (methodName.length() > SETTER_PREFIX.length()
                     && methodName.startsWith(SETTER_PREFIX)
-                    && method.getParameters().size() == 1) {
-                return Stream.of(new SetAccessor(
-                        StringUtils.uncapitalize(methodName.substring(SETTER_PREFIX.length())),
-                        type.factory().getType(methodType.getParameterTypes().get(0)),
-                        method
-                ));
+                    && method.parameters().size() == 1) {
+                String accessedName = StringUtils.uncapitalize(methodName.substring(SETTER_PREFIX.length()));
+                setters.add(new SetAccessor(accessedName, method.parameters().get(0).type(), method));
             }
-            return Stream.empty();
-        }).collect(Collectors.collectingAndThen(Collectors.toList(), ImmutableList::copyOf));
+        }
+        return ImmutableList.copyOf(setters);
     }
 }

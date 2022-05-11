@@ -49,7 +49,9 @@ public class UpdatingMethodProcessor implements MethodProcessor {
                 } else {
                     entity.getType()
                             .findSetter(paramGetter.accessedName(), paramGetter.accessedType())
-                            .ifPresent(entitySetter -> CodeUtils.map(param.getName(), paramGetter, entityVar, entitySetter));
+                            .ifPresent(entitySetter -> mappingExprs.add(
+                                    CodeUtils.map(param.getName(), paramGetter, entityVar, entitySetter)
+                            ));
                 }
             }
         }
@@ -58,9 +60,9 @@ public class UpdatingMethodProcessor implements MethodProcessor {
         }
         methodBuilder.addStatement(
                 "$1T $2N = repository.getById($3L)",
-                entity.getType().asTypeMirror(), entityVar, idExpr
+                entity.getType().typeMirror(), entityVar, idExpr
         );
-        mappingExprs.forEach(methodBuilder::addStatement);
+        mappingExprs.forEach(methodBuilder::addCode);
         methodBuilder.addStatement("repository.save($N)", entityVar);
         CodeUtils.mapFromEntityAndReturn(
                 entity.getType(), entityVar, method.getReturnType(), entity, nameAlloc
