@@ -27,6 +27,10 @@ public final class AnnotationUtils {
                 .findAny().map(entry -> (T) entry.getValue().getValue());
     }
 
+    public static <T> Optional<T> findValue(AnnotationMirror annotation) {
+        return findValue(annotation, "value");
+    }
+
     public static <T> Optional<T> findValue(AnnotatedConstruct construct, String annotationFqn, String name) {
         return find(construct, annotationFqn).flatMap(ann -> findValue(ann, name));
     }

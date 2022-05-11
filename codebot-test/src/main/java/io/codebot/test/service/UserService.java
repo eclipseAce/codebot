@@ -7,7 +7,7 @@ import io.codebot.test.repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-@CrudService(entity = User.class, repository = UserRepository.class)
+@CrudService(User.class)
 public interface UserService {
 
     long create(UserCreate dto);

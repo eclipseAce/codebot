@@ -13,12 +13,16 @@ import java.util.stream.Collectors;
 
 public class Service {
     private static final String CRUD_SERVICE_FQN = "io.codebot.CrudService";
-    private static final String AUTOWIRED_FQN = "org.springframework.beans.factory.annotation.Autowired";
+    private static final String AUTOWIRED_FQN
+            = "org.springframework.beans.factory.annotation.Autowired";
+    private static final String JPA_REPOSITORY_FQN
+            = "org.springframework.data.jpa.repository.JpaRepository";
+    private static final String JPA_SPECIFICATION_EXECUTOR_FQN
+            = "org.springframework.data.jpa.repository.JpaSpecificationExecutor";
 
     private final Type type;
     private final ClassName typeName;
     private final Entity entity;
-    private final Repository repository;
     private final List<Method> abstractMethods;
 
     private final List<MethodProcessor> methodProcessors;
@@ -29,12 +33,7 @@ public class Service {
 
         this.type = type;
         this.typeName = ClassName.get(type.asTypeElement());
-        this.entity = new Entity(type.factory().getType(
-                AnnotationUtils.<TypeMirror>findValue(annotation, "entity").get()
-        ));
-        this.repository = new Repository(type.factory().getType(
-                AnnotationUtils.<TypeMirror>findValue(annotation, "repository").get()
-        ));
+        this.entity = new Entity(type.factory().getType(AnnotationUtils.<TypeMirror>findValue(annotation).get()));
         this.abstractMethods = type.methods().stream()
                 .filter(method -> method.getModifiers().contains(Modifier.ABSTRACT))
                 .map(method -> new Method(type, method))
@@ -53,7 +52,26 @@ public class Service {
             serviceBuilder.superclass(typeName);
         }
         serviceBuilder.addField(FieldSpec
-                .builder(repository.getTypeName(), "repository", Modifier.PRIVATE)
+                .builder(
+                        ParameterizedTypeName.get(
+                                ClassName.bestGuess(JPA_REPOSITORY_FQN),
+                                entity.getTypeName(),
+                                entity.getIdTypeName().box()
+                        ),
+                        "repository",
+                        Modifier.PRIVATE
+                )
+                .addAnnotation(ClassName.bestGuess(AUTOWIRED_FQN))
+                .build());
+        serviceBuilder.addField(FieldSpec
+                .builder(
+                        ParameterizedTypeName.get(
+                                ClassName.bestGuess(JPA_SPECIFICATION_EXECUTOR_FQN),
+                                entity.getTypeName()
+                        ),
+                        "specificationExecutor",
+                        Modifier.PRIVATE
+                )
                 .addAnnotation(ClassName.bestGuess(AUTOWIRED_FQN))
                 .build());
         for (Method abstractMethod : abstractMethods) {
@@ -84,9 +102,5 @@ public class Service {
 
     public Entity getEntity() {
         return entity;
-    }
-
-    public Repository getRepository() {
-        return repository;
     }
 }

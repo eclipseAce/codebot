@@ -87,12 +87,12 @@ public class ReadingMethodProcessor implements MethodProcessor {
             if (!pageables.isEmpty() && method.getReturnType().erasure().isAssignableFrom(PAGE_FQN)) {
                 resultType = entity.getType().factory().getType(PAGE_FQN, entity.getType().asTypeMirror());
                 methodBuilder.addCode(
-                        "$1T $2N = repository.findAll($3L, $4N);\n",
+                        "$1T $2N = specificationExecutor.findAll($3L, $4N);\n",
                         resultType.asTypeMirror(), resultVar, specBuilder.build(), pageables.get(0).getName()
                 );
             } else {
                 methodBuilder.addCode(
-                        "$1T $2N = repository.findOne($3L).orElse(null);\n",
+                        "$1T $2N = specificationExecutor.findOne($3L).orElse(null);\n",
                         resultType.asTypeMirror(), resultVar, specBuilder.build()
                 );
             }
