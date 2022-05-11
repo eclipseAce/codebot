@@ -1,27 +1,14 @@
 package io.codebot.apt.type;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import io.codebot.apt.util.Lazy;
-import org.apache.commons.lang3.StringUtils;
 
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Modifier;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.DeclaredType;
-import javax.lang.model.type.ExecutableType;
-import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
-import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class Type implements TypeSupport {
     private final TypeFactory factory;
@@ -131,19 +118,11 @@ public class Type implements TypeSupport {
     }
 
     private Lazy<List<Variable>> lazyFields() {
-        return !isDeclared() ? Lazy.constant(ImmutableList.of()) : Lazy.of(() -> {
-            List<VariableImpl> fields = Lists.newArrayList();
-            collectFieldsInHierarchy(asDeclaredType(), fields);
-            return ImmutableList.copyOf(fields);
-        });
+        return !isDeclared() ? Lazy.constant(ImmutableList.of()) : Lazy.of(() -> Variable.fieldsOf(this));
     }
 
     private Lazy<List<Executable>> lazyMethods() {
-        return !isDeclared() ? Lazy.constant(ImmutableList.of()) : Lazy.of(() -> {
-            List<ExecutableImpl> methods = Lists.newArrayList();
-            collectMethodsInHierarchy(asDeclaredType(), methods, Sets.newHashSet());
-            return ImmutableList.copyOf(methods);
-        });
+        return !isDeclared() ? Lazy.constant(ImmutableList.of()) : Lazy.of(() -> Executable.methodsOf(this));
     }
 
     private Lazy<List<GetAccessor>> lazyGetAccessors() {
@@ -160,114 +139,5 @@ public class Type implements TypeSupport {
         ));
     }
 
-    private void collectFieldsInHierarchy(DeclaredType declaredType,
-                                          List<VariableImpl> collected) {
-        TypeElement element = (TypeElement) declaredType.asElement();
-        if (!"java.lang.Object".contentEquals(element.getQualifiedName())) {
-            ElementFilter.fieldsIn(element.getEnclosedElements()).stream()
-                    .filter(field -> {
-                        return !field.getModifiers().contains(Modifier.STATIC);
-                    })
-                    .forEach(it -> collected.add(new VariableImpl(it)));
-            if (element.getSuperclass().getKind() != TypeKind.NONE) {
-                collectFieldsInHierarchy((DeclaredType) element.getSuperclass(), collected);
-            }
-        }
-    }
 
-    private void collectMethodsInHierarchy(DeclaredType declaredType,
-                                           List<ExecutableImpl> collected,
-                                           Set<TypeElement> visited) {
-        TypeElement element = (TypeElement) declaredType.asElement();
-        if (!"java.lang.Object".contentEquals(element.getQualifiedName()) && visited.add(element)) {
-            ElementFilter.methodsIn(element.getEnclosedElements()).stream()
-                    .filter(method -> {
-                        boolean isStatic = method.getModifiers().contains(Modifier.STATIC);
-                        boolean isPrivate = method.getModifiers().contains(Modifier.PRIVATE);
-                        boolean isOverridden = collected.stream().anyMatch(it -> elementUtils.overrides(
-                                it.executableElement, method, (TypeElement) it.executableElement.getEnclosingElement()
-                        ));
-                        return !isStatic && !isPrivate && !isOverridden;
-                    })
-                    .forEach(it -> collected.add(new ExecutableImpl(it)));
-
-            element.getInterfaces().forEach(it -> {
-                collectMethodsInHierarchy((DeclaredType) it, collected, visited);
-            });
-
-            if (element.getSuperclass().getKind() != TypeKind.NONE) {
-                collectMethodsInHierarchy((DeclaredType) element.getSuperclass(), collected, visited);
-            }
-        }
-    }
-
-    private class VariableImpl implements Variable {
-        private final VariableElement variableElement;
-        private final Type type;
-
-        public VariableImpl(VariableElement variableElement) {
-            this.variableElement = variableElement;
-            this.type = factory().getType(asMember(variableElement));
-        }
-
-        @Override
-        public VariableElement asElement() {
-            return variableElement;
-        }
-
-        @Override
-        public String simpleName() {
-            return variableElement.getSimpleName().toString();
-        }
-
-        @Override
-        public Type type() {
-            return type;
-        }
-    }
-
-    private class ExecutableImpl implements Executable {
-        private final ExecutableElement executableElement;
-        private final Lazy<ExecutableType> lazyExecutableType;
-        private final Lazy<Type> lazyReturnType;
-        private final Lazy<List<Variable>> lazyParameters;
-        private final Lazy<List<Type>> lazyThrownTypes;
-
-        public ExecutableImpl(ExecutableElement executableElement) {
-            this.executableElement = executableElement;
-            this.lazyExecutableType = Lazy.of(() -> asMember(executableElement));
-            this.lazyReturnType = Lazy.of(() -> factory().getType(lazyExecutableType.get().getReturnType()));
-            this.lazyParameters = Lazy.of(() -> ImmutableList.copyOf(
-                    executableElement.getParameters().stream().map(VariableImpl::new).iterator()
-            ));
-            this.lazyThrownTypes = Lazy.of(() -> ImmutableList.copyOf(
-                    lazyExecutableType.get().getThrownTypes().stream().map(it -> factory().getType(it)).iterator()
-            ));
-        }
-
-        @Override
-        public ExecutableElement asElement() {
-            return executableElement;
-        }
-
-        @Override
-        public String simpleName() {
-            return executableElement.getSimpleName().toString();
-        }
-
-        @Override
-        public Type returnType() {
-            return lazyReturnType.get();
-        }
-
-        @Override
-        public List<Variable> parameters() {
-            return lazyParameters.get();
-        }
-
-        @Override
-        public List<Type> thrownTypes() {
-            return lazyThrownTypes.get();
-        }
-    }
 }
