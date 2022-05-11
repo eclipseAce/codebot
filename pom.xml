@@ -2,15 +2,15 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	<groupId>io.cruder</groupId>
-	<artifactId>cruder-parent</artifactId>
+	<groupId>io.codebot</groupId>
+	<artifactId>codebot-parent</artifactId>
 	<version>1.0.0-SNAPSHOT</version>
 	<packaging>pom</packaging>
 
 	<modules>
-		<module>cruder-core</module>
-		<module>cruder-apt</module>
-		<module>cruder-test</module>
+		<module>codebot-core</module>
+		<module>codebot-apt</module>
+		<module>codebot-test</module>
     </modules>
 
 	<properties>
