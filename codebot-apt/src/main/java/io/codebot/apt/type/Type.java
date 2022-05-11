@@ -191,6 +191,11 @@ public class Type {
         return typeMirror.hashCode();
     }
 
+    @Override
+    public String toString() {
+        return typeMirror.toString();
+    }
+
     private DeclaredType ensureDeclared() {
         if (!isDeclared()) {
             throw new IllegalStateException("Not DeclaredType");
