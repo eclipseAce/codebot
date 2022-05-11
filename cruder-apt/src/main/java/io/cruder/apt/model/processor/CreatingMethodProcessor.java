@@ -4,7 +4,7 @@ import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.NameAllocator;
 import com.squareup.javapoet.TypeSpec;
 import io.cruder.apt.model.*;
-import io.cruder.apt.type.Accessor;
+import io.cruder.apt.type.SetAccessor;
 
 import java.util.Optional;
 
@@ -24,12 +24,11 @@ public class CreatingMethodProcessor implements MethodProcessor {
                 entity.getTypeName(), entityVar
         );
         for (Parameter param : method.getParameters()) {
-            Optional<Accessor> directSetter = entity.getType()
-                    .findWriteAccessor(param.getName(), param.getType().asTypeMirror());
+            Optional<SetAccessor> directSetter = entity.getType().findSetter(param.getName(), param.getType());
             if (directSetter.isPresent()) {
                 methodBuilder.addStatement(
                         "$1N.$2N($3N)",
-                        entityVar, directSetter.get().getSimpleName(), param.getName()
+                        entityVar, directSetter.get().simpleName(), param.getName()
                 );
             } //
             else if (param.getType().isDeclared()) {

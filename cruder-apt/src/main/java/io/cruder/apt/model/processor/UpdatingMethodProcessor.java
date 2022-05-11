@@ -6,7 +6,8 @@ import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.NameAllocator;
 import com.squareup.javapoet.TypeSpec;
 import io.cruder.apt.model.*;
-import io.cruder.apt.type.Accessor;
+import io.cruder.apt.type.GetAccessor;
+import io.cruder.apt.type.SetAccessor;
 
 import java.util.List;
 import java.util.Optional;
@@ -26,30 +27,29 @@ public class UpdatingMethodProcessor implements MethodProcessor {
         for (Parameter param : method.getParameters()) {
             if (idExpr == null
                     && entity.getIdName().equals(param.getName())
-                    && entity.getIdType().isAssignableFrom(param.getType().asTypeMirror())) {
+                    && entity.getIdType().isAssignableFrom(param.getType())) {
                 idExpr = CodeBlock.of("$1N", param.getName());
                 continue;
             }
 
-            Optional<Accessor> directSetter = entity.getType()
-                    .findWriteAccessor(param.getName(), param.getType().asTypeMirror());
+            Optional<SetAccessor> directSetter = entity.getType().findSetter(param.getName(), param.getType());
             if (directSetter.isPresent()) {
                 mappingExprs.add(CodeBlock.of(
                         "$1N.$2N($3N)",
-                        entityVar, directSetter.get().getSimpleName(), param.getName()
+                        entityVar, directSetter.get().simpleName(), param.getName()
                 ));
                 continue;
             }
 
-            for (Accessor paramGetter : param.getType().findReadAccessors()) {
+            for (GetAccessor paramGetter : param.getType().getters()) {
                 if (idExpr == null
-                        && entity.getIdName().equals(paramGetter.getAccessedName())
-                        && entity.getIdType().isAssignableFrom(paramGetter.getAccessedType())) {
-                    idExpr = CodeBlock.of("$1N.$2N()", param.getName(), paramGetter.getSimpleName());
+                        && entity.getIdName().equals(paramGetter.accessedName())
+                        && entity.getIdType().isAssignableFrom(paramGetter.accessedType())) {
+                    idExpr = CodeBlock.of("$1N.$2N()", param.getName(), paramGetter.simpleName());
                 } else {
                     entity.getType()
-                            .findWriteAccessor(paramGetter.getAccessedName(), paramGetter.getAccessedType())
-                            .ifPresent(entitySetter -> CodeUtils.map(entityVar, entitySetter, param.getName(), paramGetter));
+                            .findSetter(paramGetter.accessedName(), paramGetter.accessedType())
+                            .ifPresent(entitySetter -> CodeUtils.map(param.getName(), paramGetter, entityVar, entitySetter));
                 }
             }
         }

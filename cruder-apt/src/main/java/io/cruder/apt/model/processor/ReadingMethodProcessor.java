@@ -6,10 +6,11 @@ import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.NameAllocator;
 import com.squareup.javapoet.TypeSpec;
 import io.cruder.apt.model.*;
-import io.cruder.apt.type.Accessor;
+import io.cruder.apt.type.GetAccessor;
 import io.cruder.apt.type.Type;
 
-import java.util.*;
+import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -33,8 +34,7 @@ public class ReadingMethodProcessor implements MethodProcessor {
         List<Parameter> pageables = Lists.newArrayList();
 
         for (Parameter param : method.getParameters()) {
-            Optional<Accessor> directGetter = entity.getType()
-                    .findReadAccessor(param.getName(), param.getType().asTypeMirror());
+            Optional<GetAccessor> directGetter = entity.getType().findGetter(param.getName(), param.getType());
             if (directGetter.isPresent()) {
                 queries.add(new QueryParameter(param.getName(), null));
                 continue;
@@ -47,9 +47,9 @@ public class ReadingMethodProcessor implements MethodProcessor {
                 pageables.add(param);
                 continue;
             }
-            for (Accessor getter : param.getType().findReadAccessors()) {
-                Optional<Accessor> entityGetter = entity.getType()
-                        .findReadAccessor(getter.getAccessedName(), getter.getAccessedType());
+            for (GetAccessor getter : param.getType().getters()) {
+                Optional<GetAccessor> entityGetter = entity.getType()
+                        .findGetter(getter.accessedName(), getter.accessedType());
                 if (entityGetter.isPresent()) {
                     queries.add(new QueryParameter(param.getName(), getter));
                 }
@@ -85,8 +85,7 @@ public class ReadingMethodProcessor implements MethodProcessor {
             specBuilder.add("\n$<)");
 
             if (!pageables.isEmpty() && method.getReturnType().erasure().isAssignableFrom(PAGE_FQN)) {
-                resultType = entity.getType().getFactory()
-                        .getType(PAGE_FQN, entity.getType().asTypeMirror());
+                resultType = entity.getType().factory().getType(PAGE_FQN, entity.getType().asTypeMirror());
                 methodBuilder.addCode(
                         "$1T $2N = repository.findAll($3L, $4N);\n",
                         resultType.asTypeMirror(), resultVar, specBuilder.build(), pageables.get(0).getName()
@@ -106,9 +105,9 @@ public class ReadingMethodProcessor implements MethodProcessor {
 
     static class QueryParameter {
         final String name;
-        final Accessor accessor;
+        final GetAccessor accessor;
 
-        public QueryParameter(String name, Accessor accessor) {
+        public QueryParameter(String name, GetAccessor accessor) {
             this.name = name;
             this.accessor = accessor;
         }
@@ -116,7 +115,7 @@ public class ReadingMethodProcessor implements MethodProcessor {
         public CodeBlock getExpression() {
             return accessor == null
                     ? CodeBlock.of("$N", name)
-                    : CodeBlock.of("$1N.$2N()", name, accessor.getSimpleName());
+                    : CodeBlock.of("$1N.$2N()", name, accessor.simpleName());
         }
     }
 }

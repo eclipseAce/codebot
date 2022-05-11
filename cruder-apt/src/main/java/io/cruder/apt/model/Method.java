@@ -20,11 +20,11 @@ public class Method {
 
         this.containingType = containingType;
         this.executableElement = executableElement;
-        this.returnType = containingType.getFactory().getType(executableType.getReturnType());
+        this.returnType = containingType.factory().getType(executableType.getReturnType());
         this.parameters = IntStream.range(0, executableElement.getParameters().size()).boxed()
                 .map(i -> new Parameter(
                         executableElement.getParameters().get(i).getSimpleName().toString(),
-                        containingType.getFactory().getType(executableType.getParameterTypes().get(i))
+                        containingType.factory().getType(executableType.getParameterTypes().get(i))
                 ))
                 .collect(Collectors.collectingAndThen(Collectors.toList(), ImmutableList::copyOf));
     }

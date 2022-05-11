@@ -29,13 +29,13 @@ public class Service {
 
         this.type = type;
         this.typeName = ClassName.get(type.asTypeElement());
-        this.entity = new Entity(type.getFactory().getType(
+        this.entity = new Entity(type.factory().getType(
                 AnnotationUtils.<TypeMirror>findValue(annotation, "entity").get()
         ));
-        this.repository = new Repository(type.getFactory().getType(
+        this.repository = new Repository(type.factory().getType(
                 AnnotationUtils.<TypeMirror>findValue(annotation, "repository").get()
         ));
-        this.abstractMethods = type.getMethods().stream()
+        this.abstractMethods = type.methods().stream()
                 .filter(method -> method.getModifiers().contains(Modifier.ABSTRACT))
                 .map(method -> new Method(type, method))
                 .collect(Collectors.collectingAndThen(Collectors.toList(), ImmutableList::copyOf));
@@ -60,7 +60,7 @@ public class Service {
             MethodSpec.Builder methodBuilder = MethodSpec.overriding(
                     abstractMethod.getExecutableElement(),
                     type.asDeclaredType(),
-                    type.getFactory().getTypeUtils()
+                    type.factory().typeUtils()
             );
             NameAllocator nameAlloc = new NameAllocator();
             abstractMethod.getParameters().forEach(p -> nameAlloc.newName(p.getName()));

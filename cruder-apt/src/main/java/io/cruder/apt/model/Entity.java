@@ -3,6 +3,7 @@ package io.cruder.apt.model;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.TypeName;
 import io.cruder.apt.type.Accessor;
+import io.cruder.apt.type.GetAccessor;
 import io.cruder.apt.type.Type;
 import io.cruder.apt.util.AnnotationUtils;
 
@@ -15,7 +16,7 @@ public class Entity {
     private final Type idType;
     private final TypeName idTypeName;
     private final String idName;
-    private final Accessor idReadAccessor;
+    private final GetAccessor idReadAccessor;
 
     public Entity(Type type) {
         VariableElement idField = findIdField(type)
@@ -23,10 +24,10 @@ public class Entity {
 
         this.type = type;
         this.typeName = ClassName.get(type.asTypeElement());
-        this.idType = type.getFactory().getType(type.asMember(idField));
+        this.idType = type.factory().getType(type.asMember(idField));
         this.idTypeName = TypeName.get(type.asTypeMirror());
         this.idName = idField.getSimpleName().toString();
-        this.idReadAccessor = type.findReadAccessor(idName, idType.asTypeMirror()).orElse(null);
+        this.idReadAccessor = type.findGetter(idName, idType).orElse(null);
     }
 
     public Type getType() {
@@ -49,11 +50,13 @@ public class Entity {
         return idName;
     }
 
-    public Accessor getIdReadAccessor() {
+    public GetAccessor getIdReadAccessor() {
         return idReadAccessor;
     }
 
     private static Optional<VariableElement> findIdField(Type type) {
-        return type.findFields(it -> AnnotationUtils.isPresent(it, "javax.persistence.Id")).stream().findFirst();
+        return type.fields().stream()
+                .filter(it -> AnnotationUtils.isPresent(it, "javax.persistence.Id"))
+                .findFirst();
     }
 }

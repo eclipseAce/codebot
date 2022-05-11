@@ -1,6 +1,5 @@
 package io.cruder.apt.type;
 
-import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -26,37 +25,70 @@ public class Type {
 
     private final TypeMirror typeMirror;
 
-    private final Lazy<List<Type>> typeArguments;
-
-    private final Lazy<List<VariableElement>> fields;
-    private final Lazy<List<ExecutableElement>> methods;
-    private final Lazy<List<Accessor>> accessors;
+    private final Lazy<List<Type>> lazyTypeArguments;
+    private final Lazy<List<VariableElement>> lazyFields;
+    private final Lazy<List<ExecutableElement>> lazyMethods;
+    private final Lazy<List<GetAccessor>> lazyGetters;
+    private final Lazy<List<SetAccessor>> lazySetters;
 
     Type(TypeFactory factory, TypeMirror typeMirror) {
         this.factory = factory;
-        this.elementUtils = factory.getElementUtils();
-        this.typeUtils = factory.getTypeUtils();
+        this.elementUtils = factory.elementUtils();
+        this.typeUtils = factory.typeUtils();
         this.typeMirror = typeMirror;
-        this.typeArguments = lazyTypeArguments();
-        this.fields = lazyFields();
-        this.methods = lazyMethods();
-        this.accessors = lazyAccessors();
+        this.lazyTypeArguments = lazyTypeArguments();
+        this.lazyFields = lazyFields();
+        this.lazyMethods = lazyMethods();
+        this.lazyGetters = lazyGetAccessors();
+        this.lazySetters = lazySetAccessors();
     }
 
-    public TypeFactory getFactory() {
+    public TypeFactory factory() {
         return factory;
+    }
+
+    public List<Type> typeArguments() {
+        return lazyTypeArguments.get();
+    }
+
+    public List<VariableElement> fields() {
+        return lazyFields.get();
+    }
+
+    public List<ExecutableElement> methods() {
+        return lazyMethods.get();
+    }
+
+    public List<GetAccessor> getters() {
+        return lazyGetters.get();
+    }
+
+    public List<SetAccessor> setters() {
+        return lazySetters.get();
+    }
+
+    public Optional<GetAccessor> findGetter(String accessedName, Type accessedType) {
+        return findGetter(accessedName, accessedType.asTypeMirror());
+    }
+
+    public Optional<GetAccessor> findGetter(String accessedName, TypeMirror accessedType) {
+        return getters().stream()
+                .filter(it -> it.accessedName().equals(accessedName) && it.isAssignableTo(accessedType))
+                .findFirst();
+    }
+
+    public Optional<SetAccessor> findSetter(String accessedName, Type accessedType) {
+        return findSetter(accessedName, accessedType.asTypeMirror());
+    }
+
+    public Optional<SetAccessor> findSetter(String accessedName, TypeMirror accessedType) {
+        return setters().stream()
+                .filter(it -> it.accessedName().equals(accessedName) && it.isAssignableFrom(accessedType))
+                .findFirst();
     }
 
     public TypeMirror asTypeMirror() {
         return typeMirror;
-    }
-
-    public boolean isDeclared() {
-        return typeMirror.getKind() == TypeKind.DECLARED;
-    }
-
-    public boolean isVoid() {
-        return typeMirror.getKind() == TypeKind.VOID;
     }
 
     public DeclaredType asDeclaredType() {
@@ -65,6 +97,14 @@ public class Type {
 
     public TypeElement asTypeElement() {
         return (TypeElement) ensureDeclared().asElement();
+    }
+
+    public boolean isDeclared() {
+        return typeMirror.getKind() == TypeKind.DECLARED;
+    }
+
+    public boolean isVoid() {
+        return typeMirror.getKind() == TypeKind.VOID;
     }
 
     public boolean isPrimitive() {
@@ -95,58 +135,6 @@ public class Type {
         return isSubtype(typeElement, typeArgs);
     }
 
-    public List<VariableElement> getFields() {
-        return fields.get();
-    }
-
-    public List<VariableElement> findFields(Predicate<VariableElement> filter) {
-        return getFields().stream().filter(filter).collect(Collectors.toList());
-    }
-
-    public List<ExecutableElement> getMethods() {
-        return methods.get();
-    }
-
-    public List<ExecutableElement> findMethods(Predicate<ExecutableElement> filter) {
-        return getMethods().stream().filter(filter).collect(Collectors.toList());
-    }
-
-    public List<Accessor> getAccessors() {
-        return accessors.get();
-    }
-
-    public List<Accessor> findAccessors(Predicate<Accessor> filter) {
-        return getAccessors().stream().filter(filter).collect(Collectors.toList());
-    }
-
-    public List<Accessor> findReadAccessors() {
-        return findAccessors(it -> it.getKind() == AccessorKind.READ);
-    }
-
-    public List<Accessor> findWriteAccessors() {
-        return findAccessors(it -> it.getKind() == AccessorKind.WRITE);
-    }
-
-    public Optional<Accessor> findReadAccessor(String name, TypeMirror type) {
-        return findAccessors(it -> {
-            return it.getKind() == AccessorKind.READ
-                    && it.getAccessedName().equals(name)
-                    && typeUtils.isAssignable(it.getAccessedType(), type);
-        }).stream().findFirst();
-    }
-
-    public Optional<Accessor> findWriteAccessor(String name, TypeMirror type) {
-        return findAccessors(it -> {
-            return it.getKind() == AccessorKind.WRITE
-                    && it.getAccessedName().equals(name)
-                    && typeUtils.isAssignable(type, it.getAccessedType());
-        }).stream().findFirst();
-    }
-
-    public List<Type> getTypeArguments() {
-        return typeArguments.get();
-    }
-
     public ExecutableType asMember(ExecutableElement method) {
         return (ExecutableType) typeUtils.asMemberOf(asDeclaredType(), method);
     }
@@ -167,6 +155,10 @@ public class Type {
         return isAssignableTo(elementUtils.getTypeElement(qualifiedName), typeArgs);
     }
 
+    public boolean isAssignableTo(Type type) {
+        return isAssignableTo(type.asTypeMirror());
+    }
+
     public boolean isAssignableFrom(TypeMirror type) {
         return typeUtils.isAssignable(type, typeMirror);
     }
@@ -177,6 +169,10 @@ public class Type {
 
     public boolean isAssignableFrom(String qualifiedName, TypeMirror... typeArgs) {
         return isAssignableFrom(elementUtils.getTypeElement(qualifiedName), typeArgs);
+    }
+
+    public boolean isAssignableFrom(Type type) {
+        return isAssignableFrom(type.asTypeMirror());
     }
 
     public Type erasure() {
@@ -218,9 +214,12 @@ public class Type {
         });
     }
 
-    private Lazy<List<Accessor>> lazyAccessors() {
-        return !isDeclared() ? Lazy.constant(ImmutableList.of())
-                : Lazy.of(() -> Accessor.fromMethods(getFactory(), ensureDeclared(), methods.get()));
+    private Lazy<List<GetAccessor>> lazyGetAccessors() {
+        return !isDeclared() ? Lazy.constant(ImmutableList.of()) : Lazy.of(() -> GetAccessor.of(this));
+    }
+
+    private Lazy<List<SetAccessor>> lazySetAccessors() {
+        return !isDeclared() ? Lazy.constant(ImmutableList.of()) : Lazy.of(() -> SetAccessor.of(this));
     }
 
     private Lazy<List<Type>> lazyTypeArguments() {

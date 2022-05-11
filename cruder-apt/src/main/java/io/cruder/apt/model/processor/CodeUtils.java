@@ -5,7 +5,8 @@ import com.google.common.collect.Lists;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.NameAllocator;
 import io.cruder.apt.model.Entity;
-import io.cruder.apt.type.Accessor;
+import io.cruder.apt.type.GetAccessor;
+import io.cruder.apt.type.SetAccessor;
 import io.cruder.apt.type.Type;
 
 import java.util.List;
@@ -16,18 +17,18 @@ public class CodeUtils {
     public static List<CodeBlock> map(Type fromType, String fromVar,
                                       Type toType, String toVar) {
         List<CodeBlock> statements = Lists.newArrayList();
-        for (Accessor fromGetter : fromType.findReadAccessors()) {
-            toType.findWriteAccessor(fromGetter.getAccessedName(), fromGetter.getAccessedType())
+        for (GetAccessor fromGetter : fromType.getters()) {
+            toType.findSetter(fromGetter.accessedName(), fromGetter.accessedType())
                     .ifPresent(toSetter -> statements.add(map(fromVar, fromGetter, toVar, toSetter)));
         }
         return statements;
     }
 
-    public static CodeBlock map(String fromVar, Accessor fromGetter,
-                                String toVar, Accessor toSetter) {
+    public static CodeBlock map(String fromVar, GetAccessor fromGetter,
+                                String toVar, SetAccessor toSetter) {
         return CodeBlock.of(
                 "$[$1N.$2N($3N.$4N());\n$]",
-                toVar, toSetter.getSimpleName(), fromVar, fromGetter.getSimpleName()
+                toVar, toSetter.simpleName(), fromVar, fromGetter.simpleName()
         );
     }
 
@@ -54,7 +55,7 @@ public class CodeUtils {
             NameAllocator scopeNameAlloc = nameAlloc.clone();
             String itVar = scopeNameAlloc.newName("it");
             CodeBlock body = CodeBlock.join(mapFromEntityAndReturnInternal(
-                    itVar, toType.getTypeArguments().get(0), entity, scopeNameAlloc
+                    itVar, toType.typeArguments().get(0), entity, scopeNameAlloc
             ), "");
             return ImmutableList.of(CodeBlock.of(
                     "return $1N.map($2N -> {$>\n$3L$<});\n",
@@ -67,8 +68,8 @@ public class CodeUtils {
     private static List<CodeBlock> mapFromEntityAndReturnInternal(String entityVar, Type toType,
                                                                   Entity entity, NameAllocator nameAlloc) {
         List<CodeBlock> statements = Lists.newArrayList();
-        if (toType.isAssignableFrom(entity.getIdType().asTypeMirror()) && entity.getIdReadAccessor() != null) {
-            statements.add(CodeBlock.of("$[return $1N.$2N();\n$]", entityVar, entity.getIdReadAccessor().getSimpleName()));
+        if (toType.isAssignableFrom(entity.getIdType()) && entity.getIdReadAccessor() != null) {
+            statements.add(CodeBlock.of("$[return $1N.$2N();\n$]", entityVar, entity.getIdReadAccessor().simpleName()));
         } //
         else if (toType.isDeclared()) {
             statements.addAll(CodeUtils.newAndMapAndReturn(entity.getType(), entityVar, toType, nameAlloc));

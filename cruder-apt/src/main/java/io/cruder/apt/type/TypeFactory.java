@@ -15,11 +15,11 @@ public class TypeFactory {
         this.typeUtils = processingEnv.getTypeUtils();
     }
 
-    public Elements getElementUtils() {
+    public Elements elementUtils() {
         return elementUtils;
     }
 
-    public Types getTypeUtils() {
+    public Types typeUtils() {
         return typeUtils;
     }
 
