@@ -242,11 +242,11 @@ public class Type implements Annotated, Modified {
     }
 
     private Lazy<List<GetAccessor>> lazyGetAccessors() {
-        return !isDeclared() ? Lazy.constant(ImmutableList.of()) : Lazy.of(() -> GetAccessor.from(this));
+        return !isDeclared() ? Lazy.constant(ImmutableList.of()) : Lazy.of(() -> GetAccessor.gettersOf(this));
     }
 
     private Lazy<List<SetAccessor>> lazySetAccessors() {
-        return !isDeclared() ? Lazy.constant(ImmutableList.of()) : Lazy.of(() -> SetAccessor.from(this));
+        return !isDeclared() ? Lazy.constant(ImmutableList.of()) : Lazy.of(() -> SetAccessor.settersOf(this));
     }
 
     private Lazy<List<Type>> lazyTypeArguments() {

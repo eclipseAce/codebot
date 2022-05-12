@@ -14,12 +14,14 @@ import java.util.Set;
 
 public class Variable implements Annotated, Modified {
     private final VariableElement variableElement;
-    private final Type type;
+    private final Lazy<Type> lazyType;
     private final Lazy<List<Annotation>> lazyAnnotations;
 
     Variable(Type enclosingType, VariableElement variableElement) {
         this.variableElement = variableElement;
-        this.type = enclosingType.factory().getType(enclosingType.asMember(variableElement));
+        this.lazyType = Lazy.of(() ->
+                enclosingType.factory().getType(enclosingType.asMember(variableElement))
+        );
         this.lazyAnnotations = Lazy.of(() -> ImmutableList.copyOf(
                 variableElement.getAnnotationMirrors().stream().map(Annotation::new).iterator()
         ));
@@ -44,7 +46,7 @@ public class Variable implements Annotated, Modified {
     }
 
     public Type type() {
-        return type;
+        return lazyType.get();
     }
 
     public static List<Variable> fieldsOf(Type type) {

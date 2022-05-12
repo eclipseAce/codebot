@@ -7,35 +7,15 @@ import org.apache.commons.lang3.StringUtils;
 import javax.lang.model.type.TypeKind;
 import java.util.List;
 
-public class GetAccessor implements Accessor {
-    private final String accessedName;
-    private final Type accessedType;
-    private final Executable executable;
-
-    GetAccessor(String accessedName, Type accessedType, Executable executable) {
-        this.accessedName = accessedName;
-        this.accessedType = accessedType;
-        this.executable = executable;
-    }
-
-    @Override
-    public String accessedName() {
-        return accessedName;
-    }
-
-    @Override
-    public Type accessedType() {
-        return accessedType;
-    }
-
-    public Executable executable() {
-        return executable;
-    }
-
+public class GetAccessor extends ExecutableAccessor {
     private static final String GETTER_PREFIX = "get";
     private static final String BOOLEAN_GETTER_PREFIX = "is";
 
-    public static List<GetAccessor> from(Type type) {
+    GetAccessor(String accessedName, Type accessedType, Executable executable) {
+        super(accessedName, accessedType, executable);
+    }
+
+    public static List<GetAccessor> gettersOf(Type type) {
         List<GetAccessor> getters = Lists.newArrayList();
         for (Executable method : type.methods()) {
             String methodName = method.simpleName();

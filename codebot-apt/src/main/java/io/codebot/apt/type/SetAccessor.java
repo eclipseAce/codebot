@@ -6,34 +6,14 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.util.List;
 
-public class SetAccessor implements Accessor {
-    private final String accessedName;
-    private final Type accessedType;
-    private final Executable executable;
-
-    SetAccessor(String accessedName, Type accessedType, Executable executable) {
-        this.accessedName = accessedName;
-        this.accessedType = accessedType;
-        this.executable = executable;
-    }
-
-    @Override
-    public String accessedName() {
-        return accessedName;
-    }
-
-    @Override
-    public Type accessedType() {
-        return accessedType;
-    }
-
-    public Executable executable() {
-        return executable;
-    }
-
+public class SetAccessor extends ExecutableAccessor {
     private static final String SETTER_PREFIX = "set";
 
-    public static List<SetAccessor> from(Type type) {
+    SetAccessor(String accessedName, Type accessedType, Executable executable) {
+        super(accessedName, accessedType, executable);
+    }
+
+    public static List<SetAccessor> settersOf(Type type) {
         List<SetAccessor> setters = Lists.newArrayList();
         for (Executable method : type.methods()) {
             String methodName = method.simpleName();
