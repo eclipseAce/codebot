@@ -10,17 +10,32 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.util.ElementFilter;
 import java.util.List;
+import java.util.Set;
 
-public class Variable {
+public class Variable implements Annotated, Modified {
     private final VariableElement variableElement;
     private final Type type;
+    private final Lazy<List<Annotation>> lazyAnnotations;
 
-    protected Variable(Type enclosingType, VariableElement variableElement) {
+    Variable(Type enclosingType, VariableElement variableElement) {
         this.variableElement = variableElement;
         this.type = enclosingType.factory().getType(enclosingType.asMember(variableElement));
+        this.lazyAnnotations = Lazy.of(() -> ImmutableList.copyOf(
+                variableElement.getAnnotationMirrors().stream().map(Annotation::new).iterator()
+        ));
     }
 
-    public VariableElement asElement() {
+    @Override
+    public List<Annotation> annotations() {
+        return lazyAnnotations.get();
+    }
+
+    @Override
+    public Set<Modifier> modifiers() {
+        return variableElement.getModifiers();
+    }
+
+    public VariableElement element() {
         return variableElement;
     }
 

@@ -28,7 +28,7 @@ public class CodeUtils {
                                 String toVar, SetAccessor toSetter) {
         return CodeBlock.of(
                 "$[$1N.$2N($3N.$4N());\n$]",
-                toVar, toSetter.simpleName(), fromVar, fromGetter.simpleName()
+                toVar, toSetter.executable().simpleName(), fromVar, fromGetter.executable().simpleName()
         );
     }
 
@@ -69,7 +69,10 @@ public class CodeUtils {
                                                                   Entity entity, NameAllocator nameAlloc) {
         List<CodeBlock> statements = Lists.newArrayList();
         if (toType.isAssignableFrom(entity.getIdType()) && entity.getIdGetter() != null) {
-            statements.add(CodeBlock.of("$[return $1N.$2N();\n$]", entityVar, entity.getIdGetter().simpleName()));
+            statements.add(CodeBlock.of(
+                    "$[return $1N.$2N();\n$]",
+                    entityVar, entity.getIdGetter().executable().simpleName()
+            ));
         } //
         else if (toType.isDeclared()) {
             statements.addAll(CodeUtils.newAndMapAndReturn(entity.getType(), entityVar, toType, nameAlloc));

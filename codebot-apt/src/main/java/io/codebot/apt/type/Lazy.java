@@ -1,4 +1,4 @@
-package io.codebot.apt.util;
+package io.codebot.apt.type;
 
 import java.util.function.Supplier;
 

@@ -11,7 +11,7 @@ public class SetAccessor implements Accessor {
     private final Type accessedType;
     private final Executable executable;
 
-    protected SetAccessor(String accessedName, Type accessedType, Executable executable) {
+    SetAccessor(String accessedName, Type accessedType, Executable executable) {
         this.accessedName = accessedName;
         this.accessedType = accessedType;
         this.executable = executable;

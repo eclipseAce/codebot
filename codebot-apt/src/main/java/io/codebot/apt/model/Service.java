@@ -2,12 +2,9 @@ package io.codebot.apt.model;
 
 import com.google.common.collect.ImmutableList;
 import com.squareup.javapoet.*;
-import io.codebot.apt.type.Type;
-import io.codebot.apt.util.AnnotationUtils;
+import io.codebot.apt.type.*;
 
-import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Modifier;
-import javax.lang.model.type.TypeMirror;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -22,23 +19,39 @@ public class Service {
 
     private final Type type;
     private final ClassName typeName;
-    private final Entity entity;
-    private final List<Method> abstractMethods;
 
+    private final Type entityType;
+    private final ClassName entityTypeName;
+    private final Type entityIdType;
+    private final TypeName entityIdTypeName;
+    private final String entityIdName;
+    private final GetAccessor entityIdGetter;
+
+    private final List<Executable> abstractMethods;
     private final List<MethodProcessor> methodProcessors;
 
     public Service(Type type, List<MethodProcessor> methodProcessors) {
-        AnnotationMirror annotation = AnnotationUtils.find(type.asTypeElement(), CRUD_SERVICE_FQN)
+        Annotation annotation = type.findAnnotation(CRUD_SERVICE_FQN)
                 .orElseThrow(() -> new IllegalArgumentException("No @CrudService present"));
 
         this.type = type;
         this.typeName = ClassName.get(type.asTypeElement());
-        this.entity = new Entity(type.factory().getType(AnnotationUtils.<TypeMirror>findValue(annotation).get()));
-        this.abstractMethods = type.methods().stream()
-                .filter(method -> method.getModifiers().contains(Modifier.ABSTRACT))
-                .map(method -> new Method(type, method))
-                .collect(Collectors.collectingAndThen(Collectors.toList(), ImmutableList::copyOf));
 
+        Variable entityIdField = type.fields().stream()
+                .filter(it -> it.isAnnotationPresent("javax.persistence.Id"))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Can't determin ID of entity " + type));
+
+        this.entityType = type;
+        this.entityTypeName = ClassName.get(type.asTypeElement());
+        this.entityIdType = entityIdField.type();
+        this.entityIdTypeName = TypeName.get(entityIdType.typeMirror());
+        this.entityIdName = entityIdField.simpleName();
+        this.entityIdGetter = type.findGetter(entityIdName, entityIdType).orElse(null);
+
+        this.abstractMethods = type.methods().stream()
+                .filter(method -> method.hasModifiers(Modifier.ABSTRACT))
+                .collect(Collectors.collectingAndThen(Collectors.toList(), ImmutableList::copyOf));
         this.methodProcessors = ImmutableList.copyOf(methodProcessors);
     }
 
@@ -55,8 +68,8 @@ public class Service {
                 .builder(
                         ParameterizedTypeName.get(
                                 ClassName.bestGuess(JPA_REPOSITORY_FQN),
-                                entity.getTypeName(),
-                                entity.getIdTypeName().box()
+                                entityTypeName,
+                                entityIdTypeName.box()
                         ),
                         "repository",
                         Modifier.PRIVATE
@@ -67,21 +80,21 @@ public class Service {
                 .builder(
                         ParameterizedTypeName.get(
                                 ClassName.bestGuess(JPA_SPECIFICATION_EXECUTOR_FQN),
-                                entity.getTypeName()
+                                entityTypeName
                         ),
                         "specificationExecutor",
                         Modifier.PRIVATE
                 )
                 .addAnnotation(ClassName.bestGuess(AUTOWIRED_FQN))
                 .build());
-        for (Method abstractMethod : abstractMethods) {
+        for (Executable abstractMethod : abstractMethods) {
             MethodSpec.Builder methodBuilder = MethodSpec.overriding(
-                    abstractMethod.getExecutableElement(),
+                    abstractMethod.element(),
                     type.asDeclaredType(),
                     type.factory().typeUtils()
             );
             NameAllocator nameAlloc = new NameAllocator();
-            abstractMethod.getParameters().forEach(p -> nameAlloc.newName(p.getName()));
+            abstractMethod.parameters().forEach(p -> nameAlloc.newName(p.simpleName()));
 
             for (MethodProcessor processor : methodProcessors) {
                 processor.process(this, serviceBuilder, abstractMethod, methodBuilder, nameAlloc);
@@ -100,7 +113,27 @@ public class Service {
         return typeName;
     }
 
-    public Entity getEntity() {
-        return entity;
+    public Type getEntityType() {
+        return entityType;
+    }
+
+    public ClassName getEntityTypeName() {
+        return entityTypeName;
+    }
+
+    public Type getEntityIdType() {
+        return entityIdType;
+    }
+
+    public TypeName getEntityIdTypeName() {
+        return entityIdTypeName;
+    }
+
+    public String getEntityIdName() {
+        return entityIdName;
+    }
+
+    public GetAccessor getEntityIdGetter() {
+        return entityIdGetter;
     }
 }

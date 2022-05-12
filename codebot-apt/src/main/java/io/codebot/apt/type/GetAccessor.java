@@ -12,7 +12,7 @@ public class GetAccessor implements Accessor {
     private final Type accessedType;
     private final Executable executable;
 
-    protected GetAccessor(String accessedName, Type accessedType, Executable executable) {
+    GetAccessor(String accessedName, Type accessedType, Executable executable) {
         this.accessedName = accessedName;
         this.accessedType = accessedType;
         this.executable = executable;

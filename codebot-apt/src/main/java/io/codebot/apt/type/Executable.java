@@ -3,7 +3,6 @@ package io.codebot.apt.type;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import io.codebot.apt.util.Lazy;
 
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
@@ -16,15 +15,19 @@ import javax.lang.model.util.Elements;
 import java.util.List;
 import java.util.Set;
 
-public class Executable {
+public class Executable implements Annotated, Modified {
     private final ExecutableElement executableElement;
+    private final Lazy<List<Annotation>> lazyAnnotations;
     private final Lazy<ExecutableType> lazyExecutableType;
     private final Lazy<Type> lazyReturnType;
     private final Lazy<List<Variable>> lazyParameters;
     private final Lazy<List<Type>> lazyThrownTypes;
 
-    protected Executable(Type enclosingType, ExecutableElement executableElement) {
+    Executable(Type enclosingType, ExecutableElement executableElement) {
         this.executableElement = executableElement;
+        this.lazyAnnotations = Lazy.of(() -> ImmutableList.copyOf(
+                executableElement.getAnnotationMirrors().stream().map(Annotation::new).iterator()
+        ));
         this.lazyExecutableType = Lazy.of(() -> enclosingType.asMember(executableElement));
         this.lazyReturnType = Lazy.of(() -> enclosingType.factory()
                 .getType(lazyExecutableType.get().getReturnType()));
@@ -40,7 +43,17 @@ public class Executable {
         ));
     }
 
-    public ExecutableElement asElement() {
+    @Override
+    public List<Annotation> annotations() {
+        return lazyAnnotations.get();
+    }
+
+    @Override
+    public Set<Modifier> modifiers() {
+        return executableElement.getModifiers();
+    }
+
+    public ExecutableElement element() {
         return executableElement;
     }
 
