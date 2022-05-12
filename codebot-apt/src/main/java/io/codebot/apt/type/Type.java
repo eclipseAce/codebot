@@ -42,14 +42,6 @@ public class Type implements Annotated, Modified {
         this.lazySetters = lazySetAccessors();
     }
 
-    public Types typeUtils() {
-        return typeUtils;
-    }
-
-    public Elements elementUtils() {
-        return elementUtils;
-    }
-
     public TypeMirror typeMirror() {
         return typeMirror;
     }
@@ -144,15 +136,15 @@ public class Type implements Annotated, Modified {
     }
 
     public boolean isAssignableTo(TypeMirror type) {
-        return typeUtils().isAssignable(typeMirror(), type);
+        return typeUtils.isAssignable(typeMirror(), type);
     }
 
     public boolean isAssignableTo(TypeElement typeElement, TypeMirror... typeArgs) {
-        return isAssignableTo(typeUtils().getDeclaredType(typeElement, typeArgs));
+        return isAssignableTo(typeUtils.getDeclaredType(typeElement, typeArgs));
     }
 
     public boolean isAssignableTo(String qualifiedName, TypeMirror... typeArgs) {
-        return isAssignableTo(elementUtils().getTypeElement(qualifiedName), typeArgs);
+        return isAssignableTo(elementUtils.getTypeElement(qualifiedName), typeArgs);
     }
 
     public boolean isAssignableTo(Type type) {
@@ -160,15 +152,15 @@ public class Type implements Annotated, Modified {
     }
 
     public boolean isAssignableFrom(TypeMirror type) {
-        return typeUtils().isAssignable(type, typeMirror());
+        return typeUtils.isAssignable(type, typeMirror());
     }
 
     public boolean isAssignableFrom(TypeElement typeElement, TypeMirror... typeArgs) {
-        return isAssignableFrom(typeUtils().getDeclaredType(typeElement, typeArgs));
+        return isAssignableFrom(typeUtils.getDeclaredType(typeElement, typeArgs));
     }
 
     public boolean isAssignableFrom(String qualifiedName, TypeMirror... typeArgs) {
-        return isAssignableFrom(elementUtils().getTypeElement(qualifiedName), typeArgs);
+        return isAssignableFrom(elementUtils.getTypeElement(qualifiedName), typeArgs);
     }
 
     public boolean isAssignableFrom(Type type) {
@@ -176,15 +168,15 @@ public class Type implements Annotated, Modified {
     }
 
     public boolean isSubtype(TypeMirror type) {
-        return typeUtils().isSubtype(typeMirror(), type);
+        return typeUtils.isSubtype(typeMirror(), type);
     }
 
     public boolean isSubtype(TypeElement typeElement, TypeMirror... typeArgs) {
-        return isSubtype(typeUtils().getDeclaredType(typeElement, typeArgs));
+        return isSubtype(typeUtils.getDeclaredType(typeElement, typeArgs));
     }
 
     public boolean isSubtype(String qualifiedName, TypeMirror... typeArgs) {
-        TypeElement typeElement = elementUtils().getTypeElement(qualifiedName);
+        TypeElement typeElement = elementUtils.getTypeElement(qualifiedName);
         if (typeElement == null) {
             throw new IllegalArgumentException("No such type '" + qualifiedName + "'");
         }
@@ -192,19 +184,19 @@ public class Type implements Annotated, Modified {
     }
 
     public boolean isSubtype(Type type) {
-        return typeUtils().isSubtype(typeMirror(), type.typeMirror());
+        return typeUtils.isSubtype(typeMirror(), type.typeMirror());
     }
 
     public ExecutableType asMember(ExecutableElement executableElement) {
-        return (ExecutableType) typeUtils().asMemberOf(asDeclaredType(), executableElement);
+        return (ExecutableType) typeUtils.asMemberOf(asDeclaredType(), executableElement);
     }
 
     public TypeMirror asMember(Element element) {
-        return typeUtils().asMemberOf(asDeclaredType(), element);
+        return typeUtils.asMemberOf(asDeclaredType(), element);
     }
 
     public Type erasure() {
-        return factory().getType(typeUtils().erasure(typeMirror()));
+        return factory().getType(typeUtils.erasure(typeMirror()));
     }
 
     @Override

@@ -75,7 +75,7 @@ public class Executable implements Annotated, Modified {
 
     public static List<Executable> methodsOf(Type type) {
         List<ExecutableElement> methods = Lists.newArrayList();
-        collectMethodsInHierarchy(type.asDeclaredType(), type.elementUtils(), methods, Sets.newHashSet());
+        collectMethodsInHierarchy(type.asDeclaredType(), type.factory().elementUtils(), methods, Sets.newHashSet());
         return ImmutableList.copyOf(methods.stream().map(it -> new Executable(type, it)).iterator());
     }
 
@@ -89,9 +89,9 @@ public class Executable implements Annotated, Modified {
                     .filter(method -> {
                         boolean isStatic = method.getModifiers().contains(Modifier.STATIC);
                         boolean isPrivate = method.getModifiers().contains(Modifier.PRIVATE);
-                        boolean isOverridden = collected.stream().anyMatch(it -> elementUtils.overrides(
-                                it, method, (TypeElement) it.getEnclosingElement()
-                        ));
+                        boolean isOverridden = collected.stream().anyMatch(it ->
+                                elementUtils.overrides(it, method, (TypeElement) it.getEnclosingElement())
+                        );
                         return !isStatic && !isPrivate && !isOverridden;
                     })
                     .forEach(collected::add);
