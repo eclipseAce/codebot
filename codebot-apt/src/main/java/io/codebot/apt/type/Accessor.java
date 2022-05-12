@@ -1,7 +1,7 @@
 package io.codebot.apt.type;
 
 public interface Accessor {
-    String accessedName();
+    String getAccessedName();
 
-    Type accessedType();
+    Type getAccessedType();
 }

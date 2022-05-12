@@ -5,9 +5,9 @@ import java.util.Arrays;
 import java.util.Set;
 
 public interface Modified {
-    Set<Modifier> modifiers();
+    Set<Modifier> getModifiers();
 
     default boolean hasModifiers(Modifier... modifiers) {
-        return modifiers().containsAll(Arrays.asList(modifiers));
+        return getModifiers().containsAll(Arrays.asList(modifiers));
     }
 }

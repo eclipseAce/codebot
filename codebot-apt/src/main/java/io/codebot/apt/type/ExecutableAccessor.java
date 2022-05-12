@@ -12,16 +12,16 @@ public abstract class ExecutableAccessor implements Accessor {
     }
 
     @Override
-    public String accessedName() {
+    public String getAccessedName() {
         return accessedName;
     }
 
     @Override
-    public Type accessedType() {
+    public Type getAccessedType() {
         return accessedType;
     }
 
-    public Executable executable() {
+    public Executable getExecutable() {
         return executable;
     }
 }

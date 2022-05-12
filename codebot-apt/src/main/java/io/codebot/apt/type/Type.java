@@ -31,8 +31,8 @@ public class Type implements Annotated, Modified {
 
     Type(TypeFactory factory, TypeMirror typeMirror) {
         this.factory = factory;
-        this.elementUtils = factory.elementUtils();
-        this.typeUtils = factory.typeUtils();
+        this.elementUtils = factory.getElementUtils();
+        this.typeUtils = factory.getTypeUtils();
         this.typeMirror = typeMirror;
         this.lazyAnnotations = lazyAnnotations();
         this.lazyTypeArguments = lazyTypeArguments();
@@ -42,61 +42,61 @@ public class Type implements Annotated, Modified {
         this.lazySetters = lazySetAccessors();
     }
 
-    public TypeMirror typeMirror() {
+    public TypeMirror getTypeMirror() {
         return typeMirror;
     }
 
-    public List<Annotation> annotations() {
+    public List<Annotation> getAnnotations() {
         return lazyAnnotations.get();
     }
 
-    public Set<Modifier> modifiers() {
+    public Set<Modifier> getModifiers() {
         return isDeclared() ? asTypeElement().getModifiers() : ImmutableSet.of();
     }
 
-    public TypeFactory factory() {
+    public TypeFactory getFactory() {
         return factory;
     }
 
-    public List<Type> typeArguments() {
+    public List<Type> getTypeArguments() {
         return lazyTypeArguments.get();
     }
 
-    public List<Variable> fields() {
+    public List<Variable> getFields() {
         return lazyFields.get();
     }
 
-    public List<Executable> methods() {
+    public List<Executable> getMethods() {
         return lazyMethods.get();
     }
 
-    public List<GetAccessor> getters() {
+    public List<GetAccessor> getGetters() {
         return lazyGetters.get();
     }
 
-    public List<SetAccessor> setters() {
+    public List<SetAccessor> getSetters() {
         return lazySetters.get();
     }
 
     public Optional<GetAccessor> findGetter(String accessedName, Type accessedType) {
-        return findGetter(accessedName, accessedType.typeMirror());
+        return findGetter(accessedName, accessedType.getTypeMirror());
     }
 
     public Optional<GetAccessor> findGetter(String accessedName, TypeMirror accessedType) {
-        return getters().stream()
-                .filter(it -> it.accessedName().equals(accessedName)
-                        && it.accessedType().isAssignableTo(accessedType))
+        return getGetters().stream()
+                .filter(it -> it.getAccessedName().equals(accessedName)
+                        && it.getAccessedType().isAssignableTo(accessedType))
                 .findFirst();
     }
 
     public Optional<SetAccessor> findSetter(String accessedName, Type accessedType) {
-        return findSetter(accessedName, accessedType.typeMirror());
+        return findSetter(accessedName, accessedType.getTypeMirror());
     }
 
     public Optional<SetAccessor> findSetter(String accessedName, TypeMirror accessedType) {
-        return setters().stream()
-                .filter(it -> it.accessedName().equals(accessedName)
-                        && it.accessedType().isAssignableFrom(accessedType))
+        return getSetters().stream()
+                .filter(it -> it.getAccessedName().equals(accessedName)
+                        && it.getAccessedType().isAssignableFrom(accessedType))
                 .findFirst();
     }
 
@@ -104,7 +104,7 @@ public class Type implements Annotated, Modified {
         if (!isDeclared()) {
             throw new IllegalStateException("Not DeclaredType");
         }
-        return (DeclaredType) typeMirror();
+        return (DeclaredType) getTypeMirror();
     }
 
     public TypeElement asTypeElement() {
@@ -120,23 +120,23 @@ public class Type implements Annotated, Modified {
     }
 
     public boolean isDeclared() {
-        return typeMirror().getKind() == TypeKind.DECLARED;
+        return getTypeMirror().getKind() == TypeKind.DECLARED;
     }
 
     public boolean isVoid() {
-        return typeMirror().getKind() == TypeKind.VOID;
+        return getTypeMirror().getKind() == TypeKind.VOID;
     }
 
     public boolean isPrimitive() {
-        return typeMirror().getKind().isPrimitive();
+        return getTypeMirror().getKind().isPrimitive();
     }
 
     public boolean isWildcard() {
-        return typeMirror().getKind() == TypeKind.WILDCARD;
+        return getTypeMirror().getKind() == TypeKind.WILDCARD;
     }
 
     public boolean isAssignableTo(TypeMirror type) {
-        return typeUtils.isAssignable(typeMirror(), type);
+        return typeUtils.isAssignable(getTypeMirror(), type);
     }
 
     public boolean isAssignableTo(TypeElement typeElement, TypeMirror... typeArgs) {
@@ -148,11 +148,11 @@ public class Type implements Annotated, Modified {
     }
 
     public boolean isAssignableTo(Type type) {
-        return isAssignableTo(type.typeMirror());
+        return isAssignableTo(type.getTypeMirror());
     }
 
     public boolean isAssignableFrom(TypeMirror type) {
-        return typeUtils.isAssignable(type, typeMirror());
+        return typeUtils.isAssignable(type, getTypeMirror());
     }
 
     public boolean isAssignableFrom(TypeElement typeElement, TypeMirror... typeArgs) {
@@ -164,11 +164,11 @@ public class Type implements Annotated, Modified {
     }
 
     public boolean isAssignableFrom(Type type) {
-        return isAssignableFrom(type.typeMirror());
+        return isAssignableFrom(type.getTypeMirror());
     }
 
     public boolean isSubtype(TypeMirror type) {
-        return typeUtils.isSubtype(typeMirror(), type);
+        return typeUtils.isSubtype(getTypeMirror(), type);
     }
 
     public boolean isSubtype(TypeElement typeElement, TypeMirror... typeArgs) {
@@ -184,7 +184,7 @@ public class Type implements Annotated, Modified {
     }
 
     public boolean isSubtype(Type type) {
-        return typeUtils.isSubtype(typeMirror(), type.typeMirror());
+        return typeUtils.isSubtype(getTypeMirror(), type.getTypeMirror());
     }
 
     public ExecutableType asMember(ExecutableElement executableElement) {
@@ -196,7 +196,7 @@ public class Type implements Annotated, Modified {
     }
 
     public Type erasure() {
-        return factory().getType(typeUtils.erasure(typeMirror()));
+        return getFactory().getType(typeUtils.erasure(getTypeMirror()));
     }
 
     @Override

@@ -17,21 +17,21 @@ public class GetAccessor extends ExecutableAccessor {
 
     public static List<GetAccessor> gettersOf(Type type) {
         List<GetAccessor> getters = Lists.newArrayList();
-        for (Executable method : type.methods()) {
-            String methodName = method.simpleName();
+        for (Executable method : type.getMethods()) {
+            String methodName = method.getSimpleName();
             if (methodName.length() > GETTER_PREFIX.length()
                     && methodName.startsWith(GETTER_PREFIX)
-                    && method.parameters().isEmpty()
-                    && !method.returnType().isVoid()) {
+                    && method.getParameters().isEmpty()
+                    && !method.getReturnType().isVoid()) {
                 String accessedName = StringUtils.uncapitalize(methodName.substring(GETTER_PREFIX.length()));
-                getters.add(new GetAccessor(accessedName, method.returnType(), method));
+                getters.add(new GetAccessor(accessedName, method.getReturnType(), method));
             } //
             else if (methodName.length() > BOOLEAN_GETTER_PREFIX.length()
                     && methodName.startsWith(BOOLEAN_GETTER_PREFIX)
-                    && method.parameters().isEmpty()
-                    && method.returnType().typeMirror().getKind() == TypeKind.BOOLEAN) {
+                    && method.getParameters().isEmpty()
+                    && method.getReturnType().getTypeMirror().getKind() == TypeKind.BOOLEAN) {
                 String accessedName = StringUtils.uncapitalize(methodName.substring(BOOLEAN_GETTER_PREFIX.length()));
-                getters.add(new GetAccessor(accessedName, method.returnType(), method));
+                getters.add(new GetAccessor(accessedName, method.getReturnType(), method));
             }
         }
         return ImmutableList.copyOf(getters);

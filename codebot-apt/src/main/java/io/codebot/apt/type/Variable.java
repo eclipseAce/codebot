@@ -20,7 +20,7 @@ public class Variable implements Annotated, Modified {
     Variable(Type enclosingType, VariableElement variableElement) {
         this.variableElement = variableElement;
         this.lazyType = Lazy.of(() ->
-                enclosingType.factory().getType(enclosingType.asMember(variableElement))
+                enclosingType.getFactory().getType(enclosingType.asMember(variableElement))
         );
         this.lazyAnnotations = Lazy.of(() -> ImmutableList.copyOf(
                 variableElement.getAnnotationMirrors().stream().map(Annotation::new).iterator()
@@ -28,24 +28,24 @@ public class Variable implements Annotated, Modified {
     }
 
     @Override
-    public List<Annotation> annotations() {
+    public List<Annotation> getAnnotations() {
         return lazyAnnotations.get();
     }
 
     @Override
-    public Set<Modifier> modifiers() {
+    public Set<Modifier> getModifiers() {
         return variableElement.getModifiers();
     }
 
-    public VariableElement element() {
+    public VariableElement getElement() {
         return variableElement;
     }
 
-    public String simpleName() {
+    public String getSimpleName() {
         return variableElement.getSimpleName().toString();
     }
 
-    public Type type() {
+    public Type getType() {
         return lazyType.get();
     }
 

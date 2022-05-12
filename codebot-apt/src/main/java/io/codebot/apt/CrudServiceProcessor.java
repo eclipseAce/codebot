@@ -6,8 +6,9 @@ import io.codebot.apt.model.Service;
 import io.codebot.apt.model.processor.CreatingMethodProcessor;
 import io.codebot.apt.model.processor.ReadingMethodProcessor;
 import io.codebot.apt.model.processor.UpdatingMethodProcessor;
+import io.codebot.apt.type.Annotation;
+import io.codebot.apt.type.Type;
 import io.codebot.apt.type.TypeFactory;
-import io.codebot.apt.util.AnnotationUtils;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
@@ -43,9 +44,10 @@ public class CrudServiceProcessor extends AbstractProcessor {
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         TypeFactory typeFactory = new TypeFactory(processingEnv);
         TypeElement annotation = elementUtils.getTypeElement(ANNOTATION_FQN);
-        for (TypeElement element : ElementFilter.typesIn(roundEnv.getElementsAnnotatedWith(annotation))) {
+        for (TypeElement serviceElement : ElementFilter.typesIn(roundEnv.getElementsAnnotatedWith(annotation))) {
+            Type serviceType = typeFactory.getType(serviceElement);
             try {
-                Service service = new Service(typeFactory.getType(element), Arrays.asList(
+                Service service = new Service(serviceType, Arrays.asList(
                         new CreatingMethodProcessor(),
                         new UpdatingMethodProcessor(),
                         new ReadingMethodProcessor()
@@ -55,8 +57,11 @@ public class CrudServiceProcessor extends AbstractProcessor {
                 messager.printMessage(
                         Diagnostic.Kind.ERROR,
                         Throwables.getStackTraceAsString(e),
-                        element,
-                        AnnotationUtils.find(element, ANNOTATION_FQN).orElse(null));
+                        serviceElement,
+                        serviceType.findAnnotation(ANNOTATION_FQN)
+                                .map(Annotation::getAnnotationMirror)
+                                .orElse(null)
+                );
             }
         }
         return false;

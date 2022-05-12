@@ -22,11 +22,11 @@ public class Annotation {
         ));
     }
 
-    public AnnotationMirror annotationMirror() {
+    public AnnotationMirror getAnnotationMirror() {
         return annotationMirror;
     }
 
-    public String qualifiedName() {
+    public String getQualifiedName() {
         return ((QualifiedNameable) annotationMirror.getAnnotationType().asElement())
                 .getQualifiedName().toString();
     }

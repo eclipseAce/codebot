@@ -15,13 +15,13 @@ public class SetAccessor extends ExecutableAccessor {
 
     public static List<SetAccessor> settersOf(Type type) {
         List<SetAccessor> setters = Lists.newArrayList();
-        for (Executable method : type.methods()) {
-            String methodName = method.simpleName();
+        for (Executable method : type.getMethods()) {
+            String methodName = method.getSimpleName();
             if (methodName.length() > SETTER_PREFIX.length()
                     && methodName.startsWith(SETTER_PREFIX)
-                    && method.parameters().size() == 1) {
+                    && method.getParameters().size() == 1) {
                 String accessedName = StringUtils.uncapitalize(methodName.substring(SETTER_PREFIX.length()));
-                setters.add(new SetAccessor(accessedName, method.parameters().get(0).type(), method));
+                setters.add(new SetAccessor(accessedName, method.getParameters().get(0).getType(), method));
             }
         }
         return ImmutableList.copyOf(setters);

@@ -29,7 +29,7 @@ public class Executable implements Annotated, Modified {
                 executableElement.getAnnotationMirrors().stream().map(Annotation::new).iterator()
         ));
         this.lazyExecutableType = Lazy.of(() -> enclosingType.asMember(executableElement));
-        this.lazyReturnType = Lazy.of(() -> enclosingType.factory()
+        this.lazyReturnType = Lazy.of(() -> enclosingType.getFactory()
                 .getType(lazyExecutableType.get().getReturnType()));
         this.lazyParameters = Lazy.of(() -> ImmutableList.copyOf(
                 executableElement.getParameters().stream()
@@ -38,44 +38,44 @@ public class Executable implements Annotated, Modified {
         ));
         this.lazyThrownTypes = Lazy.of(() -> ImmutableList.copyOf(
                 lazyExecutableType.get().getThrownTypes().stream()
-                        .map(it -> enclosingType.factory().getType(it))
+                        .map(it -> enclosingType.getFactory().getType(it))
                         .iterator()
         ));
     }
 
     @Override
-    public List<Annotation> annotations() {
+    public List<Annotation> getAnnotations() {
         return lazyAnnotations.get();
     }
 
     @Override
-    public Set<Modifier> modifiers() {
+    public Set<Modifier> getModifiers() {
         return executableElement.getModifiers();
     }
 
-    public ExecutableElement element() {
+    public ExecutableElement getElement() {
         return executableElement;
     }
 
-    public String simpleName() {
+    public String getSimpleName() {
         return executableElement.getSimpleName().toString();
     }
 
-    public Type returnType() {
+    public Type getReturnType() {
         return lazyReturnType.get();
     }
 
-    public List<Variable> parameters() {
+    public List<Variable> getParameters() {
         return lazyParameters.get();
     }
 
-    public List<Type> thrownTypes() {
+    public List<Type> getThrownTypes() {
         return lazyThrownTypes.get();
     }
 
     public static List<Executable> methodsOf(Type type) {
         List<ExecutableElement> methods = Lists.newArrayList();
-        collectMethodsInHierarchy(type.asDeclaredType(), type.factory().elementUtils(), methods, Sets.newHashSet());
+        collectMethodsInHierarchy(type.asDeclaredType(), type.getFactory().getElementUtils(), methods, Sets.newHashSet());
         return ImmutableList.copyOf(methods.stream().map(it -> new Executable(type, it)).iterator());
     }
 
