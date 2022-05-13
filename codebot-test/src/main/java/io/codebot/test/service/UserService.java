@@ -3,7 +3,6 @@ package io.codebot.test.service;
 import io.codebot.CrudService;
 import io.codebot.test.domain.User;
 import io.codebot.test.dto.user.*;
-import io.codebot.test.repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -30,7 +29,7 @@ public interface UserService {
 
     UserDetails findByUsername(String username);
 
-    List<UserSummary> findList(UserQuery query);
+    List<UserSummary> findList(UserJpaQuery query);
 
-    Page<UserSummary> findPage(UserQuery query, Pageable pageable);
+    Page<UserSummary> findPage(UserJpaQuery query, Pageable pageable);
 }
