@@ -2,10 +2,9 @@ package io.codebot.apt;
 
 import com.google.auto.service.AutoService;
 import com.google.common.base.Throwables;
-import io.codebot.apt.model.Service;
-import io.codebot.apt.model.processor.CreatingMethodProcessor;
-import io.codebot.apt.model.processor.ReadingMethodProcessor;
-import io.codebot.apt.model.processor.UpdatingMethodProcessor;
+import io.codebot.apt.crud.Entity;
+import io.codebot.apt.crud.Service;
+import io.codebot.apt.crud.ServiceGenerator;
 import io.codebot.apt.type.Annotation;
 import io.codebot.apt.type.Type;
 import io.codebot.apt.type.TypeFactory;
@@ -17,7 +16,6 @@ import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
-import java.util.Arrays;
 import java.util.Set;
 
 @AutoService(Processor.class)
@@ -47,12 +45,13 @@ public class CrudServiceProcessor extends AbstractProcessor {
         for (TypeElement serviceElement : ElementFilter.typesIn(roundEnv.getElementsAnnotatedWith(annotation))) {
             Type serviceType = typeFactory.getType(serviceElement);
             try {
-                Service service = new Service(serviceType, Arrays.asList(
-                        new CreatingMethodProcessor(),
-                        new UpdatingMethodProcessor(),
-                        new ReadingMethodProcessor()
-                ));
-                service.implement().writeTo(filer);
+                Service service = new Service(serviceType);
+                Entity entity = new Entity(
+                        serviceType.findAnnotation(ANNOTATION_FQN)
+                                .map(it -> typeFactory.getType(it.getValue("value")))
+                                .get()
+                );
+                new ServiceGenerator().generate(service, entity).writeTo(filer);
             } catch (Exception e) {
                 messager.printMessage(
                         Diagnostic.Kind.ERROR,

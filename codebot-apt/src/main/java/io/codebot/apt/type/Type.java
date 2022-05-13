@@ -200,18 +200,6 @@ public class Type implements Annotated, Modified {
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        return typeUtils.isSameType(typeMirror, ((Type) o).typeMirror);
-    }
-
-    @Override
-    public int hashCode() {
-        return typeMirror.hashCode();
-    }
-
-    @Override
     public String toString() {
         return typeMirror.toString();
     }

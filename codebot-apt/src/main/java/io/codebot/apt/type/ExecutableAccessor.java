@@ -24,4 +24,8 @@ public abstract class ExecutableAccessor implements Accessor {
     public Executable getExecutable() {
         return executable;
     }
+
+    public String getExecutableName() {
+        return executable.getSimpleName();
+    }
 }

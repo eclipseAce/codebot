@@ -18,7 +18,6 @@ import java.util.Set;
 public class Executable implements Annotated, Modified {
     private final ExecutableElement executableElement;
     private final Lazy<List<Annotation>> lazyAnnotations;
-    private final Lazy<ExecutableType> lazyExecutableType;
     private final Lazy<Type> lazyReturnType;
     private final Lazy<List<Variable>> lazyParameters;
     private final Lazy<List<Type>> lazyThrownTypes;
@@ -28,18 +27,19 @@ public class Executable implements Annotated, Modified {
         this.lazyAnnotations = Lazy.of(() -> ImmutableList.copyOf(
                 executableElement.getAnnotationMirrors().stream().map(Annotation::new).iterator()
         ));
-        this.lazyExecutableType = Lazy.of(() -> enclosingType.asMember(executableElement));
-        this.lazyReturnType = Lazy.of(() -> enclosingType.getFactory()
-                .getType(lazyExecutableType.get().getReturnType()));
-        this.lazyParameters = Lazy.of(() -> ImmutableList.copyOf(
-                executableElement.getParameters().stream()
-                        .map(it -> new Variable(enclosingType, it))
-                        .iterator()
-        ));
+        Lazy<ExecutableType> lazyExecutableType = Lazy.of(() ->
+                enclosingType.asMember(executableElement)
+        );
+        this.lazyReturnType = Lazy.of(() ->
+                enclosingType.getFactory().getType(lazyExecutableType.get().getReturnType())
+        );
+        this.lazyParameters = Lazy.of(() ->
+                Variable.parametersOf(enclosingType, executableElement)
+        );
         this.lazyThrownTypes = Lazy.of(() -> ImmutableList.copyOf(
-                lazyExecutableType.get().getThrownTypes().stream()
-                        .map(it -> enclosingType.getFactory().getType(it))
-                        .iterator()
+                lazyExecutableType.get().getThrownTypes().stream().map(it ->
+                        enclosingType.getFactory().getType(it)
+                ).iterator()
         ));
     }
 
