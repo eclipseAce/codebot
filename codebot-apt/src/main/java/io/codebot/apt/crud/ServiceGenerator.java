@@ -216,6 +216,7 @@ public class ServiceGenerator {
             String paramVar = names.get(param);
             if (pageable == null && param.getType().isAssignableTo(PAGEABLE_FQN)) {
                 pageable = param;
+                continue;
             }
             if (param.getType().isAssignableTo(SPECIFICATION_FQN, entity.getType().getTypeMirror())) {
                 predicates.add(new PredicateCandicate(
