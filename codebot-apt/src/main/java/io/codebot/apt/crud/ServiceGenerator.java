@@ -14,8 +14,11 @@ public class ServiceGenerator {
     public static final String PREDICATE_FQN = "javax.persistence.criteria.Predicate";
     public static final String PAGEABLE_FQN = "org.springframework.data.domain.Pageable";
     public static final String LIST_FQN = "java.util.List";
+    public static final String ITERABLE_FQN = "java.lang.Iterable";
     public static final String ARRAY_LIST_FQN = "java.util.ArrayList";
     public static final String PAGE_FQN = "org.springframework.data.domain.Page";
+    public static final String STREAM_SUPPORT_FQN = "java.util.stream.StreamSupport";
+    public static final String COLLECTORS_FQN = "java.util.stream.Collectors";
 
     public JavaFile generate(Service service, Entity entity) {
         TypeSpec.Builder serviceBuilder = TypeSpec.classBuilder(service.getImplTypeName());
@@ -71,6 +74,19 @@ public class ServiceGenerator {
                     entity, names.clone()
             ));
             builder.add("$<});\n");
+        } //
+        else if (returnType.erasure().isAssignableFrom(LIST_FQN)
+                && sourceType.erasure().isAssignableTo(ITERABLE_FQN)) {
+            String itVar = names.newName("it", "it");
+            builder.add("return $1T.stream($2N.spliterator(), false).map($3N -> {\n$>",
+                    ClassName.bestGuess(STREAM_SUPPORT_FQN), sourceVar, itVar);
+            builder.add(returns(
+                    itVar,
+                    sourceType.getTypeArguments().get(0),
+                    returnType.getTypeArguments().get(0),
+                    entity, names.clone()
+            ));
+            builder.add("$<}).collect($1T.toList());\n", ClassName.bestGuess(COLLECTORS_FQN));
         } //
         else if (sourceType.equals(entity.getType())
                 && returnType.isAssignableFrom(entity.getIdType())) {

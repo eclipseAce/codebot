@@ -7,6 +7,8 @@ import io.codebot.test.repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
+
 @CrudService(User.class)
 public interface UserService {
 
@@ -27,6 +29,8 @@ public interface UserService {
     UserDetails findById(long id);
 
     UserDetails findByUsername(String username);
+
+    List<UserSummary> findList(UserQuery query);
 
     Page<UserSummary> findPage(UserQuery query, Pageable pageable);
 }
