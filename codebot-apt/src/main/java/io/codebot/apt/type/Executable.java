@@ -110,30 +110,32 @@ public class Executable implements Annotated, Modified {
     private static final String SETTER_PREFIX = "set";
 
     private static Executable newExecutable(Type enclosingType, ExecutableElement method) {
-        String methodName = method.getSimpleName().toString();
-        ExecutableType methodType = enclosingType.asMember(method);
-        if (methodName.length() > GETTER_PREFIX.length()
-                && methodName.startsWith(GETTER_PREFIX)
-                && method.getParameters().isEmpty()
-                && methodType.getReturnType().getKind() != TypeKind.VOID) {
-            return new GetAccessor(enclosingType, method,
-                    StringUtils.uncapitalize(methodName.substring(GETTER_PREFIX.length()))
-            );
-        }
-        if (methodName.length() > BOOLEAN_GETTER_PREFIX.length()
-                && methodName.startsWith(BOOLEAN_GETTER_PREFIX)
-                && method.getParameters().isEmpty()
-                && methodType.getReturnType().getKind() == TypeKind.BOOLEAN) {
-            return new GetAccessor(enclosingType, method,
-                    StringUtils.uncapitalize(methodName.substring(BOOLEAN_GETTER_PREFIX.length()))
-            );
-        }
-        if (methodName.length() > SETTER_PREFIX.length()
-                && methodName.startsWith(SETTER_PREFIX)
-                && method.getParameters().size() == 1) {
-            return new SetAccessor(enclosingType, method,
-                    StringUtils.uncapitalize(methodName.substring(SETTER_PREFIX.length()))
-            );
+        if (method.getModifiers().contains(Modifier.PUBLIC)) {
+            String methodName = method.getSimpleName().toString();
+            ExecutableType methodType = enclosingType.asMember(method);
+            if (methodName.length() > GETTER_PREFIX.length()
+                    && methodName.startsWith(GETTER_PREFIX)
+                    && method.getParameters().isEmpty()
+                    && methodType.getReturnType().getKind() != TypeKind.VOID) {
+                return new GetAccessor(enclosingType, method,
+                        StringUtils.uncapitalize(methodName.substring(GETTER_PREFIX.length()))
+                );
+            }
+            if (methodName.length() > BOOLEAN_GETTER_PREFIX.length()
+                    && methodName.startsWith(BOOLEAN_GETTER_PREFIX)
+                    && method.getParameters().isEmpty()
+                    && methodType.getReturnType().getKind() == TypeKind.BOOLEAN) {
+                return new GetAccessor(enclosingType, method,
+                        StringUtils.uncapitalize(methodName.substring(BOOLEAN_GETTER_PREFIX.length()))
+                );
+            }
+            if (methodName.length() > SETTER_PREFIX.length()
+                    && methodName.startsWith(SETTER_PREFIX)
+                    && method.getParameters().size() == 1) {
+                return new SetAccessor(enclosingType, method,
+                        StringUtils.uncapitalize(methodName.substring(SETTER_PREFIX.length()))
+                );
+            }
         }
         return new Executable(enclosingType, method);
     }
