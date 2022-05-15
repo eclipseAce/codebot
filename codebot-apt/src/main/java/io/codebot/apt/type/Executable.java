@@ -3,6 +3,7 @@ package io.codebot.apt.type;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
@@ -17,27 +18,25 @@ import java.util.Set;
 
 public class Executable implements Annotated, Modified {
     private final ExecutableElement executableElement;
+    private final ExecutableType executableType;
+    private final Type returnType;
     private final Lazy<List<Annotation>> lazyAnnotations;
-    private final Lazy<Type> lazyReturnType;
     private final Lazy<List<Variable>> lazyParameters;
     private final Lazy<List<Type>> lazyThrownTypes;
 
     Executable(Type enclosingType, ExecutableElement executableElement) {
         this.executableElement = executableElement;
+        this.executableType = enclosingType.asMember(executableElement);
+        this.returnType = enclosingType.getFactory().getType(executableType.getReturnType());
+
         this.lazyAnnotations = Lazy.of(() -> ImmutableList.copyOf(
                 executableElement.getAnnotationMirrors().stream().map(Annotation::new).iterator()
         ));
-        Lazy<ExecutableType> lazyExecutableType = Lazy.of(() ->
-                enclosingType.asMember(executableElement)
-        );
-        this.lazyReturnType = Lazy.of(() ->
-                enclosingType.getFactory().getType(lazyExecutableType.get().getReturnType())
-        );
         this.lazyParameters = Lazy.of(() ->
                 Variable.parametersOf(enclosingType, executableElement)
         );
         this.lazyThrownTypes = Lazy.of(() -> ImmutableList.copyOf(
-                lazyExecutableType.get().getThrownTypes().stream().map(it ->
+                executableType.getThrownTypes().stream().map(it ->
                         enclosingType.getFactory().getType(it)
                 ).iterator()
         ));
@@ -62,7 +61,7 @@ public class Executable implements Annotated, Modified {
     }
 
     public Type getReturnType() {
-        return lazyReturnType.get();
+        return returnType;
     }
 
     public List<Variable> getParameters() {
@@ -76,7 +75,7 @@ public class Executable implements Annotated, Modified {
     public static List<Executable> methodsOf(Type type) {
         List<ExecutableElement> methods = Lists.newArrayList();
         collectMethodsInHierarchy(type.asDeclaredType(), type.getFactory().getElementUtils(), methods, Sets.newHashSet());
-        return ImmutableList.copyOf(methods.stream().map(it -> new Executable(type, it)).iterator());
+        return ImmutableList.copyOf(methods.stream().map(it -> newExecutable(type, it)).iterator());
     }
 
     private static void collectMethodsInHierarchy(DeclaredType declaredType,
@@ -104,5 +103,38 @@ public class Executable implements Annotated, Modified {
                 collectMethodsInHierarchy((DeclaredType) element.getSuperclass(), elementUtils, collected, visited);
             }
         }
+    }
+
+    private static final String GETTER_PREFIX = "get";
+    private static final String BOOLEAN_GETTER_PREFIX = "is";
+    private static final String SETTER_PREFIX = "set";
+
+    private static Executable newExecutable(Type enclosingType, ExecutableElement method) {
+        String methodName = method.getSimpleName().toString();
+        ExecutableType methodType = enclosingType.asMember(method);
+        if (methodName.length() > GETTER_PREFIX.length()
+                && methodName.startsWith(GETTER_PREFIX)
+                && method.getParameters().isEmpty()
+                && methodType.getReturnType().getKind() != TypeKind.VOID) {
+            return new GetAccessor(enclosingType, method,
+                    StringUtils.uncapitalize(methodName.substring(GETTER_PREFIX.length()))
+            );
+        }
+        if (methodName.length() > BOOLEAN_GETTER_PREFIX.length()
+                && methodName.startsWith(BOOLEAN_GETTER_PREFIX)
+                && method.getParameters().isEmpty()
+                && methodType.getReturnType().getKind() == TypeKind.BOOLEAN) {
+            return new GetAccessor(enclosingType, method,
+                    StringUtils.uncapitalize(methodName.substring(BOOLEAN_GETTER_PREFIX.length()))
+            );
+        }
+        if (methodName.length() > SETTER_PREFIX.length()
+                && methodName.startsWith(SETTER_PREFIX)
+                && method.getParameters().size() == 1) {
+            return new SetAccessor(enclosingType, method,
+                    StringUtils.uncapitalize(methodName.substring(SETTER_PREFIX.length()))
+            );
+        }
+        return new Executable(enclosingType, method);
     }
 }

@@ -94,7 +94,7 @@ public class ServiceGenerator {
         } //
         else if (sourceType.equals(entity.getType())
                 && returnType.isAssignableFrom(entity.getIdType())) {
-            builder.add("return $1N.$2N();\n", sourceVar, entity.getIdGetter().getExecutableName());
+            builder.add("return $1N.$2N();\n", sourceVar, entity.getIdGetter().getSimpleName());
         } //
         else {
             String tempVar = names.newName("temp");
@@ -104,7 +104,7 @@ public class ServiceGenerator {
             for (SetAccessor setter : returnType.getSetters()) {
                 sourceType.findGetter(setter.getAccessedName(), setter.getAccessedType()).ifPresent(it ->
                         builder.add("$1N.$2N($3N.$4N());\n",
-                                tempVar, setter.getExecutableName(), sourceVar, it.getExecutableName()
+                                tempVar, setter.getSimpleName(), sourceVar, it.getSimpleName()
                         ));
             }
             builder.add("return $N;\n", tempVar);
@@ -130,7 +130,7 @@ public class ServiceGenerator {
             );
             if (setter.isPresent()) {
                 builder.addCode("$1N.$2N($3N);\n",
-                        entityVar, setter.get().getExecutableName(), names.get(param)
+                        entityVar, setter.get().getSimpleName(), names.get(param)
                 );
                 continue;
             }
@@ -138,8 +138,8 @@ public class ServiceGenerator {
                 entity.getType().findSetter(
                         getter.getAccessedName(), getter.getAccessedType()
                 ).ifPresent(it -> builder.addCode("$1N.$2N($3N.$4N());\n",
-                        entityVar, it.getExecutableName(),
-                        names.get(param), getter.getExecutableName()
+                        entityVar, it.getSimpleName(),
+                        names.get(param), getter.getSimpleName()
                 ));
             }
         }
@@ -181,7 +181,7 @@ public class ServiceGenerator {
             );
             if (setter.isPresent()) {
                 propertySets.add("$1N.$2N($3N);\n",
-                        entityVar, setter.get().getExecutableName(), names.get(param)
+                        entityVar, setter.get().getSimpleName(), names.get(param)
                 );
                 continue;
             }
@@ -191,7 +191,7 @@ public class ServiceGenerator {
                     if (entityLoad == null) {
                         entityLoad = CodeBlock.of("$1T $2N = this.repository.getById($3N.$4N());\n",
                                 entity.getType().getTypeMirror(), entityVar,
-                                names.get(param), getter.getExecutableName()
+                                names.get(param), getter.getSimpleName()
                         );
                     }
                     continue;
@@ -199,8 +199,8 @@ public class ServiceGenerator {
                 entity.getType().findSetter(
                         getter.getAccessedName(), getter.getAccessedType()
                 ).ifPresent(it -> propertySets.add("$1N.$2N($3N.$4N());\n",
-                        entityVar, it.getExecutableName(),
-                        names.get(param), getter.getExecutableName()
+                        entityVar, it.getSimpleName(),
+                        names.get(param), getter.getSimpleName()
                 ));
             }
         }
@@ -326,7 +326,7 @@ public class ServiceGenerator {
         }
         for (GetAccessor getter : type.getGetters()) {
             List<CodeBlock> nextPaths = Stream.concat(paths.stream(), Stream.of(path)).collect(Collectors.toList());
-            CodeBlock nextPath = CodeBlock.of("$N()", getter.getExecutableName());
+            CodeBlock nextPath = CodeBlock.of("$N()", getter.getSimpleName());
             collectPredicates(
                     collected, nextPaths, nextPath,
                     getter.getAccessedName(), getter.getAccessedType(), entity

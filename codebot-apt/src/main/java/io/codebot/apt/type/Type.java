@@ -26,8 +26,6 @@ public class Type implements Annotated, Modified {
     private final Lazy<List<Type>> lazyTypeArguments;
     private final Lazy<List<Variable>> lazyFields;
     private final Lazy<List<Executable>> lazyMethods;
-    private final Lazy<List<GetAccessor>> lazyGetters;
-    private final Lazy<List<SetAccessor>> lazySetters;
 
     Type(TypeFactory factory, TypeMirror typeMirror) {
         this.factory = factory;
@@ -38,8 +36,6 @@ public class Type implements Annotated, Modified {
         this.lazyTypeArguments = lazyTypeArguments();
         this.lazyFields = lazyFields();
         this.lazyMethods = lazyMethods();
-        this.lazyGetters = lazyGetAccessors();
-        this.lazySetters = lazySetAccessors();
     }
 
     public TypeMirror getTypeMirror() {
@@ -71,11 +67,17 @@ public class Type implements Annotated, Modified {
     }
 
     public List<GetAccessor> getGetters() {
-        return lazyGetters.get();
+        return lazyMethods.get().stream()
+                .filter(GetAccessor.class::isInstance)
+                .map(GetAccessor.class::cast)
+                .collect(Collectors.toList());
     }
 
     public List<SetAccessor> getSetters() {
-        return lazySetters.get();
+        return lazyMethods.get().stream()
+                .filter(SetAccessor.class::isInstance)
+                .map(SetAccessor.class::cast)
+                .collect(Collectors.toList());
     }
 
     public Optional<GetAccessor> findGetter(String accessedName, Type accessedType) {
@@ -219,14 +221,6 @@ public class Type implements Annotated, Modified {
 
     private Lazy<List<Executable>> lazyMethods() {
         return !isDeclared() ? Lazy.constant(ImmutableList.of()) : Lazy.of(() -> Executable.methodsOf(this));
-    }
-
-    private Lazy<List<GetAccessor>> lazyGetAccessors() {
-        return !isDeclared() ? Lazy.constant(ImmutableList.of()) : Lazy.of(() -> GetAccessor.gettersOf(this));
-    }
-
-    private Lazy<List<SetAccessor>> lazySetAccessors() {
-        return !isDeclared() ? Lazy.constant(ImmutableList.of()) : Lazy.of(() -> SetAccessor.settersOf(this));
     }
 
     private Lazy<List<Type>> lazyTypeArguments() {

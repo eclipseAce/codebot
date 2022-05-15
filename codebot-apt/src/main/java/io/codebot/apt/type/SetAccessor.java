@@ -4,26 +4,24 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.StringUtils;
 
+import javax.lang.model.element.ExecutableElement;
 import java.util.List;
 
-public class SetAccessor extends ExecutableAccessor {
-    private static final String SETTER_PREFIX = "set";
+public class SetAccessor extends Executable implements Accessor {
+    private final String accessedName;
 
-    SetAccessor(String accessedName, Type accessedType, Executable executable) {
-        super(accessedName, accessedType, executable);
+    SetAccessor(Type enclosingType, ExecutableElement executableElement, String accessedName) {
+        super(enclosingType, executableElement);
+        this.accessedName = accessedName;
     }
 
-    public static List<SetAccessor> settersOf(Type type) {
-        List<SetAccessor> setters = Lists.newArrayList();
-        for (Executable method : type.getMethods()) {
-            String methodName = method.getSimpleName();
-            if (methodName.length() > SETTER_PREFIX.length()
-                    && methodName.startsWith(SETTER_PREFIX)
-                    && method.getParameters().size() == 1) {
-                String accessedName = StringUtils.uncapitalize(methodName.substring(SETTER_PREFIX.length()));
-                setters.add(new SetAccessor(accessedName, method.getParameters().get(0).getType(), method));
-            }
-        }
-        return ImmutableList.copyOf(setters);
+    @Override
+    public String getAccessedName() {
+        return accessedName;
+    }
+
+    @Override
+    public Type getAccessedType() {
+        return getParameters().get(0).getType();
     }
 }
