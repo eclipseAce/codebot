@@ -31,5 +31,5 @@ public interface UserService {
 
     List<UserSummary> findList(UserJpaQuery query);
 
-    Page<UserSummary> findPage(UserJpaQuery query, Pageable pageable);
+    Page<UserSummary> findPage(UserQuerydslQuery query, Pageable pageable);
 }

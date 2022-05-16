@@ -1,6 +1,7 @@
 package io.codebot.test.dto.user;
 
 import com.querydsl.core.types.Predicate;
+import io.codebot.test.domain.QRole;
 import io.codebot.test.domain.QUser;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
@@ -18,7 +19,7 @@ public class UserQuerydslQuery {
     @Schema(description = "创建时间范围")
     private LocalDateTime[] createdAt;
 
-    public Predicate getKeywordSpec(QUser user) {
+    public Predicate getKeywordSpec(QUser user, QRole role) {
         return user.username.contains(keyword)
                 .or(user.mobile.contains(keyword))
                 .or(user.email.contains(keyword));

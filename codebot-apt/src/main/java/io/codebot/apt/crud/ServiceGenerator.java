@@ -2,6 +2,7 @@ package io.codebot.apt.crud;
 
 import com.squareup.javapoet.*;
 import io.codebot.apt.crud.code.JpaQuery;
+import io.codebot.apt.crud.code.QuerydslQuery;
 import io.codebot.apt.crud.code.Snippet;
 import io.codebot.apt.crud.code.Query;
 import io.codebot.apt.type.*;
@@ -20,12 +21,13 @@ public class ServiceGenerator {
     public static final String JPA_REPOSITORY_FQN = "org.springframework.data.jpa.repository.JpaRepository";
     public static final String AUTOWIRED_FQN = "org.springframework.beans.factory.annotation.Autowired";
     public static final String JPA_SPECIFICATION_EXECUTOR_FQN = "org.springframework.data.jpa.repository.JpaSpecificationExecutor";
+    public static final String QUERYDSL_PREDICATE_EXECUTOR_FQN = "org.springframework.data.querydsl.QuerydslPredicateExecutor";
     public static final String SERVICE_FQN = "org.springframework.stereotype.Service";
 
-    private Query query;
+    private final Query query;
 
     public ServiceGenerator() {
-        this.query = new JpaQuery();
+        this.query = new QuerydslQuery();
     }
 
     public JavaFile generate(Service service, Entity entity) {
@@ -50,6 +52,14 @@ public class ServiceGenerator {
                         ClassName.bestGuess(JPA_SPECIFICATION_EXECUTOR_FQN),
                         entity.getTypeName()
                 ), "specificationExecutor", Modifier.PRIVATE)
+                .addAnnotation(ClassName.bestGuess(AUTOWIRED_FQN))
+                .build()
+        );
+        serviceBuilder.addField(FieldSpec
+                .builder(ParameterizedTypeName.get(
+                        ClassName.bestGuess(QUERYDSL_PREDICATE_EXECUTOR_FQN),
+                        entity.getTypeName()
+                ), "querydslPredicateExecutor", Modifier.PRIVATE)
                 .addAnnotation(ClassName.bestGuess(AUTOWIRED_FQN))
                 .build()
         );
