@@ -6,6 +6,10 @@ import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.jpa.domain.Specification;
 
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Predicate;
+import javax.persistence.criteria.Root;
 import java.time.LocalDateTime;
 
 @Data
@@ -18,16 +22,14 @@ public class UserJpaQuery {
     @Schema(description = "创建时间范围")
     private LocalDateTime[] createdAt;
 
-    public Specification<User> getKeywordSpec() {
-        return (root, query, cb) -> {
-            if (StringUtils.isNotBlank(keyword)) {
-                return cb.or(
-                        cb.like(root.get("username"), "%" + keyword + "%"),
-                        cb.like(root.get("mobile"), "%" + keyword + "%"),
-                        cb.like(root.get("email"), "%" + keyword + "%")
-                );
-            }
-            return null;
-        };
+    public Predicate getKeywordSpec(Root<User> root, CriteriaQuery<?> query, CriteriaBuilder cb) {
+        if (StringUtils.isNotBlank(keyword)) {
+            return cb.or(
+                    cb.like(root.get("username"), "%" + keyword + "%"),
+                    cb.like(root.get("mobile"), "%" + keyword + "%"),
+                    cb.like(root.get("email"), "%" + keyword + "%")
+            );
+        }
+        return null;
     }
 }

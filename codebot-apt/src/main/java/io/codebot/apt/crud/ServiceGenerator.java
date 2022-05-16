@@ -1,27 +1,32 @@
 package io.codebot.apt.crud;
 
-import com.google.common.collect.Lists;
 import com.squareup.javapoet.*;
+import io.codebot.apt.crud.code.JpaQuery;
+import io.codebot.apt.crud.code.Snippet;
+import io.codebot.apt.crud.code.Query;
 import io.codebot.apt.type.*;
 
 import javax.lang.model.element.Modifier;
-import java.util.*;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 public class ServiceGenerator {
 
-    public static final String SPECIFICATION_FQN = "org.springframework.data.jpa.domain.Specification";
-    public static final String PAGEABLE_FQN = "org.springframework.data.domain.Pageable";
     public static final String PAGE_FQN = "org.springframework.data.domain.Page";
-    public static final String PREDICATE_FQN = "javax.persistence.criteria.Predicate";
     public static final String TRANSACTIONAL_FQN = "org.springframework.transaction.annotation.Transactional";
     public static final String JPA_REPOSITORY_FQN = "org.springframework.data.jpa.repository.JpaRepository";
     public static final String AUTOWIRED_FQN = "org.springframework.beans.factory.annotation.Autowired";
     public static final String JPA_SPECIFICATION_EXECUTOR_FQN = "org.springframework.data.jpa.repository.JpaSpecificationExecutor";
     public static final String SERVICE_FQN = "org.springframework.stereotype.Service";
+
+    private Query query;
+
+    public ServiceGenerator() {
+        this.query = new JpaQuery();
+    }
 
     public JavaFile generate(Service service, Entity entity) {
         TypeSpec.Builder serviceBuilder = TypeSpec.classBuilder(service.getImplTypeName());
@@ -56,7 +61,7 @@ public class ServiceGenerator {
                 serviceBuilder.addMethod(buildUpdateMethod(service, entity, method));
             } //
             else if (method.getSimpleName().startsWith("find")) {
-                serviceBuilder.addMethod(buildReadMethod(service, entity, method));
+                serviceBuilder.addMethod(buildQueryMethod(service, entity, method));
             }
         }
         return JavaFile.builder(service.getImplTypeName().packageName(), serviceBuilder.build()).build();
@@ -218,142 +223,24 @@ public class ServiceGenerator {
         return builder.build();
     }
 
-    public MethodSpec buildReadMethod(Service service, Entity entity, Executable method) {
+    public MethodSpec buildQueryMethod(Service service, Entity entity, Executable method) {
         TypeFactory typeFactory = service.getType().getFactory();
         NameAllocator names = new NameAllocator();
         method.getParameters().forEach(it -> names.newName(it.getSimpleName(), it));
         MethodSpec.Builder builder = MethodSpec.overriding(
-                method.getElement(),
-                service.getType().asDeclaredType(),
-                typeFactory.getTypeUtils()
+                method.getElement(), service.getType().asDeclaredType(), typeFactory.getTypeUtils()
         );
 
-        Variable pageable = null;
-        List<Predicate> predicates = Lists.newArrayList();
-        for (Variable param : method.getParameters()) {
-            if (pageable == null && param.getType().isAssignableTo(PAGEABLE_FQN)) {
-                pageable = param;
-            } else {
-                collectPredicates(
-                        predicates, Collections.emptyList(), CodeBlock.of("$N", param.getSimpleName()),
-                        param.getSimpleName(), param.getType(), entity
-                );
-            }
-        }
+        Snippet snippet = query.query(entity, service, method, names);
+        builder.addCode(snippet.getStatements());
 
-        Type resultType;
         String resultVar = names.newName("result");
-        if (predicates.size() == 1 && predicates.get(0).kind == PredicateKind.ID) {
-            resultType = entity.getType();
-            builder.addCode("$1T $2N = this.repository.getById($3L);\n",
-                    entity.getType().getTypeMirror(), resultVar, predicates.get(0).expression
-            );
-        } else {
-            String rootVar = names.newName("root");
-            String queryVar = names.newName("query");
-            String builderVar = names.newName("builder");
-            String predicatesVar = names.newName("predicates");
-
-            CodeBlock.Builder specification = CodeBlock.builder();
-            specification.add("($1N, $2N, $3N) -> {$>\n", rootVar, queryVar, builderVar);
-            specification.add("$1T $2N = new $1T($3L);\n",
-                    ParameterizedTypeName.get(ClassName.get(ArrayList.class), ClassName.bestGuess(PREDICATE_FQN)),
-                    predicatesVar, predicates.size()
-            );
-            for (Predicate predicate : predicates) {
-                specification.beginControlFlow("if ($L)", predicate.precondition);
-                if (predicate.kind == PredicateKind.SPECIFICATION) {
-                    specification.add("$1N.add($2L.toPredicate($3N, $4N, $5N));\n",
-                            predicatesVar, predicate.expression, rootVar, queryVar, builderVar
-                    );
-                } //
-                else {
-                    specification.add("$1N.add($2N.equal($3N.get($4S), $5L));\n",
-                            predicatesVar, builderVar, rootVar,
-                            predicate.name, predicate.expression
-                    );
-                }
-                specification.endControlFlow();
-            }
-            specification.add("return $1N.and($2N.toArray(new $3T[0]));\n",
-                    builderVar, predicatesVar, ClassName.bestGuess(PREDICATE_FQN)
-            );
-            specification.add("$<}");
-
-            Type returnType = method.getReturnType();
-            if (pageable != null && returnType.erasure().isAssignableFrom(PAGE_FQN)) {
-                resultType = typeFactory.getType(PAGE_FQN, entity.getType().getTypeMirror());
-                builder.addCode("$1T $2N = this.specificationExecutor.findAll($3L, $4N);\n",
-                        resultType.getTypeMirror(), resultVar, specification.build(), names.get(pageable)
-                );
-            } else if (returnType.erasure().isAssignableTo(Iterable.class.getName())) {
-                resultType = typeFactory.getType(List.class.getName(), entity.getType().getTypeMirror());
-                builder.addCode("$1T $2N = this.specificationExecutor.findAll($3L);\n",
-                        resultType.getTypeMirror(), resultVar, specification.build()
-                );
-            } else {
-                resultType = entity.getType();
-                builder.addCode("$1T $2N = this.specificationExecutor" +
-                                ".findAll($3L, $4T.ofSize(1))" +
-                                ".stream().findFirst().orElse(null);\n",
-                        resultType.getTypeMirror(), resultVar, specification.build(),
-                        ClassName.bestGuess(PAGEABLE_FQN)
-                );
-                builder.beginControlFlow("if ($1N == null)", resultVar)
-                        .addCode("return null;\n")
-                        .endControlFlow();
-            }
-        }
-        builder.addCode(returns(resultVar, resultType, method.getReturnType(), entity, names));
+        builder.addCode("$1T $2N = $3L;\n",
+                snippet.getExpressionType().getTypeMirror(), resultVar, snippet.getExpression()
+        );
+        builder.addCode(returns(
+                resultVar, snippet.getExpressionType(), method.getReturnType(), entity, names
+        ));
         return builder.build();
-    }
-
-    private void collectPredicates(List<Predicate> collected,
-                                   List<CodeBlock> paths, CodeBlock path,
-                                   String name, Type type, Entity entity) {
-        if (type.isAssignableTo(SPECIFICATION_FQN, entity.getType().getTypeMirror())) {
-            collected.add(new Predicate(name, PredicateKind.SPECIFICATION,
-                    Stream.concat(paths.stream(), Stream.of(path)).collect(Collectors.toList())));
-            return;
-        }
-        Optional<GetAccessor> directGetter = entity.getType().findGetter(name, type);
-        if (directGetter.isPresent()) {
-            boolean matchesId = entity.getIdName().equals(name)
-                    && entity.getIdType().isAssignableTo(entity.getIdType());
-            collected.add(new Predicate(name, matchesId ? PredicateKind.ID : PredicateKind.SIMPLE,
-                    Stream.concat(paths.stream(), Stream.of(path)).collect(Collectors.toList())));
-            return;
-        }
-        for (GetAccessor getter : type.getGetters()) {
-            List<CodeBlock> nextPaths = Stream.concat(paths.stream(), Stream.of(path)).collect(Collectors.toList());
-            CodeBlock nextPath = CodeBlock.of("$N()", getter.getSimpleName());
-            collectPredicates(
-                    collected, nextPaths, nextPath,
-                    getter.getAccessedName(), getter.getAccessedType(), entity
-            );
-        }
-    }
-
-    private static class Predicate {
-        final String name;
-        final PredicateKind kind;
-        final CodeBlock expression;
-        final CodeBlock precondition;
-
-        Predicate(String name, PredicateKind kind, List<CodeBlock> paths) {
-            this.name = name;
-            this.kind = kind;
-            this.expression = CodeBlock.join(paths, ".");
-            this.precondition = IntStream.range(0, paths.size()).boxed()
-                    .map(i -> CodeBlock.of("$L != null", CodeBlock.join(paths.subList(0, i + 1), ".")))
-                    .collect(Collectors.collectingAndThen(
-                            Collectors.toList(),
-                            list -> CodeBlock.join(list, " && ")
-                    ));
-        }
-    }
-
-    private enum PredicateKind {
-        ID, SIMPLE, SPECIFICATION, QUERYDSL
     }
 }

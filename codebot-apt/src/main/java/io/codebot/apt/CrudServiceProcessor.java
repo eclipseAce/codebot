@@ -51,6 +51,9 @@ public class CrudServiceProcessor extends AbstractProcessor {
                                 .map(it -> typeFactory.getType(it.getValue("value")))
                                 .get()
                 );
+                Type q = typeFactory.getType(
+                        entity.getTypeName().packageName() + ".Q" + entity.getTypeName().simpleName()
+                );
                 new ServiceGenerator().generate(service, entity).writeTo(filer);
             } catch (Exception e) {
                 messager.printMessage(
