@@ -29,7 +29,7 @@ public interface UserService {
 
     UserDetails findByUsername(String username);
 
-    List<UserSummary> findList(UserJpaQuery query);
+    List<UserSummary> findList(UserQuery query);
 
-    Page<UserSummary> findPage(UserQuerydslQuery query, Pageable pageable);
+    Page<UserSummary> findPage(UserQuery query, Pageable pageable);
 }

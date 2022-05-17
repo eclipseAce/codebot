@@ -1,8 +1,8 @@
 package io.codebot.apt.crud;
 
 import com.squareup.javapoet.*;
-import io.codebot.apt.crud.code.JpaQuery;
-import io.codebot.apt.crud.code.QuerydslQuery;
+import io.codebot.apt.crud.code.QuerydslJpaQuery;
+import io.codebot.apt.crud.code.SimpleJpaQuery;
 import io.codebot.apt.crud.code.Snippet;
 import io.codebot.apt.crud.code.Query;
 import io.codebot.apt.type.*;
@@ -27,7 +27,7 @@ public class ServiceGenerator {
     private final Query query;
 
     public ServiceGenerator() {
-        this.query = new QuerydslQuery();
+        this.query = new SimpleJpaQuery();
     }
 
     public JavaFile generate(Service service, Entity entity) {
