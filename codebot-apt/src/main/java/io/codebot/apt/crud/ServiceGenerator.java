@@ -1,10 +1,7 @@
 package io.codebot.apt.crud;
 
 import com.squareup.javapoet.*;
-import io.codebot.apt.crud.code.QuerydslJpaQuery;
-import io.codebot.apt.crud.code.SimpleJpaQuery;
-import io.codebot.apt.crud.code.Snippet;
-import io.codebot.apt.crud.code.Query;
+import io.codebot.apt.code.JpaFilterSnippet;
 import io.codebot.apt.type.*;
 
 import javax.lang.model.element.Modifier;
@@ -23,12 +20,6 @@ public class ServiceGenerator {
     public static final String JPA_SPECIFICATION_EXECUTOR_FQN = "org.springframework.data.jpa.repository.JpaSpecificationExecutor";
     public static final String QUERYDSL_PREDICATE_EXECUTOR_FQN = "org.springframework.data.querydsl.QuerydslPredicateExecutor";
     public static final String SERVICE_FQN = "org.springframework.stereotype.Service";
-
-    private final Query query;
-
-    public ServiceGenerator() {
-        this.query = new SimpleJpaQuery();
-    }
 
     public JavaFile generate(Service service, Entity entity) {
         TypeSpec.Builder serviceBuilder = TypeSpec.classBuilder(service.getImplTypeName());
@@ -241,16 +232,21 @@ public class ServiceGenerator {
                 method.getElement(), service.getType().asDeclaredType(), typeFactory.getTypeUtils()
         );
 
-        Snippet snippet = query.query(entity, service, method, names);
-        builder.addCode(snippet.getStatements());
+        CodeBlock.Builder code = CodeBlock.builder();
+        new JpaFilterSnippet(entity, method.getParameters(), "specification")
+                .appendTo(code, names);
+        builder.addCode(code.build());
 
-        String resultVar = names.newName("result");
-        builder.addCode("$1T $2N = $3L;\n",
-                snippet.getExpressionType().getTypeMirror(), resultVar, snippet.getExpression()
-        );
-        builder.addCode(returns(
-                resultVar, snippet.getExpressionType(), method.getReturnType(), entity, names
-        ));
+//        Snippet snippet = query.query(entity, service, method, names);
+//        builder.addCode(snippet.getStatements());
+//
+//        String resultVar = names.newName("result");
+//        builder.addCode("$1T $2N = $3L;\n",
+//                snippet.getExpressionType().getTypeMirror(), resultVar, snippet.getExpression()
+//        );
+//        builder.addCode(returns(
+//                resultVar, snippet.getExpressionType(), method.getReturnType(), entity, names
+//        ));
         return builder.build();
     }
 }
