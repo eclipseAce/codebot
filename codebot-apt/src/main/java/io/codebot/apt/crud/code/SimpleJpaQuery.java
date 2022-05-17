@@ -9,6 +9,7 @@ import io.codebot.apt.crud.Service;
 import io.codebot.apt.type.*;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 public class SimpleJpaQuery implements Query {
@@ -41,11 +42,7 @@ public class SimpleJpaQuery implements Query {
         CodeBlock.Builder expression = CodeBlock.builder();
         Type expressionType;
 
-        if (params.isEmpty() && !pageables.isEmpty() && method.getReturnType().isAssignableFrom(PAGE_FQN)) {
-            expression.add("$1L.findAll($2N)", repository, pageables.get(0).getSimpleName());
-            expressionType = typeFactory.getType(PAGE_FQN, entity.getType().getTypeMirror());
-        } //
-        else if (params.size() == 1
+        if (params.size() == 1
                 && params.get(0).getSimpleName().equals(entity.getIdName())
                 && params.get(0).getType().isAssignableTo(entity.getIdType())) {
             expression.add("$1L.getById($2N)", repository, params.get(0).getSimpleName());
@@ -63,14 +60,24 @@ public class SimpleJpaQuery implements Query {
             for (Variable param : params) {
                 CodeBlock.Builder build = CodeBlock.builder();
 
-                analyzeParameter(entity, param, localNames, build);
-
-                if (build.isEmpty()) {
-                    analyzeMethods(entity, param, localNames, build);
+                if (entity.getType().findGetter(param.getSimpleName(), param.getType()).isPresent()) {
+                    analyzeParameter(entity, param, localNames, build);
                 }
 
                 if (build.isEmpty()) {
-                    analyzeGetters(entity, param, localNames, build);
+                    for (Executable paramMethod : param.getType().getMethods()) {
+                        analyzeMethods(entity, param, paramMethod, localNames, build);
+                    }
+                }
+
+                if (build.isEmpty()) {
+                    for (GetAccessor getter : param.getType().getGetters()) {
+                        if (entity.getType().findGetter(
+                                getter.getAccessedName(), getter.getAccessedType()
+                        ).isPresent()) {
+                            analyzeGetters(entity, param, getter, localNames, build);
+                        }
+                    }
                 }
 
                 if (!build.isEmpty()) {
@@ -81,16 +88,20 @@ public class SimpleJpaQuery implements Query {
                 }
             }
             if (!specificationBody.isEmpty()) {
-                CodeBlock specification = CodeBlock.builder()
-                        .add("($1N, $2N, $3N) -> {\n$>",
-                                localNames.get("root"), localNames.get("query"), localNames.get("builder"))
-                        .add("$1T<$2T> $3N = new $1T<>();\n",
-                                ArrayList.class, ClassName.bestGuess(PREDICATE_FQN), localNames.get("predicates"))
-                        .add(specificationBody.build())
-                        .add("return $1N.and($2N.toArray(new $3T[0]));\n",
-                                localNames.get("builder"), localNames.get("predicates"), ClassName.bestGuess(PREDICATE_FQN))
-                        .add("$<}")
-                        .build();
+                CodeBlock specification = CodeBlock.builder().addNamed(
+                        "($root:N, $query:N, $builder:N) -> {\n$>"
+                                + "$listType:T<$predicateType:T> $predicates:N = new $listType:T<>();\n"
+                                + "return $builder:N.and($predicates:N.toArray(new $predicateType:T[0]));\n"
+                                + "$<}",
+                        new HashMap<String, Object>() {{
+                            put("root", localNames.get("root"));
+                            put("query", localNames.get("query"));
+                            put("builder", localNames.get("builder"));
+                            put("predicates", localNames.get("predicates"));
+                            put("listType", ArrayList.class);
+                            put("predicateType", ClassName.bestGuess(PREDICATE_FQN));
+                        }}
+                ).build();
 
                 if (pageables.isEmpty()) {
                     expression.add("$1L.findAll($2L)", executor, specification);
@@ -112,59 +123,57 @@ public class SimpleJpaQuery implements Query {
         return new Snippet(statements.build(), expression.build(), expressionType);
     }
 
-    private void analyzeParameter(Entity entity, Variable param, NameAllocator names, CodeBlock.Builder code) {
-        if (entity.getType().findGetter(param.getSimpleName(), param.getType()).isPresent()) {
-            code.add("$1N.add($2N.equal($3N.get($4S), $4N));\n",
-                    names.get("predicates"), names.get("builder"), names.get("root"), param.getSimpleName()
-            );
-        }
+    private void analyzeParameter(Entity entity,
+                                  Variable param,
+                                  NameAllocator names,
+                                  CodeBlock.Builder code) {
+        code.add("$1N.add($2N.equal($3N.get($4S), $4N));\n",
+                names.get("predicates"), names.get("builder"), names.get("root"), param.getSimpleName()
+        );
     }
 
-    private void analyzeMethods(Entity entity, Variable param, NameAllocator names, CodeBlock.Builder code) {
-        for (Executable method : param.getType().getMethods()) {
-            if (!method.getReturnType().isAssignableTo(PREDICATE_FQN)) {
-                continue;
-            }
-
-            List<String> formats = Lists.newArrayList();
-            List<Object> formatArgs = Lists.newArrayList();
-            boolean allArgsRecognized = true;
-            for (Variable arg : method.getParameters()) {
-                if (arg.getType().isAssignableFrom(ROOT_FQN, entity.getType().getTypeMirror())) {
-                    formats.add("$N");
-                    formatArgs.add(names.get("root"));
-                } else if (arg.getType().isAssignableFrom(CRITERIA_QUERY_FQN)) {
-                    formats.add("$N");
-                    formatArgs.add(names.get("query"));
-                } else if (arg.getType().isAssignableFrom(CRITERIA_BUILDER_FQN)) {
-                    formats.add("$N");
-                    formatArgs.add(names.get("builder"));
-                } else {
-                    allArgsRecognized = false;
-                    break;
-                }
-            }
-            if (allArgsRecognized) {
-                code.add("$1N.add($2N.$3N($4L));\n",
-                        names.get("predicates"), param.getSimpleName(), method.getSimpleName(),
-                        CodeBlock.of(String.join(", ", formats), formatArgs.toArray(new Object[0]))
-                );
+    private void analyzeMethods(Entity entity,
+                                Variable param,
+                                Executable method,
+                                NameAllocator names,
+                                CodeBlock.Builder code) {
+        if (!method.getReturnType().isAssignableTo(PREDICATE_FQN)) {
+            return;
+        }
+        List<String> formats = Lists.newArrayList();
+        List<Object> formatArgs = Lists.newArrayList();
+        for (Variable arg : method.getParameters()) {
+            if (arg.getType().isAssignableFrom(ROOT_FQN, entity.getType().getTypeMirror())) {
+                formats.add("$N");
+                formatArgs.add(names.get("root"));
+            } else if (arg.getType().isAssignableFrom(CRITERIA_QUERY_FQN)) {
+                formats.add("$N");
+                formatArgs.add(names.get("query"));
+            } else if (arg.getType().isAssignableFrom(CRITERIA_BUILDER_FQN)) {
+                formats.add("$N");
+                formatArgs.add(names.get("builder"));
+            } else {
+                return;
             }
         }
+        code.add("$1N.add($2N.$3N($4L));\n",
+                names.get("predicates"), param.getSimpleName(), method.getSimpleName(),
+                CodeBlock.of(String.join(", ", formats), formatArgs.toArray(new Object[0]))
+        );
     }
 
-    private void analyzeGetters(Entity entity, Variable param, NameAllocator names, CodeBlock.Builder code) {
-        for (GetAccessor getter : param.getType().getGetters()) {
-            if (entity.getType().findGetter(getter.getAccessedName(), getter.getAccessedType()).isPresent()) {
-                code.beginControlFlow("if ($1N.$2N() != null)",
-                        param.getSimpleName(), getter.getSimpleName()
-                );
-                code.add("$1N.add($2N.equal($3N.get($4S), $5N.$6N()));\n",
-                        names.get("predicates"), names.get("builder"), names.get("root"),
-                        getter.getAccessedName(), param.getSimpleName(), getter.getSimpleName()
-                );
-                code.endControlFlow();
-            }
-        }
+    private void analyzeGetters(Entity entity,
+                                Variable param,
+                                GetAccessor getter,
+                                NameAllocator names,
+                                CodeBlock.Builder code) {
+        code.beginControlFlow("if ($1N.$2N() != null)",
+                param.getSimpleName(), getter.getSimpleName()
+        );
+        code.add("$1N.add($2N.equal($3N.get($4S), $5N.$6N()));\n",
+                names.get("predicates"), names.get("builder"), names.get("root"),
+                getter.getAccessedName(), param.getSimpleName(), getter.getSimpleName()
+        );
+        code.endControlFlow();
     }
 }

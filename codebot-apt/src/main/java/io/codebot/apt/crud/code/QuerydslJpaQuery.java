@@ -59,20 +59,31 @@ public class QuerydslJpaQuery implements Query {
             for (Variable param : params) {
                 CodeBlock.Builder build = CodeBlock.builder();
 
-                analyzeParameter(entity, param, builderVar, build);
-
-                if (build.isEmpty()) {
-                    analyzeMethods(entity, param, builderVar, build);
+                if (entity.getType().findGetter(param.getSimpleName(), param.getType()).isPresent()) {
+                    analyzeParameter(entity, param, builderVar, build);
                 }
 
                 if (build.isEmpty()) {
-                    analyzeGetters(entity, param, builderVar, build);
+                    for (Executable paramMethod : param.getType().getMethods()) {
+                        analyzeMethods(entity, param, paramMethod, builderVar, build);
+                    }
+                }
+
+                if (build.isEmpty()) {
+                    for (GetAccessor getter : param.getType().getGetters()) {
+                        if (entity.getType().findGetter(
+                                getter.getAccessedName(), getter.getAccessedType()
+                        ).isPresent()) {
+                            analyzeGetters(entity, param, getter, builderVar, build);
+                        }
+                    }
                 }
 
                 if (!build.isEmpty()) {
-                    predicateStatements.beginControlFlow("if ($1N != null)", param.getSimpleName());
-                    predicateStatements.add(build.build());
-                    predicateStatements.endControlFlow();
+                    predicateStatements
+                            .beginControlFlow("if ($1N != null)", param.getSimpleName())
+                            .add(build.build())
+                            .endControlFlow();
                 }
             }
             if (!predicateStatements.isEmpty()) {
@@ -99,57 +110,56 @@ public class QuerydslJpaQuery implements Query {
         return new Snippet(statements.build(), expression.build(), expressionType);
     }
 
-    private void analyzeParameter(Entity entity, Variable param, String builderVar, CodeBlock.Builder code) {
-        if (entity.getType().findGetter(param.getSimpleName(), param.getType()).isPresent()) {
-            code.beginControlFlow("if ($1N != null)", param.getSimpleName());
-            code.add("$1N.and($2L.$3N.eq($3N));\n",
-                    builderVar, getQueryVar(entity.getTypeName()), param.getSimpleName()
-            );
-            code.endControlFlow();
-        }
+    private void analyzeParameter(Entity entity,
+                                  Variable param,
+                                  String builderVar,
+                                  CodeBlock.Builder code) {
+        code.beginControlFlow("if ($1N != null)", param.getSimpleName());
+        code.add("$1N.and($2L.$3N.eq($3N));\n",
+                builderVar, getQueryVar(entity.getTypeName()), param.getSimpleName()
+        );
+        code.endControlFlow();
     }
 
-    private void analyzeMethods(Entity entity, Variable param, String builderVar, CodeBlock.Builder code) {
+    private void analyzeMethods(Entity entity,
+                                Variable param,
+                                Executable method,
+                                String builderVar,
+                                CodeBlock.Builder code) {
+        if (!method.getReturnType().isAssignableTo(PREDICATE_FQN)) {
+            return;
+        }
         TypeElement entityPathElement = entity.getType().getFactory().getElementUtils()
                 .getTypeElement(ENTITY_PATH_FQN);
 
-        for (Executable method : param.getType().getMethods()) {
-            if (!method.getReturnType().isAssignableTo(PREDICATE_FQN)) {
-                continue;
-            }
-            List<CodeBlock> args = Lists.newArrayList();
-            boolean allArgsRecognized = true;
-            for (Variable arg : method.getParameters()) {
-                if (arg.getType().isAssignableTo(ENTITY_PATH_FQN)) {
-                    args.add(getQueryVar((ClassName) TypeName.get(
-                            arg.getType().asMember(entityPathElement.getTypeParameters().get(0))
-                    )));
-                } else {
-                    allArgsRecognized = false;
-                    break;
-                }
-            }
-            if (allArgsRecognized) {
-                code.add("$1N.and($2N.$3N($4L));\n",
-                        builderVar, param.getSimpleName(), method.getSimpleName(), CodeBlock.join(args, ", ")
-                );
+        List<CodeBlock> args = Lists.newArrayList();
+        for (Variable arg : method.getParameters()) {
+            if (arg.getType().isAssignableTo(ENTITY_PATH_FQN)) {
+                args.add(getQueryVar((ClassName) TypeName.get(
+                        arg.getType().asMember(entityPathElement.getTypeParameters().get(0))
+                )));
+            } else {
+                return;
             }
         }
+        code.add("$1N.and($2N.$3N($4L));\n",
+                builderVar, param.getSimpleName(), method.getSimpleName(), CodeBlock.join(args, ", ")
+        );
     }
 
-    private void analyzeGetters(Entity entity, Variable param, String builderVar, CodeBlock.Builder code) {
-        for (GetAccessor getter : param.getType().getGetters()) {
-            if (entity.getType().findGetter(getter.getAccessedName(), getter.getAccessedType()).isPresent()) {
-                code.beginControlFlow("if ($1N.$2N() != null)",
-                        param.getSimpleName(), getter.getSimpleName()
-                );
-                code.add("$1N.and($2L.$3N.eq($4N.$5N()));\n",
-                        builderVar, getQueryVar(entity.getTypeName()), getter.getAccessedName(),
-                        param.getSimpleName(), getter.getSimpleName()
-                );
-                code.endControlFlow();
-            }
-        }
+    private void analyzeGetters(Entity entity,
+                                Variable param,
+                                GetAccessor getter,
+                                String builderVar,
+                                CodeBlock.Builder code) {
+        code.beginControlFlow("if ($1N.$2N() != null)",
+                param.getSimpleName(), getter.getSimpleName()
+        );
+        code.add("$1N.and($2L.$3N.eq($4N.$5N()));\n",
+                builderVar, getQueryVar(entity.getTypeName()), getter.getAccessedName(),
+                param.getSimpleName(), getter.getSimpleName()
+        );
+        code.endControlFlow();
     }
 
     private CodeBlock getQueryVar(ClassName entityName) {

@@ -32,4 +32,6 @@ public interface UserService {
     List<UserSummary> findList(UserQuery query);
 
     Page<UserSummary> findPage(UserQuery query, Pageable pageable);
+
+    Page<UserSummary> findPage(Pageable pageable);
 }
