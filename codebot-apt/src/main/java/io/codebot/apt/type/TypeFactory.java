@@ -48,11 +48,11 @@ public class TypeFactory {
         return new Type(this, typeMirror);
     }
 
-    public Type getIterableType() {
-        return getType(iterableElement);
-    }
-
     public Type getIterableType(TypeMirror elementType) {
         return getType(iterableElement, elementType);
+    }
+
+    public Type getListType(TypeMirror elementType) {
+        return getType(listElement, elementType);
     }
 }

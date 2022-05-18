@@ -1,6 +1,5 @@
 package io.codebot.apt.crud.query;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.squareup.javapoet.*;
 import io.codebot.apt.crud.Entity;
@@ -19,20 +18,12 @@ public class QuerydslJpaQuery {
     private static final String ENTITY_PATH_FQN = "com.querydsl.core.types.EntityPath";
     private static final String BOOLEAN_BUILDER_FQN = "com.querydsl.core.BooleanBuilder";
 
-    private final Entity entity;
-    private final Executable queryMethod;
-    private final List<Variable> queryParameters;
-    private final Variable pageableParameter;
-    private final Variable singleIdParameter;
-
-    private final CodeBlock repository = CodeBlock.of("this.repository");
-    private final CodeBlock executor = CodeBlock.of("this.querydslPredicateExecutor");
-    private final TypeElement entityPathElement;
-
-    public QuerydslJpaQuery(Entity entity, Executable queryMethod) {
-        this.entity = entity;
-        this.queryMethod = queryMethod;
-        this.entityPathElement = entity.getType().getFactory().getElementUtils().getTypeElement(ENTITY_PATH_FQN);
+    public void appendTo(Entity entity,
+                         Executable queryMethod,
+                         MethodSpec.Builder methodBuilder,
+                         NameAllocator nameAllocator) {
+        CodeBlock repository = CodeBlock.of("this.repository");
+        CodeBlock executor = CodeBlock.of("this.querydslPredicateExecutor");
 
         List<Variable> queryParams = Lists.newArrayList();
         Variable pageableParam = null;
@@ -45,38 +36,28 @@ public class QuerydslJpaQuery {
             }
             queryParams.add(param);
         }
-        this.queryParameters = ImmutableList.copyOf(queryParams);
-        this.pageableParameter = pageableParam;
 
-        if (queryParameters.size() == 1
-                && queryParameters.get(0).getSimpleName().equals(entity.getIdName())
-                && queryParameters.get(0).getType().isAssignableTo(entity.getIdType())) {
-            this.singleIdParameter = queryParameters.get(0);
-        } else {
-            this.singleIdParameter = null;
-        }
-    }
-
-    public void appendTo(MethodSpec.Builder methodBuilder, NameAllocator nameAllocator) {
-        if (singleIdParameter != null) {
-            methodBuilder.addCode("$1L.getById($2N);\n", repository, singleIdParameter.getSimpleName());
+        if (queryParams.size() == 1
+                && queryParams.get(0).getSimpleName().equals(entity.getIdName())
+                && queryParams.get(0).getType().isAssignableTo(entity.getIdType())) {
+            methodBuilder.addCode("$1L.getById($2N);\n", repository, queryParams.get(0).getSimpleName());
             return;
         }
 
         String builderVar = nameAllocator.newName("builder");
 
         CodeBlock.Builder build = CodeBlock.builder();
-        for (Variable param : queryParameters) {
+        for (Variable param : queryParams) {
             CodeBlock.Builder predicates = CodeBlock.builder();
-            collectFromParameter(predicates, builderVar, param);
+            collectFromParameter(predicates, builderVar, entity, param);
             if (predicates.isEmpty()) {
                 for (Executable paramMethod : param.getType().getMethods()) {
-                    collectFromParameterMethod(predicates, builderVar, param, paramMethod);
+                    collectFromParameterMethod(predicates, builderVar, entity, param, paramMethod);
                 }
             }
             if (predicates.isEmpty()) {
                 for (GetAccessor paramGetter : param.getType().getGetters()) {
-                    collectFromParameterGetter(predicates, builderVar, param, paramGetter);
+                    collectFromParameterGetter(predicates, builderVar, entity, param, paramGetter);
                 }
             }
             if (!predicates.isEmpty() && !param.getType().isPrimitive()) {
@@ -89,19 +70,19 @@ public class QuerydslJpaQuery {
         }
 
         if (build.isEmpty()) {
-            if (pageableParameter == null) {
+            if (pageableParam == null) {
                 methodBuilder.addCode("$1L.findAll();\n", repository);
             } else {
-                methodBuilder.addCode("$1L.findAll($2N);\n", repository, pageableParameter.getSimpleName());
+                methodBuilder.addCode("$1L.findAll($2N);\n", repository, pageableParam.getSimpleName());
             }
         } else {
             methodBuilder.addCode("$1T $2N = new $1T();\n", ClassName.bestGuess(BOOLEAN_BUILDER_FQN), builderVar);
             methodBuilder.addCode(build.build());
 
-            if (pageableParameter == null) {
+            if (pageableParam == null) {
                 methodBuilder.addCode("$1L.findAll($2L);\n", executor, builderVar);
             } else {
-                methodBuilder.addCode("$1L.findAll($2L, $3N);\n", executor, builderVar, pageableParameter.getSimpleName());
+                methodBuilder.addCode("$1L.findAll($2L, $3N);\n", executor, builderVar, pageableParam.getSimpleName());
             }
         }
     }
@@ -114,7 +95,7 @@ public class QuerydslJpaQuery {
     }
 
     private void collectFromParameter(CodeBlock.Builder predicates, String builderVar,
-                                      Variable param) {
+                                      Entity entity, Variable param) {
         if (entity.getType().findGetter(param.getSimpleName(), param.getType()).isPresent()) {
             predicates.add("$1N.and($2L.$3N.eq($3N));\n",
                     builderVar, getQueryVar(entity.getTypeName()), param.getSimpleName()
@@ -123,10 +104,12 @@ public class QuerydslJpaQuery {
     }
 
     private void collectFromParameterMethod(CodeBlock.Builder predicates, String builderVar,
-                                            Variable param, Executable method) {
+                                            Entity entity, Variable param, Executable method) {
         if (!method.getReturnType().isAssignableTo(QUERYDSL_PREDICATE_FQN)) {
             return;
         }
+        TypeElement entityPathElement = entity.getType().getFactory()
+                .getElementUtils().getTypeElement(ENTITY_PATH_FQN);
         List<CodeBlock> args = Lists.newArrayList();
         for (Variable arg : method.getParameters()) {
             if (arg.getType().isAssignableTo(ENTITY_PATH_FQN)) {
@@ -145,7 +128,7 @@ public class QuerydslJpaQuery {
     }
 
     private void collectFromParameterGetter(CodeBlock.Builder predicates, String builderVar,
-                                            Variable param, GetAccessor getter) {
+                                            Entity entity, Variable param, GetAccessor getter) {
         if (entity.getType().findGetter(getter.getAccessedName(), getter.getAccessedType()).isPresent()) {
             predicates.beginControlFlow("if ($1N.$2N() != null)",
                     param.getSimpleName(), getter.getSimpleName());

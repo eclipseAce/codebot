@@ -233,8 +233,8 @@ public class ServiceGenerator {
                 method.getElement(), service.getType().asDeclaredType(), typeFactory.getTypeUtils()
         );
 
-        new SimpleJpaQuery(entity, method).appendTo(builder, names);
-        new QuerydslJpaQuery(entity, method).appendTo(builder, names);
+        new SimpleJpaQuery().appendTo(entity, method, builder, names);
+//        new QuerydslJpaQuery(entity, method).appendTo(builder, names);
 
 //        builder.addCode(returns(
 //                resultVar, snippet.getExpressionType(), method.getReturnType(), entity, names

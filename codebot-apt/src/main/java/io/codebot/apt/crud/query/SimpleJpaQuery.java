@@ -1,39 +1,28 @@
 package io.codebot.apt.crud.query;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.NameAllocator;
 import io.codebot.apt.crud.Entity;
-import io.codebot.apt.type.Executable;
-import io.codebot.apt.type.GetAccessor;
-import io.codebot.apt.type.Variable;
+import io.codebot.apt.type.*;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class SimpleJpaQuery {
+    private static final String PAGE_FQN = "org.springframework.data.domain.Page";
     private static final String PAGEABLE_FQN = "org.springframework.data.domain.Pageable";
     private static final String PREDICATE_FQN = "javax.persistence.criteria.Predicate";
     private static final String ROOT_FQN = "javax.persistence.criteria.Root";
     private static final String CRITERIA_QUERY_FQN = "javax.persistence.criteria.CriteriaQuery";
     private static final String CRITERIA_BUILDER_FQN = "javax.persistence.criteria.CriteriaBuilder";
 
-    private final Entity entity;
-    private final Executable queryMethod;
-    private final List<Variable> queryParameters;
-    private final Variable pageableParameter;
-    private final Variable singleIdParameter;
-
-    private final CodeBlock repository = CodeBlock.of("this.repository");
-    private final CodeBlock executor = CodeBlock.of("this.jpaSpecificationExecutor");
-
-    public SimpleJpaQuery(Entity entity, Executable queryMethod) {
-        this.entity = entity;
-        this.queryMethod = queryMethod;
-
+    public void appendTo(Entity entity,
+                         Executable queryMethod,
+                         MethodSpec.Builder methodBuilder,
+                         NameAllocator nameAllocator) {
         List<Variable> queryParams = Lists.newArrayList();
         Variable pageableParam = null;
         for (Variable param : queryMethod.getParameters()) {
@@ -45,21 +34,18 @@ public class SimpleJpaQuery {
             }
             queryParams.add(param);
         }
-        this.queryParameters = ImmutableList.copyOf(queryParams);
-        this.pageableParameter = pageableParam;
 
-        if (queryParameters.size() == 1
-                && queryParameters.get(0).getSimpleName().equals(entity.getIdName())
-                && queryParameters.get(0).getType().isAssignableTo(entity.getIdType())) {
-            this.singleIdParameter = queryParameters.get(0);
-        } else {
-            this.singleIdParameter = null;
-        }
-    }
+        TypeFactory typeFactory = entity.getType().getFactory();
+        CodeBlock repository = CodeBlock.of("this.repository");
+        CodeBlock executor = CodeBlock.of("this.jpaSpecificationExecutor");
 
-    public void appendTo(MethodSpec.Builder methodBuilder, NameAllocator nameAllocator) {
-        if (singleIdParameter != null) {
-            methodBuilder.addCode("$1L.getById($2N);\n", repository, singleIdParameter.getSimpleName());
+        CodeBlock result;
+        Type resultType;
+        if (queryParams.size() == 1
+                && queryParams.get(0).getSimpleName().equals(entity.getIdName())
+                && queryParams.get(0).getType().isAssignableTo(entity.getIdType())) {
+            result = CodeBlock.of("$1L.getById($2N)", repository, queryParams.get(0).getSimpleName());
+            resultType = entity.getType();
             return;
         }
 
@@ -70,17 +56,17 @@ public class SimpleJpaQuery {
         String predicatesVar = localNameAllocator.newName("predicates");
 
         CodeBlock.Builder specificationBody = CodeBlock.builder();
-        for (Variable param : queryParameters) {
+        for (Variable param : queryParams) {
             CodeBlock.Builder predicates = CodeBlock.builder();
-            collectFromParameter(predicates, predicatesVar, rootVar, queryVar, builderVar, param);
+            collectFromParameter(predicates, predicatesVar, rootVar, queryVar, builderVar, entity, param);
             if (predicates.isEmpty()) {
                 for (Executable paramMethod : param.getType().getMethods()) {
-                    collectFromParameterMethod(predicates, predicatesVar, rootVar, queryVar, builderVar, param, paramMethod);
+                    collectFromParameterMethod(predicates, predicatesVar, rootVar, queryVar, builderVar, entity, param, paramMethod);
                 }
             }
             if (predicates.isEmpty()) {
                 for (GetAccessor paramGetter : param.getType().getGetters()) {
-                    collectFromParameterGetter(predicates, predicatesVar, rootVar, queryVar, builderVar, param, paramGetter);
+                    collectFromParameterGetter(predicates, predicatesVar, rootVar, queryVar, builderVar, entity, param, paramGetter);
                 }
             }
             if (!predicates.isEmpty() && !param.getType().isPrimitive()) {
@@ -92,36 +78,38 @@ public class SimpleJpaQuery {
             }
         }
 
-        CodeBlock.Builder specification = CodeBlock.builder();
         if (!specificationBody.isEmpty()) {
-            specification.add("($1N, $2N, $3N) -> {\n$>",
-                    rootVar, queryVar, builderVar);
-            specification.add("$1T<$2T> $3N = new $1T<>();\n",
-                    ArrayList.class, ClassName.bestGuess(PREDICATE_FQN), predicatesVar);
-            specification.add(specificationBody.build());
-            specification.add("return $1N.and($2N.toArray(new $3T[0]));\n",
-                    builderVar, predicatesVar, ClassName.bestGuess(PREDICATE_FQN));
-            specification.add("$<}");
-        }
-
-        if (specification.isEmpty()) {
-            if (pageableParameter == null) {
-                methodBuilder.addCode("$1L.findAll();\n", repository);
+            CodeBlock specification = CodeBlock.builder()
+                    .add("($1N, $2N, $3N) -> {\n$>",
+                            rootVar, queryVar, builderVar)
+                    .add("$1T<$2T> $3N = new $1T<>();\n",
+                            ArrayList.class, ClassName.bestGuess(PREDICATE_FQN), predicatesVar)
+                    .add(specificationBody.build())
+                    .add("return $1N.and($2N.toArray(new $3T[0]));\n",
+                            builderVar, predicatesVar, ClassName.bestGuess(PREDICATE_FQN))
+                    .add("$<}")
+                    .build();
+            if (pageableParam == null) {
+                result = CodeBlock.of("$1L.findAll($2L)", executor, specification);
+                resultType = typeFactory.getListType(entity.getType().getTypeMirror());
             } else {
-                methodBuilder.addCode("$1L.findAll($2N);\n", repository, pageableParameter.getSimpleName());
+                result = CodeBlock.of("$1L.findAll($2L, $3N)", executor, specification, pageableParam.getSimpleName());
+                resultType = typeFactory.getType(PAGE_FQN, entity.getType().getTypeMirror());
             }
         } else {
-            if (pageableParameter == null) {
-                methodBuilder.addCode("$1L.findAll($2L);\n", executor, specification.build());
+            if (pageableParam == null) {
+                result = CodeBlock.of("$1L.findAll()", repository);
+                resultType = typeFactory.getListType(entity.getType().getTypeMirror());
             } else {
-                methodBuilder.addCode("$1L.findAll($2L, $3N);\n", executor, specification.build(), pageableParameter.getSimpleName());
+                result = CodeBlock.of("$1L.findAll($2N)", repository, pageableParam.getSimpleName());
+                resultType = typeFactory.getType(PAGE_FQN, entity.getType().getTypeMirror());
             }
         }
     }
 
     private void collectFromParameter(CodeBlock.Builder predicates,
                                       String predicatesVar, String rootVar, String queryVar, String builderVar,
-                                      Variable param) {
+                                      Entity entity, Variable param) {
         if (entity.getType().findGetter(param.getSimpleName(), param.getType()).isPresent()) {
             predicates.add("$1N.add($2N.equal($3N.get($4S), $4N));\n",
                     predicatesVar, builderVar, rootVar, param.getSimpleName()
@@ -131,7 +119,7 @@ public class SimpleJpaQuery {
 
     private void collectFromParameterMethod(CodeBlock.Builder predicates,
                                             String predicatesVar, String rootVar, String queryVar, String builderVar,
-                                            Variable param, Executable method) {
+                                            Entity entity, Variable param, Executable method) {
         if (!method.getReturnType().isAssignableTo(PREDICATE_FQN)) {
             return;
         }
@@ -159,7 +147,7 @@ public class SimpleJpaQuery {
 
     private void collectFromParameterGetter(CodeBlock.Builder predicates,
                                             String predicatesVar, String rootVar, String queryVar, String builderVar,
-                                            Variable param, GetAccessor getter) {
+                                            Entity entity, Variable param, GetAccessor getter) {
         if (entity.getType().findGetter(getter.getAccessedName(), getter.getAccessedType()).isPresent()) {
             predicates.beginControlFlow("if ($1N.$2N() != null)",
                     param.getSimpleName(), getter.getSimpleName()
