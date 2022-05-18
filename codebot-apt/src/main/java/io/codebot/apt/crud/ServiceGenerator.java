@@ -1,7 +1,8 @@
 package io.codebot.apt.crud;
 
 import com.squareup.javapoet.*;
-import io.codebot.apt.code.JpaFilterSnippet;
+import io.codebot.apt.crud.query.QuerydslJpaQuery;
+import io.codebot.apt.crud.query.SimpleJpaQuery;
 import io.codebot.apt.type.*;
 
 import javax.lang.model.element.Modifier;
@@ -42,7 +43,7 @@ public class ServiceGenerator {
                 .builder(ParameterizedTypeName.get(
                         ClassName.bestGuess(JPA_SPECIFICATION_EXECUTOR_FQN),
                         entity.getTypeName()
-                ), "specificationExecutor", Modifier.PRIVATE)
+                ), "jpaSpecificationExecutor", Modifier.PRIVATE)
                 .addAnnotation(ClassName.bestGuess(AUTOWIRED_FQN))
                 .build()
         );
@@ -232,18 +233,9 @@ public class ServiceGenerator {
                 method.getElement(), service.getType().asDeclaredType(), typeFactory.getTypeUtils()
         );
 
-        CodeBlock.Builder code = CodeBlock.builder();
-        new JpaFilterSnippet(entity, method.getParameters(), "specification")
-                .appendTo(code, names);
-        builder.addCode(code.build());
+        new SimpleJpaQuery(entity, method).appendTo(builder, names);
+        new QuerydslJpaQuery(entity, method).appendTo(builder, names);
 
-//        Snippet snippet = query.query(entity, service, method, names);
-//        builder.addCode(snippet.getStatements());
-//
-//        String resultVar = names.newName("result");
-//        builder.addCode("$1T $2N = $3L;\n",
-//                snippet.getExpressionType().getTypeMirror(), resultVar, snippet.getExpression()
-//        );
 //        builder.addCode(returns(
 //                resultVar, snippet.getExpressionType(), method.getReturnType(), entity, names
 //        ));
