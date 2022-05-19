@@ -1,9 +1,8 @@
 package io.codebot.apt.crud;
 
+import com.google.common.collect.Lists;
 import com.squareup.javapoet.*;
-import io.codebot.apt.crud.query.Expression;
-import io.codebot.apt.crud.query.QuerydslJpaQuery;
-import io.codebot.apt.crud.query.SimpleJpaQuery;
+import io.codebot.apt.crud.coding.*;
 import io.codebot.apt.type.*;
 
 import javax.lang.model.element.Modifier;
@@ -15,7 +14,8 @@ import java.util.stream.StreamSupport;
 
 public class ServiceGenerator {
 
-    public static final String PAGE_FQN = "org.springframework.data.domain.Page";
+    private static final String PAGE_FQN = "org.springframework.data.domain.Page";
+    private static final String PAGEABLE_FQN = "org.springframework.data.domain.Pageable";
     public static final String TRANSACTIONAL_FQN = "org.springframework.transaction.annotation.Transactional";
     public static final String JPA_REPOSITORY_FQN = "org.springframework.data.jpa.repository.JpaRepository";
     public static final String AUTOWIRED_FQN = "org.springframework.beans.factory.annotation.Autowired";
@@ -227,26 +227,33 @@ public class ServiceGenerator {
     }
 
     public MethodSpec buildQueryMethod(Service service, Entity entity, Executable method) {
-        TypeFactory typeFactory = service.getType().getFactory();
-        NameAllocator names = new NameAllocator();
-        method.getParameters().forEach(it -> names.newName(it.getSimpleName(), it));
-        MethodSpec.Builder methodBuilder = MethodSpec.overriding(
-                method.getElement(), service.getType().asDeclaredType(), typeFactory.getTypeUtils()
-        );
-        CodeBlock.Builder bodyBuilder = CodeBlock.builder();
+        MethodBodyContext context = new MethodBodyContext(method);
+        List<LocalVariable> queryVariables = Lists.newArrayList();
+        List<LocalVariable> pageableVariables = Lists.newArrayList();
+        for (LocalVariable variable : context.getLocalVariables()) {
+            if (variable.getType().isAssignableTo(PAGEABLE_FQN)) {
+                pageableVariables.add(variable);
+            } else {
+                queryVariables.add(variable);
+            }
+        }
+        JpaSpecification jpaSpecification = new JpaSpecification(context, entity, queryVariables);
+        Expression spec = jpaSpecification.createExpression();
+        if (spec != null) {
+            context.getCodeBuilder()
+                    .add("$1T spec = $2L;\n", spec.getType().getTypeMirror(), spec.getCode());
+        }
+        QuerydslPredicate querydslPredicate = new QuerydslPredicate(context, entity, queryVariables);
+        Expression pred = querydslPredicate.createExpression();
+        if (pred != null) {
+            context.getCodeBuilder()
+                    .add("$1T pred = $2L;\n", pred.getType().getTypeMirror(), pred.getCode());
+        }
 
-//        Expression queryExpr = new SimpleJpaQuery()
-//                .getQueryExpression(entity, method, names);
-        Expression queryExpr = new QuerydslJpaQuery()
-                .getQueryExpression(entity, method, names, bodyBuilder);
-
-        String resultVar = names.newName("result");
-        bodyBuilder.add("$1T $2N = $3L;\n",
-                queryExpr.getExpressionType().getTypeMirror(), resultVar, queryExpr.getExpression());
-        bodyBuilder.add(returns(
-                resultVar, queryExpr.getExpressionType(), method.getReturnType(), entity, names
-        ));
-        methodBuilder.addCode(bodyBuilder.build());
-        return methodBuilder.build();
+        return MethodSpec.overriding(
+                method.getElement(),
+                service.getType().asDeclaredType(),
+                service.getType().getFactory().getTypeUtils()
+        ).addCode(context.getCodeBuilder().build()).build();
     }
 }
