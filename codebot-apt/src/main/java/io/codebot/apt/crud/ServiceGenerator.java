@@ -1,6 +1,7 @@
 package io.codebot.apt.crud;
 
 import com.squareup.javapoet.*;
+import io.codebot.apt.crud.query.Expression;
 import io.codebot.apt.crud.query.QuerydslJpaQuery;
 import io.codebot.apt.crud.query.SimpleJpaQuery;
 import io.codebot.apt.type.*;
@@ -229,16 +230,23 @@ public class ServiceGenerator {
         TypeFactory typeFactory = service.getType().getFactory();
         NameAllocator names = new NameAllocator();
         method.getParameters().forEach(it -> names.newName(it.getSimpleName(), it));
-        MethodSpec.Builder builder = MethodSpec.overriding(
+        MethodSpec.Builder methodBuilder = MethodSpec.overriding(
                 method.getElement(), service.getType().asDeclaredType(), typeFactory.getTypeUtils()
         );
+        CodeBlock.Builder bodyBuilder = CodeBlock.builder();
 
-        new SimpleJpaQuery().appendTo(entity, method, builder, names);
-//        new QuerydslJpaQuery(entity, method).appendTo(builder, names);
+//        Expression queryExpr = new SimpleJpaQuery()
+//                .getQueryExpression(entity, method, names);
+        Expression queryExpr = new QuerydslJpaQuery()
+                .getQueryExpression(entity, method, names, bodyBuilder);
 
-//        builder.addCode(returns(
-//                resultVar, snippet.getExpressionType(), method.getReturnType(), entity, names
-//        ));
-        return builder.build();
+        String resultVar = names.newName("result");
+        bodyBuilder.add("$1T $2N = $3L;\n",
+                queryExpr.getExpressionType().getTypeMirror(), resultVar, queryExpr.getExpression());
+        bodyBuilder.add(returns(
+                resultVar, queryExpr.getExpressionType(), method.getReturnType(), entity, names
+        ));
+        methodBuilder.addCode(bodyBuilder.build());
+        return methodBuilder.build();
     }
 }
