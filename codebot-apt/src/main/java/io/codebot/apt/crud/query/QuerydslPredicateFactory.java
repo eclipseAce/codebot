@@ -3,9 +3,9 @@ package io.codebot.apt.crud.query;
 import com.google.common.collect.Lists;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
-import com.squareup.javapoet.NameAllocator;
 import com.squareup.javapoet.TypeName;
 import io.codebot.apt.crud.Entity;
+import io.codebot.apt.crud.coding.CodingContext;
 import io.codebot.apt.type.Executable;
 import io.codebot.apt.type.GetAccessor;
 import io.codebot.apt.type.Variable;
@@ -22,15 +22,12 @@ public class QuerydslPredicateFactory {
     private Entity entity;
     private String builderVar;
 
-    public Expression getExpression(List<Variable> params,
-                                    Entity entity,
-                                    NameAllocator nameAllocator,
-                                    CodeBlock.Builder context) {
+    public Expression getExpression(CodingContext ctx, Entity entity) {
         this.entity = entity;
-        this.builderVar = nameAllocator.newName("builder");
+        this.builderVar = ctx.getNameAllocator().newName("builder");
 
         CodeBlock.Builder statements = CodeBlock.builder();
-        for (Variable param : params) {
+        for (Expression variable : variables) {
             CodeBlock.Builder builder = CodeBlock.builder();
 
             build(builder, param);
