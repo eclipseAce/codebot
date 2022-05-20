@@ -10,7 +10,7 @@ import io.codebot.apt.type.Type;
 import java.util.List;
 import java.util.Objects;
 
-public abstract class AbstractFindSnippet implements CodeSnippet<FindResult> {
+public abstract class AbstractFindSnippet implements CodeSnippet<FindExpression> {
     private Entity entity;
     private final List<ContextVariable> contextVariables = Lists.newArrayList();
 
@@ -31,8 +31,8 @@ public abstract class AbstractFindSnippet implements CodeSnippet<FindResult> {
     }
 
     @Override
-    public FindResult writeTo(CodeBuffer codeBuffer) {
-        FindResult result = null;
+    public FindExpression writeTo(CodeBuffer codeBuffer) {
+        FindExpression result = null;
         if (contextVariables.size() == 1
                 && contextVariables.get(0).getName().equals(entity.getIdName())
                 && contextVariables.get(0).getType().isAssignableTo(entity.getIdType())) {
@@ -47,11 +47,11 @@ public abstract class AbstractFindSnippet implements CodeSnippet<FindResult> {
         return result;
     }
 
-    protected abstract FindResult findById(CodeBuffer codeBuffer, ContextVariable idVariable);
+    protected abstract FindExpression findById(CodeBuffer codeBuffer, ContextVariable idVariable);
 
-    protected abstract FindResult findAll(CodeBuffer codeBuffer);
+    protected abstract FindExpression findAll(CodeBuffer codeBuffer);
 
-    protected abstract FindResult find(CodeBuffer codeBuffer);
+    protected abstract FindExpression find(CodeBuffer codeBuffer);
 
     protected static class ContextVariable {
         private final String name;

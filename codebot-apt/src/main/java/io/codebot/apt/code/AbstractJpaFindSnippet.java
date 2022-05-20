@@ -43,23 +43,23 @@ public abstract class AbstractJpaFindSnippet extends AbstractFindSnippet  {
     }
 
     @Override
-    protected FindResult findById(CodeBuffer codeBuffer, ContextVariable idVariable) {
-        return new FindResult(
+    protected FindExpression findById(CodeBuffer codeBuffer, ContextVariable idVariable) {
+        return new FindExpression(
                 CodeBlock.of("$1L.getById($2N)", jpaRepository, idVariable.getName()),
                 getEntity().getType()
         );
     }
 
     @Override
-    protected FindResult findAll(CodeBuffer codeBuffer) {
+    protected FindExpression findAll(CodeBuffer codeBuffer) {
         TypeFactory typeFactory = getEntity().getType().getFactory();
         if (getPageableVariableName() != null) {
-            return new FindResult(
+            return new FindExpression(
                     CodeBlock.of("$1L.findAll($2N)", getJpaRepository(), getPageableVariableName()),
                     typeFactory.getType(PAGE_FQN, getEntity().getType().getTypeMirror())
             );
         }
-        return new FindResult(
+        return new FindExpression(
                 CodeBlock.of("$1L.findAll()", getJpaRepository()),
                 typeFactory.getListType(getEntity().getType().getTypeMirror())
         );

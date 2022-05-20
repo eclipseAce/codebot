@@ -23,7 +23,7 @@ public class QuerydslAbstractJpaFindSnippet extends AbstractJpaFindSnippet {
     }
 
     @Override
-    protected FindResult find(CodeBuffer codeBuffer) {
+    protected FindExpression find(CodeBuffer codeBuffer) {
         String builderVar = codeBuffer.nameAllocator().newName("builder");
 
         Entity entity = getEntity();
@@ -83,13 +83,13 @@ public class QuerydslAbstractJpaFindSnippet extends AbstractJpaFindSnippet {
         if (!predicateBuild.isEmpty()) {
             codeBuffer.add("$1T $2N = new $1T();\n", ClassName.bestGuess(BOOLEAN_BUILDER_FQN), builderVar);
             if (getPageableVariableName() != null) {
-                return new FindResult(
+                return new FindExpression(
                         CodeBlock.of("$1L.findAll($2N, $3N)",
                                 querydslPredicateExecutor, builderVar, getPageableVariableName()),
                         typeFactory.getType(PAGE_FQN, entityType.getTypeMirror())
                 );
             }
-            return new FindResult(
+            return new FindExpression(
                     CodeBlock.of("$1L.findAll($2N)", querydslPredicateExecutor, builderVar),
                     typeFactory.getListType(entityType.getTypeMirror())
             );

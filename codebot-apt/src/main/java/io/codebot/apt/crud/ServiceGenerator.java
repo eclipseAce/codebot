@@ -1,7 +1,7 @@
 package io.codebot.apt.crud;
 
 import com.squareup.javapoet.*;
-import io.codebot.apt.code.FindResult;
+import io.codebot.apt.code.FindExpression;
 import io.codebot.apt.code.MethodCodeBuffer;
 import io.codebot.apt.code.SpecificationAbstractJpaFindSnippet;
 import io.codebot.apt.type.*;
@@ -242,15 +242,15 @@ public class ServiceGenerator {
         );
 
         MethodCodeBuffer codeBuffer = new MethodCodeBuffer(method, methodBuilder);
-        FindResult findResult = snippet.writeTo(codeBuffer);
+        FindExpression findExpression = snippet.writeTo(codeBuffer);
 
         String resultVar = codeBuffer.nameAllocator().newName("result");
         codeBuffer.add("$1T $2N = $3L;\n",
-                findResult.getResultType().getTypeMirror(), resultVar, findResult.getExpression()
+                findExpression.getType().getTypeMirror(), resultVar, findExpression.getCode()
         );
 
         codeBuffer.add(returns(
-                resultVar, findResult.getResultType(), method.getReturnType(), entity, codeBuffer.nameAllocator()
+                resultVar, findExpression.getType(), method.getReturnType(), entity, codeBuffer.nameAllocator()
         ));
 
         return methodBuilder.build();
