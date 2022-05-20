@@ -82,6 +82,7 @@ public class QuerydslAbstractJpaFindSnippet extends AbstractJpaFindSnippet {
 
         if (!predicateBuild.isEmpty()) {
             codeBuffer.add("$1T $2N = new $1T();\n", ClassName.bestGuess(BOOLEAN_BUILDER_FQN), builderVar);
+            codeBuffer.add(predicateBuild);
             if (getPageableVariableName() != null) {
                 return new FindExpression(
                         CodeBlock.of("$1L.findAll($2N, $3N)",
@@ -91,7 +92,7 @@ public class QuerydslAbstractJpaFindSnippet extends AbstractJpaFindSnippet {
             }
             return new FindExpression(
                     CodeBlock.of("$1L.findAll($2N)", querydslPredicateExecutor, builderVar),
-                    typeFactory.getListType(entityType.getTypeMirror())
+                    typeFactory.getIterableType(entityType.getTypeMirror())
             );
         }
         return null;

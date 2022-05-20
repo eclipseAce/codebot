@@ -3,6 +3,7 @@ package io.codebot.apt.crud;
 import com.squareup.javapoet.*;
 import io.codebot.apt.code.FindExpression;
 import io.codebot.apt.code.MethodCodeBuffer;
+import io.codebot.apt.code.QuerydslAbstractJpaFindSnippet;
 import io.codebot.apt.code.SpecificationAbstractJpaFindSnippet;
 import io.codebot.apt.type.*;
 
@@ -227,10 +228,12 @@ public class ServiceGenerator {
     }
 
     public MethodSpec buildQueryMethod(Service service, Entity entity, Executable method) {
-        SpecificationAbstractJpaFindSnippet snippet = new SpecificationAbstractJpaFindSnippet();
+        //SpecificationAbstractJpaFindSnippet snippet = new SpecificationAbstractJpaFindSnippet();
+        QuerydslAbstractJpaFindSnippet snippet = new QuerydslAbstractJpaFindSnippet();
         snippet.setEntity(entity);
         snippet.setJpaRepository(CodeBlock.of("this.repository"));
-        snippet.setJpaSpecificationExecutor(CodeBlock.of("this.jpaSpecificationExecutor"));
+//        snippet.setJpaSpecificationExecutor(CodeBlock.of("this.jpaSpecificationExecutor"));
+        snippet.setQuerydslPredicateExecutor(CodeBlock.of("this.querydslPredicateExecutor"));
         method.getParameters().forEach(param ->
                 snippet.addContextVariable(param.getSimpleName(), param.getType())
         );
