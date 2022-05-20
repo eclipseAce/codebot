@@ -11,7 +11,7 @@ import io.codebot.apt.type.Variable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class SpecificationAbstractJpaFindSnippet extends AbstractJpaFindSnippet {
+public class SpecificationJpaFindSnippet extends AbstractJpaFindSnippet {
     private static final String PREDICATE_FQN = "javax.persistence.criteria.Predicate";
     private static final String ROOT_FQN = "javax.persistence.criteria.Root";
     private static final String CRITERIA_QUERY_FQN = "javax.persistence.criteria.CriteriaQuery";

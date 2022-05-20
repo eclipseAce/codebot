@@ -11,7 +11,7 @@ import org.apache.commons.lang3.StringUtils;
 import javax.lang.model.element.TypeElement;
 import java.util.List;
 
-public class QuerydslAbstractJpaFindSnippet extends AbstractJpaFindSnippet {
+public class QuerydslJpaFindSnippet extends AbstractJpaFindSnippet {
     private static final String PREDICATE_FQN = "com.querydsl.core.types.Predicate";
     private static final String ENTITY_PATH_FQN = "com.querydsl.core.types.EntityPath";
     private static final String BOOLEAN_BUILDER_FQN = "com.querydsl.core.BooleanBuilder";
