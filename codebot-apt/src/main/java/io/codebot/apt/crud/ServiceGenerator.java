@@ -1,8 +1,9 @@
 package io.codebot.apt.crud;
 
-import com.google.common.collect.Lists;
 import com.squareup.javapoet.*;
-import io.codebot.apt.crud.coding.*;
+import io.codebot.apt.code.FindResult;
+import io.codebot.apt.code.MethodCodeBuffer;
+import io.codebot.apt.code.SpecificationAbstractJpaFindSnippet;
 import io.codebot.apt.type.*;
 
 import javax.lang.model.element.Modifier;
@@ -15,7 +16,6 @@ import java.util.stream.StreamSupport;
 public class ServiceGenerator {
 
     private static final String PAGE_FQN = "org.springframework.data.domain.Page";
-    private static final String PAGEABLE_FQN = "org.springframework.data.domain.Pageable";
     public static final String TRANSACTIONAL_FQN = "org.springframework.transaction.annotation.Transactional";
     public static final String JPA_REPOSITORY_FQN = "org.springframework.data.jpa.repository.JpaRepository";
     public static final String AUTOWIRED_FQN = "org.springframework.beans.factory.annotation.Autowired";
@@ -227,33 +227,32 @@ public class ServiceGenerator {
     }
 
     public MethodSpec buildQueryMethod(Service service, Entity entity, Executable method) {
-        MethodBodyContext context = new MethodBodyContext(method);
-        List<LocalVariable> queryVariables = Lists.newArrayList();
-        List<LocalVariable> pageableVariables = Lists.newArrayList();
-        for (LocalVariable variable : context.getLocalVariables()) {
-            if (variable.getType().isAssignableTo(PAGEABLE_FQN)) {
-                pageableVariables.add(variable);
-            } else {
-                queryVariables.add(variable);
-            }
-        }
-        JpaSpecification jpaSpecification = new JpaSpecification(context, entity, queryVariables);
-        Expression spec = jpaSpecification.createExpression();
-        if (spec != null) {
-            context.getCodeBuilder()
-                    .add("$1T spec = $2L;\n", spec.getType().getTypeMirror(), spec.getCode());
-        }
-        QuerydslPredicate querydslPredicate = new QuerydslPredicate(context, entity, queryVariables);
-        Expression pred = querydslPredicate.createExpression();
-        if (pred != null) {
-            context.getCodeBuilder()
-                    .add("$1T pred = $2L;\n", pred.getType().getTypeMirror(), pred.getCode());
-        }
+        SpecificationAbstractJpaFindSnippet snippet = new SpecificationAbstractJpaFindSnippet();
+        snippet.setEntity(entity);
+        snippet.setJpaRepository(CodeBlock.of("this.repository"));
+        snippet.setJpaSpecificationExecutor(CodeBlock.of("this.jpaSpecificationExecutor"));
+        method.getParameters().forEach(param ->
+                snippet.addContextVariable(param.getSimpleName(), param.getType())
+        );
 
-        return MethodSpec.overriding(
+        MethodSpec.Builder methodBuilder = MethodSpec.overriding(
                 method.getElement(),
                 service.getType().asDeclaredType(),
                 service.getType().getFactory().getTypeUtils()
-        ).addCode(context.getCodeBuilder().build()).build();
+        );
+
+        MethodCodeBuffer codeBuffer = new MethodCodeBuffer(method, methodBuilder);
+        FindResult findResult = snippet.writeTo(codeBuffer);
+
+        String resultVar = codeBuffer.nameAllocator().newName("result");
+        codeBuffer.add("$1T $2N = $3L;\n",
+                findResult.getResultType().getTypeMirror(), resultVar, findResult.getExpression()
+        );
+
+        codeBuffer.add(returns(
+                resultVar, findResult.getResultType(), method.getReturnType(), entity, codeBuffer.nameAllocator()
+        ));
+
+        return methodBuilder.build();
     }
 }

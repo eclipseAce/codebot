@@ -3,17 +3,17 @@ package io.codebot.apt.code;
 import com.squareup.javapoet.CodeBlock;
 import io.codebot.apt.type.Type;
 
-public class JpaFindResult {
-    private final CodeBlock findExpression;
+public class FindResult {
+    private final CodeBlock expression;
     private final Type resultType;
 
-    JpaFindResult(CodeBlock findExpression, Type resultType) {
-        this.findExpression = findExpression;
+    FindResult(CodeBlock expression, Type resultType) {
+        this.expression = expression;
         this.resultType = resultType;
     }
 
-    public CodeBlock getFindExpression() {
-        return findExpression;
+    public CodeBlock getExpression() {
+        return expression;
     }
 
     public Type getResultType() {

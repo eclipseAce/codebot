@@ -11,7 +11,7 @@ import io.codebot.apt.type.Variable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class SpecificationJpaFindSnippet extends JpaFindSnippet<SpecificationJpaFindSnippet> {
+public class SpecificationAbstractJpaFindSnippet extends AbstractJpaFindSnippet {
     private static final String PREDICATE_FQN = "javax.persistence.criteria.Predicate";
     private static final String ROOT_FQN = "javax.persistence.criteria.Root";
     private static final String CRITERIA_QUERY_FQN = "javax.persistence.criteria.CriteriaQuery";
@@ -19,22 +19,21 @@ public class SpecificationJpaFindSnippet extends JpaFindSnippet<SpecificationJpa
 
     private CodeBlock jpaSpecificationExecutor;
 
-    public SpecificationJpaFindSnippet setJpaSpecificationExecutor(CodeBlock jpaSpecificationExecutor) {
+    public void setJpaSpecificationExecutor(CodeBlock jpaSpecificationExecutor) {
         this.jpaSpecificationExecutor = jpaSpecificationExecutor;
-        return this;
     }
 
     @Override
-    protected JpaFindResult find(CodeBlock.Builder code, NameAllocator names) {
-        NameAllocator localNames = names.clone();
+    protected FindResult find(CodeBuffer codeBuffer) {
+        NameAllocator localNames = codeBuffer.nameAllocator().clone();
         String rootVar = localNames.newName("root");
         String queryVar = localNames.newName("query");
         String builderVar = localNames.newName("builder");
         String predicatesVar = localNames.newName("predicates");
 
-        CodeBlock specificationBody = new QueryVariableScanner() {
+        CodeBlock specificationBody = new ContextVariableScanner() {
             @Override
-            public CodeBlock scanVariable(QueryVariable variable) {
+            public CodeBlock scanVariable(ContextVariable variable) {
                 if (getEntity().getType().findGetter(variable.getName(), variable.getType()).isPresent()) {
                     return CodeBlock.of("$1N.add($2N.equal($3N.get($4S), $4N));\n",
                             predicatesVar, builderVar, rootVar, variable.getName());
@@ -43,7 +42,7 @@ public class SpecificationJpaFindSnippet extends JpaFindSnippet<SpecificationJpa
             }
 
             @Override
-            public CodeBlock scanVariableMethod(QueryVariable variable, Executable method) {
+            public CodeBlock scanVariableMethod(ContextVariable variable, Executable method) {
                 if (!method.getReturnType().isAssignableTo(PREDICATE_FQN)) {
                     return null;
                 }
@@ -69,7 +68,7 @@ public class SpecificationJpaFindSnippet extends JpaFindSnippet<SpecificationJpa
             }
 
             @Override
-            public CodeBlock scanVariableGetter(QueryVariable variable, GetAccessor getter) {
+            public CodeBlock scanVariableGetter(ContextVariable variable, GetAccessor getter) {
                 if (getEntity().getType().findGetter(getter.getAccessedName(), getter.getAccessedType()).isPresent()) {
                     return CodeBlock.builder()
                             .beginControlFlow("if ($1N.$2N() != null)", variable.getName(), getter.getSimpleName())
@@ -83,38 +82,28 @@ public class SpecificationJpaFindSnippet extends JpaFindSnippet<SpecificationJpa
             }
         }.scan(getQueryVariables());
 
-        if (specificationBody.isEmpty()) {
+        if (!specificationBody.isEmpty()) {
+            CodeBlock specification = CodeBlock.builder()
+                    .add("($1N, $2N, $3N) -> {\n$>", rootVar, queryVar, builderVar)
+                    .add("$1T<$2T> $3N = new $1T<>();\n",
+                            ArrayList.class, ClassName.bestGuess(PREDICATE_FQN), predicatesVar)
+                    .add(specificationBody)
+                    .add("return $1N.and($2N.toArray(new $3T[0]));\n",
+                            builderVar, predicatesVar, ClassName.bestGuess(PREDICATE_FQN))
+                    .add("$<}")
+                    .build();
             if (getPageableVariableName() != null) {
-                return new JpaFindResult(
-                        CodeBlock.of("$1L.findAll($2N)", getJpaRepository(), getPageableVariableName()),
+                return new FindResult(
+                        CodeBlock.of("$1L.findAll($2L, $3N)",
+                                jpaSpecificationExecutor, specification, getPageableVariableName()),
                         getEntity().getType().getFactory().getType(PAGE_FQN, getEntity().getType().getTypeMirror())
                 );
             }
-            return new JpaFindResult(
-                    CodeBlock.of("$1L.findAll()", getJpaRepository()),
+            return new FindResult(
+                    CodeBlock.of("$1L.findAll($2L)", jpaSpecificationExecutor, specification),
                     getEntity().getType().getFactory().getListType(getEntity().getType().getTypeMirror())
             );
         }
-
-        CodeBlock specification = CodeBlock.builder()
-                .add("($1N, $2N, $3N) -> {\n$>", rootVar, queryVar, builderVar)
-                .add("$1T<$2T> $3N = new $1T<>();\n",
-                        ArrayList.class, ClassName.bestGuess(PREDICATE_FQN), predicatesVar)
-                .add(specificationBody)
-                .add("return $1N.and($2N.toArray(new $3T[0]));\n",
-                        builderVar, predicatesVar, ClassName.bestGuess(PREDICATE_FQN))
-                .add("$<}")
-                .build();
-        if (getPageableVariableName() != null) {
-            return new JpaFindResult(
-                    CodeBlock.of("$1L.findAll($2L, $3N)",
-                            jpaSpecificationExecutor, specification, getPageableVariableName()),
-                    getEntity().getType().getFactory().getType(PAGE_FQN, getEntity().getType().getTypeMirror())
-            );
-        }
-        return new JpaFindResult(
-                CodeBlock.of("$1L.findAll($2L)", jpaSpecificationExecutor, specification),
-                getEntity().getType().getFactory().getListType(getEntity().getType().getTypeMirror())
-        );
+        return null;
     }
 }
