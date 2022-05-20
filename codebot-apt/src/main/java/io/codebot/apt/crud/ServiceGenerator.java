@@ -233,6 +233,7 @@ public class ServiceGenerator {
                 service.getType().asDeclaredType(),
                 service.getType().getFactory().getTypeUtils()
         );
+        MethodCodeBuffer methodBody = new MethodCodeBuffer(method, methodBuilder);
 
         //SpecificationJpaFindSnippet findSnippet = new SpecificationJpaFindSnippet();
         QuerydslJpaFindSnippet findSnippet = new QuerydslJpaFindSnippet();
@@ -243,13 +244,7 @@ public class ServiceGenerator {
         method.getParameters().forEach(param ->
                 findSnippet.addContextVariable(param.getSimpleName(), param.getType())
         );
-
-        MethodCodeBuffer methodBody = new MethodCodeBuffer(method, methodBuilder);
-        Expression resultExpr = findSnippet.writeTo(methodBody);
-
-        String resultVar = methodBody.nameAllocator().newName("result");
-        methodBody.add("$1T $2N = $3L;\n", resultExpr.getType().getTypeMirror(), resultVar, resultExpr.getCode());
-        resultExpr = new Expression(CodeBlock.of("$N", resultVar), resultExpr.getType());
+        Expression resultExpr = findSnippet.writeTo(methodBody).writeAsVariableTo(methodBody, "result");
 
         JpaMappingSnippet mappingSnippet = new JpaMappingSnippet();
         mappingSnippet.setEntity(entity);
