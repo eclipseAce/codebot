@@ -8,5 +8,7 @@ public interface CodeBuffer {
 
     void add(CodeBlock code);
 
-    void add(String format, Object ...args);
+    default void add(String format, Object ...args) {
+        add(CodeBlock.of(format, args));
+    }
 }

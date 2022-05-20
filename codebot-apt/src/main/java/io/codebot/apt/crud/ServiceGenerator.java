@@ -1,7 +1,8 @@
 package io.codebot.apt.crud;
 
 import com.squareup.javapoet.*;
-import io.codebot.apt.code.FindExpression;
+import io.codebot.apt.code.Expression;
+import io.codebot.apt.code.JpaMappingSnippet;
 import io.codebot.apt.code.MethodCodeBuffer;
 import io.codebot.apt.code.QuerydslJpaFindSnippet;
 import io.codebot.apt.type.*;
@@ -227,33 +228,36 @@ public class ServiceGenerator {
     }
 
     public MethodSpec buildQueryMethod(Service service, Entity entity, Executable method) {
-        //SpecificationJpaFindSnippet snippet = new SpecificationJpaFindSnippet();
-        QuerydslJpaFindSnippet snippet = new QuerydslJpaFindSnippet();
-        snippet.setEntity(entity);
-        snippet.setJpaRepository(CodeBlock.of("this.repository"));
-//        snippet.setJpaSpecificationExecutor(CodeBlock.of("this.jpaSpecificationExecutor"));
-        snippet.setQuerydslPredicateExecutor(CodeBlock.of("this.querydslPredicateExecutor"));
-        method.getParameters().forEach(param ->
-                snippet.addContextVariable(param.getSimpleName(), param.getType())
-        );
-
         MethodSpec.Builder methodBuilder = MethodSpec.overriding(
                 method.getElement(),
                 service.getType().asDeclaredType(),
                 service.getType().getFactory().getTypeUtils()
         );
 
-        MethodCodeBuffer codeBuffer = new MethodCodeBuffer(method, methodBuilder);
-        FindExpression findExpression = snippet.writeTo(codeBuffer);
-
-        String resultVar = codeBuffer.nameAllocator().newName("result");
-        codeBuffer.add("$1T $2N = $3L;\n",
-                findExpression.getType().getTypeMirror(), resultVar, findExpression.getCode()
+        //SpecificationJpaFindSnippet findSnippet = new SpecificationJpaFindSnippet();
+        QuerydslJpaFindSnippet findSnippet = new QuerydslJpaFindSnippet();
+        findSnippet.setEntity(entity);
+        findSnippet.setJpaRepository(CodeBlock.of("this.repository"));
+//        findSnippet.setJpaSpecificationExecutor(CodeBlock.of("this.jpaSpecificationExecutor"));
+        findSnippet.setQuerydslPredicateExecutor(CodeBlock.of("this.querydslPredicateExecutor"));
+        method.getParameters().forEach(param ->
+                findSnippet.addContextVariable(param.getSimpleName(), param.getType())
         );
 
-        codeBuffer.add(returns(
-                resultVar, findExpression.getType(), method.getReturnType(), entity, codeBuffer.nameAllocator()
-        ));
+        MethodCodeBuffer methodBody = new MethodCodeBuffer(method, methodBuilder);
+        Expression resultExpr = findSnippet.writeTo(methodBody);
+
+        String resultVar = methodBody.nameAllocator().newName("result");
+        methodBody.add("$1T $2N = $3L;\n", resultExpr.getType().getTypeMirror(), resultVar, resultExpr.getCode());
+        resultExpr = new Expression(CodeBlock.of("$N", resultVar), resultExpr.getType());
+
+        JpaMappingSnippet mappingSnippet = new JpaMappingSnippet();
+        mappingSnippet.setEntity(entity);
+        mappingSnippet.setSourceExpression(resultExpr);
+        mappingSnippet.setTargetType(method.getReturnType());
+        Expression returnExpr = mappingSnippet.writeTo(methodBody);
+
+        methodBody.add("return $L;\n", returnExpr.getCode());
 
         return methodBuilder.build();
     }

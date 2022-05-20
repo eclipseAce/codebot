@@ -24,7 +24,7 @@ public class SpecificationJpaFindSnippet extends AbstractJpaFindSnippet {
     }
 
     @Override
-    protected FindExpression find(CodeBuffer codeBuffer) {
+    protected Expression find(CodeBuffer codeBuffer) {
         NameAllocator localNames = codeBuffer.nameAllocator().clone();
         String rootVar = localNames.newName("root");
         String queryVar = localNames.newName("query");
@@ -93,13 +93,13 @@ public class SpecificationJpaFindSnippet extends AbstractJpaFindSnippet {
                     .add("$<}")
                     .build();
             if (getPageableVariableName() != null) {
-                return new FindExpression(
+                return new Expression(
                         CodeBlock.of("$1L.findAll($2L, $3N)",
                                 jpaSpecificationExecutor, specification, getPageableVariableName()),
                         getEntity().getType().getFactory().getType(PAGE_FQN, getEntity().getType().getTypeMirror())
                 );
             }
-            return new FindExpression(
+            return new Expression(
                     CodeBlock.of("$1L.findAll($2L)", jpaSpecificationExecutor, specification),
                     getEntity().getType().getFactory().getListType(getEntity().getType().getTypeMirror())
             );
