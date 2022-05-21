@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-public abstract class AbstractFindSnippet implements FindSnippet {
+public abstract class AbstractQuerySnippet implements QuerySnippet {
     private Entity entity;
 
     public void setEntity(Entity entity) {
@@ -35,13 +35,8 @@ public abstract class AbstractFindSnippet implements FindSnippet {
         } else {
             findExpr = doFind(codeBuilder, variables);
         }
-
-        String resultVar = codeBuilder.names().newName("result");
-        codeBuilder.add("$1T $2N = $3L;\n",
-                findExpr.getType().getTypeMirror(), resultVar, findExpr.getCode()
-        );
         codeBuilder.add("return $L;\n", doMappings(
-                codeBuilder, Expressions.of(findExpr.getType(), CodeBlock.of("$N", resultVar)), returnType
+                codeBuilder, findExpr.asVariable(codeBuilder, "result").asExpression(), returnType
         ));
     }
 

@@ -1,5 +1,6 @@
 package io.codebot.apt.code;
 
+import com.squareup.javapoet.CodeBlock;
 import io.codebot.apt.type.Type;
 
 public interface Variable {
@@ -7,5 +8,7 @@ public interface Variable {
 
     Type getType();
 
-
+    default Expression asExpression() {
+        return Expressions.of(getType(), CodeBlock.of("$N", getName()));
+    }
 }

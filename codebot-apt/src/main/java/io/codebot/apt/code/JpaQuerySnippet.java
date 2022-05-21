@@ -14,7 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-public class JpaFindSnippet extends AbstractFindSnippet {
+public class JpaQuerySnippet extends AbstractQuerySnippet {
     protected static final String PAGE_FQN = "org.springframework.data.domain.Page";
     protected static final String PAGEABLE_FQN = "org.springframework.data.domain.Pageable";
 
@@ -79,7 +79,7 @@ public class JpaFindSnippet extends AbstractFindSnippet {
     protected Expression doFindById(CodeBuilder codeBuilder, Variable idVariable) {
         return Expressions.of(
                 getEntity().getType(),
-                CodeBlock.of("$1L.getById($2N)", jpaRepository, idVariable.getName())
+                CodeBlock.of("$1L.getById($2N)", getJpaRepository(), idVariable.getName())
         );
     }
 

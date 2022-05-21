@@ -1,10 +1,8 @@
 package io.codebot.apt.crud;
 
 import com.squareup.javapoet.*;
-import io.codebot.apt.code.CodeBuilder;
-import io.codebot.apt.code.CodeBuilders;
-import io.codebot.apt.code.QuerydslJpaFindSnippet;
-import io.codebot.apt.code.Variables;
+import io.codebot.apt.code.*;
+import io.codebot.apt.type.Variable;
 import io.codebot.apt.type.*;
 
 import javax.lang.model.element.Modifier;
@@ -162,69 +160,24 @@ public class ServiceGenerator {
     }
 
     public MethodSpec buildUpdateMethod(Service service, Entity entity, Executable method) {
-        NameAllocator names = new NameAllocator();
-        method.getParameters().forEach(it -> names.newName(it.getSimpleName(), it));
-        MethodSpec.Builder builder = MethodSpec.overriding(
+        MethodSpec.Builder methodBuilder = MethodSpec.overriding(
                 method.getElement(),
                 service.getType().asDeclaredType(),
                 service.getType().getFactory().getTypeUtils()
         );
-
-        builder.addAnnotation(ClassName.bestGuess("org.springframework.transaction.annotation.Transactional"));
-
-        String entityVar = names.newName("entity");
-        CodeBlock entityLoad = null;
-        CodeBlock.Builder propertySets = CodeBlock.builder();
-        for (Variable param : method.getParameters()) {
-            if (entity.getIdName().equals(param.getSimpleName())
-                    && entity.getIdType().isAssignableFrom(param.getType())) {
-                if (entityLoad == null) {
-                    entityLoad = CodeBlock.of("$1T $2N = this.repository.getById($3N);\n",
-                            entity.getType().getTypeMirror(), entityVar, names.get(param)
-                    );
-                }
-                continue;
-            }
-            Optional<SetAccessor> setter = entity.getType().findSetter(
-                    param.getSimpleName(), param.getType()
-            );
-            if (setter.isPresent()) {
-                propertySets.add("$1N.$2N($3N);\n",
-                        entityVar, setter.get().getSimpleName(), names.get(param)
-                );
-                continue;
-            }
-            for (GetAccessor getter : param.getType().getGetters()) {
-                if (entity.getIdName().equals(getter.getAccessedName())
-                        && entity.getIdType().isAssignableFrom(getter.getAccessedType())) {
-                    if (entityLoad == null) {
-                        entityLoad = CodeBlock.of("$1T $2N = this.repository.getById($3N.$4N());\n",
-                                entity.getType().getTypeMirror(), entityVar,
-                                names.get(param), getter.getSimpleName()
-                        );
-                    }
-                    continue;
-                }
-                entity.getType().findSetter(
-                        getter.getAccessedName(), getter.getAccessedType()
-                ).ifPresent(it -> propertySets.add("$1N.$2N($3N.$4N());\n",
-                        entityVar, it.getSimpleName(),
-                        names.get(param), getter.getSimpleName()
-                ));
-            }
-        }
-        if (entityLoad == null) {
-            throw new IllegalArgumentException("Can't find a way to load entity");
-        }
-        builder.addCode(entityLoad);
-        builder.addCode(propertySets.build());
-        builder.addCode("this.repository.save($1N);\n", entityVar);
-        if (!method.getReturnType().isVoid()) {
-            builder.addCode(returns(
-                    entityVar, entity.getType(), method.getReturnType(), entity, names
-            ));
-        }
-        return builder.build();
+        CodeBuilder methodBody = CodeBuilders.create(method.getElement());
+        JpaUpdateSnippet updateSnippet = new JpaUpdateSnippet();
+        updateSnippet.setEntity(entity);
+        updateSnippet.setJpaRepository(CodeBlock.of("this.repository"));
+        updateSnippet.update(
+                methodBody,
+                method.getParameters().stream()
+                        .map(it -> Variables.of(it.getType(), it.getSimpleName()))
+                        .collect(Collectors.toList()),
+                method.getReturnType()
+        );
+        methodBody.appendTo(methodBuilder);
+        return methodBuilder.build();
     }
 
     public MethodSpec buildQueryMethod(Service service, Entity entity, Executable method) {
@@ -234,7 +187,7 @@ public class ServiceGenerator {
                 service.getType().getFactory().getTypeUtils()
         );
         CodeBuilder methodBody = CodeBuilders.create(method.getElement());
-        QuerydslJpaFindSnippet findSnippet = new QuerydslJpaFindSnippet();
+        QuerydslJpaQuerySnippet findSnippet = new QuerydslJpaQuerySnippet();
         findSnippet.setEntity(entity);
         findSnippet.setJpaRepository(CodeBlock.of("this.repository"));
         findSnippet.setJpaSpecificationExecutor(CodeBlock.of("this.jpaSpecificationExecutor"));
