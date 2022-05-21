@@ -1,113 +1,101 @@
 package io.codebot.apt.code;
 
-import com.google.common.collect.Lists;
 import com.squareup.javapoet.CodeBlock;
 import io.codebot.apt.crud.Entity;
-import io.codebot.apt.type.Executable;
-import io.codebot.apt.type.GetAccessor;
+import io.codebot.apt.type.SetAccessor;
 import io.codebot.apt.type.Type;
+import io.codebot.apt.type.TypeFactory;
 
+import javax.lang.model.element.TypeElement;
+import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
-public abstract class AbstractFindSnippet implements CodeSnippet<Expression> {
+public abstract class AbstractFindSnippet implements FindSnippet {
     private Entity entity;
-    private final List<ContextVariable> contextVariables = Lists.newArrayList();
 
     public void setEntity(Entity entity) {
         this.entity = entity;
     }
 
-    public void addContextVariable(String name, Type type) {
-        contextVariables.add(new ContextVariable(name, type));
-    }
-
-    protected Entity getEntity() {
+    public Entity getEntity() {
         return entity;
     }
 
-    protected List<ContextVariable> getContextVariables() {
-        return contextVariables;
-    }
-
     @Override
-    public Expression writeTo(CodeBuffer codeBuffer) {
-        Expression result = null;
-        if (contextVariables.size() == 1
-                && contextVariables.get(0).getName().equals(entity.getIdName())
-                && contextVariables.get(0).getType().isAssignableTo(entity.getIdType())) {
-            result = findById(codeBuffer, contextVariables.get(0));
+    public void find(CodeBuilder codeBuilder, List<Variable> variables, Type returnType) {
+        Expression findExpr;
+        if (variables.isEmpty()) {
+            findExpr = doFindAll(codeBuilder);
+        } else if (variables.size() == 1
+                && getEntity().getIdName().equals(variables.get(0).getName())
+                && getEntity().getIdType().isAssignableFrom(variables.get(0).getType())) {
+            findExpr = doFindById(codeBuilder, variables.get(0));
+        } else {
+            findExpr = doFind(codeBuilder, variables);
         }
-        if (result == null) {
-            result = find(codeBuffer);
-        }
-        if (result == null) {
-            result = findAll(codeBuffer);
-        }
-        return result;
+
+        String resultVar = codeBuilder.names().newName("result");
+        codeBuilder.add("$1T $2N = $3L;\n",
+                findExpr.getType().getTypeMirror(), resultVar, findExpr.getCode()
+        );
+        codeBuilder.add("return $L;\n", doMappings(
+                codeBuilder, Expressions.of(findExpr.getType(), CodeBlock.of("$N", resultVar)), returnType
+        ));
     }
 
-    protected abstract Expression findById(CodeBuffer codeBuffer, ContextVariable idVariable);
+    protected abstract Expression doFindAll(CodeBuilder codeBuilder);
 
-    protected abstract Expression findAll(CodeBuffer codeBuffer);
+    protected abstract Expression doFindById(CodeBuilder codeBuilder, Variable idVariable);
 
-    protected abstract Expression find(CodeBuffer codeBuffer);
+    protected abstract Expression doFind(CodeBuilder codeBuilder, List<Variable> variables);
 
-    protected static class ContextVariable {
-        private final String name;
-        private final Type type;
+    protected CodeBlock doMappings(CodeBuilder codeBuilder, Expression source, Type targetType) {
+        Type sourceType = source.getType();
 
-        ContextVariable(String name, Type type) {
-            this.name = name;
-            this.type = type;
-        }
+        if (targetType.erasure().isAssignableFrom(List.class.getName())
+                && sourceType.erasure().isAssignableTo(Iterable.class.getName())) {
 
-        public String getName() {
-            return name;
-        }
+            TypeFactory typeFactory = getEntity().getType().getFactory();
+            TypeElement iterableElement = typeFactory.getElementUtils().getTypeElement(Iterable.class.getName());
 
-        public Type getType() {
-            return type;
-        }
-    }
-
-    protected interface ContextVariableScanner {
-        default CodeBlock scan(List<ContextVariable> variables) {
-            CodeBlock.Builder builder = CodeBlock.builder();
-            for (ContextVariable variable : variables) {
-                CodeBlock code = scanVariable(variable);
-                if (code == null || code.isEmpty()) {
-                    code = variable.getType().getMethods().stream()
-                            .map(method -> scanVariableMethod(variable, method))
-                            .filter(Objects::nonNull)
-                            .collect(CodeBlock.joining(""));
-                }
-                if (code.isEmpty()) {
-                    code = variable.getType().getGetters().stream()
-                            .map(getter -> scanVariableGetter(variable, getter))
-                            .filter(Objects::nonNull)
-                            .collect(CodeBlock.joining(""));
-                }
-                builder.add(postScanVariable(variable, code));
+            CodeBuilder mappingBuilder = CodeBuilders.create(codeBuilder.names());
+            if (sourceType.erasure().isAssignableTo(Collection.class.getName())) {
+                mappingBuilder.add("$1L.stream()", source.getCode());
+            } else {
+                mappingBuilder.add("$1T.stream($2L.spliterator(), false)", StreamSupport.class, source.getCode());
             }
-            return builder.build();
+
+            String itVar = mappingBuilder.names().newName("it");
+            mappingBuilder.add(".map($1N -> {\n$>", itVar);
+            mappingBuilder.add("return $L;\n", doMappings(
+                    mappingBuilder,
+                    Expressions.of(
+                            typeFactory.getType(sourceType.asMember(iterableElement.getTypeParameters().get(0))),
+                            CodeBlock.of("$N", itVar)
+                    ),
+                    targetType.getTypeArguments().get(0)
+            ));
+            mappingBuilder.add("$<}).collect($T.toList())", Collectors.class);
+
+            return mappingBuilder.toCode();
         }
 
-        default CodeBlock postScanVariable(ContextVariable variable, CodeBlock code) {
-            if (!code.isEmpty() && !variable.getType().isPrimitive()) {
-                return CodeBlock.builder()
-                        .beginControlFlow("if ($1N != null)", variable.getName())
-                        .add(code)
-                        .endControlFlow()
-                        .build();
-            }
-            return code;
+        if (sourceType.equals(getEntity().getType())
+                && targetType.isAssignableFrom(getEntity().getIdType())) {
+            return CodeBlock.of("$1L.$2N()", source.getCode(), getEntity().getIdGetter().getSimpleName());
         }
 
-        CodeBlock scanVariable(ContextVariable variable);
-
-        CodeBlock scanVariableMethod(ContextVariable variable, Executable method);
-
-        CodeBlock scanVariableGetter(ContextVariable variable, GetAccessor getter);
+        String tempVar = codeBuilder.names().newName("temp");
+        codeBuilder.add("$1T $2N = new $1T();\n", targetType.getTypeMirror(), tempVar);
+        for (SetAccessor setter : targetType.getSetters()) {
+            sourceType.findGetter(setter.getAccessedName(), setter.getAccessedType()).ifPresent(it ->
+                    codeBuilder.add("$1N.$2N($3L.$4N());\n",
+                            tempVar, setter.getSimpleName(), source.getCode(), it.getSimpleName()
+                    )
+            );
+        }
+        return CodeBlock.of("$N", tempVar);
     }
 }

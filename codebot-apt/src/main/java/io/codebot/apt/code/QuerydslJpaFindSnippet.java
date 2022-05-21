@@ -5,13 +5,16 @@ import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.TypeName;
 import io.codebot.apt.crud.Entity;
-import io.codebot.apt.type.*;
+import io.codebot.apt.type.Executable;
+import io.codebot.apt.type.GetAccessor;
+import io.codebot.apt.type.Type;
+import io.codebot.apt.type.TypeFactory;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.lang.model.element.TypeElement;
 import java.util.List;
 
-public class QuerydslJpaFindSnippet extends AbstractJpaFindSnippet {
+public class QuerydslJpaFindSnippet extends JpaFindSnippet {
     private static final String PREDICATE_FQN = "com.querydsl.core.types.Predicate";
     private static final String ENTITY_PATH_FQN = "com.querydsl.core.types.EntityPath";
     private static final String BOOLEAN_BUILDER_FQN = "com.querydsl.core.BooleanBuilder";
@@ -23,15 +26,15 @@ public class QuerydslJpaFindSnippet extends AbstractJpaFindSnippet {
     }
 
     @Override
-    protected Expression find(CodeBuffer codeBuffer) {
-        String builderVar = codeBuffer.nameAllocator().newName("builder");
+    protected Expression doFind(CodeBuilder codeBuilder, List<Variable> variables) {
+        String builderVar = codeBuilder.names().newName("builder");
 
         Entity entity = getEntity();
         Type entityType = entity.getType();
         TypeFactory typeFactory = entityType.getFactory();
-        CodeBlock predicateBuild = new ContextVariableScanner() {
+        CodeBlock predicateBuild = new VariableScanner() {
             @Override
-            public CodeBlock scanVariable(ContextVariable variable) {
+            public CodeBlock scanVariable(Variable variable) {
                 if (entityType.findGetter(variable.getName(), variable.getType()).isPresent()) {
                     return CodeBlock.of("$1N.and($2L.$3N.eq($3N));\n",
                             builderVar, getEntityQuery(entity.getTypeName()), variable.getName()
@@ -41,14 +44,14 @@ public class QuerydslJpaFindSnippet extends AbstractJpaFindSnippet {
             }
 
             @Override
-            public CodeBlock scanVariableMethod(ContextVariable variable, Executable method) {
+            public CodeBlock scanVariableMethod(Variable variable, Executable method) {
                 if (!method.getReturnType().isAssignableTo(PREDICATE_FQN)) {
                     return null;
                 }
                 TypeElement entityPathElement = typeFactory
                         .getElementUtils().getTypeElement(ENTITY_PATH_FQN);
                 List<CodeBlock> args = Lists.newArrayList();
-                for (Variable arg : method.getParameters()) {
+                for (io.codebot.apt.type.Variable arg : method.getParameters()) {
                     if (arg.getType().isAssignableTo(ENTITY_PATH_FQN)) {
                         ClassName entityName = (ClassName) TypeName.get(
                                 arg.getType().asMember(entityPathElement.getTypeParameters().get(0))
@@ -65,7 +68,7 @@ public class QuerydslJpaFindSnippet extends AbstractJpaFindSnippet {
             }
 
             @Override
-            public CodeBlock scanVariableGetter(ContextVariable variable, GetAccessor getter) {
+            public CodeBlock scanVariableGetter(Variable variable, GetAccessor getter) {
                 if (entityType.findGetter(getter.getAccessedName(), getter.getAccessedType()).isPresent()) {
                     return CodeBlock.builder()
                             .beginControlFlow("if ($1N.$2N() != null)",
@@ -78,24 +81,24 @@ public class QuerydslJpaFindSnippet extends AbstractJpaFindSnippet {
                 }
                 return null;
             }
-        }.scan(getQueryVariables());
+        }.scan(variables);
 
         if (!predicateBuild.isEmpty()) {
-            codeBuffer.add("$1T $2N = new $1T();\n", ClassName.bestGuess(BOOLEAN_BUILDER_FQN), builderVar);
-            codeBuffer.add(predicateBuild);
-            if (getPageableVariableName() != null) {
-                return new Expression(
+            codeBuilder.add("$1T $2N = new $1T();\n", ClassName.bestGuess(BOOLEAN_BUILDER_FQN), builderVar);
+            codeBuilder.add(predicateBuild);
+            if (getPageable() != null) {
+                return Expressions.of(
+                        typeFactory.getType(PAGE_FQN, entityType.getTypeMirror()),
                         CodeBlock.of("$1L.findAll($2N, $3N)",
-                                querydslPredicateExecutor, builderVar, getPageableVariableName()),
-                        typeFactory.getType(PAGE_FQN, entityType.getTypeMirror())
+                                querydslPredicateExecutor, builderVar, getPageable().getName())
                 );
             }
-            return new Expression(
-                    CodeBlock.of("$1L.findAll($2N)", querydslPredicateExecutor, builderVar),
-                    typeFactory.getIterableType(entityType.getTypeMirror())
+            return Expressions.of(
+                    typeFactory.getIterableType(entityType.getTypeMirror()),
+                    CodeBlock.of("$1L.findAll($2N)", querydslPredicateExecutor, builderVar)
             );
         }
-        return null;
+        return doFindAll(codeBuilder);
     }
 
     protected CodeBlock getEntityQuery(ClassName entityName) {

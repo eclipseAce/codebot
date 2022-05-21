@@ -1,10 +1,10 @@
 package io.codebot.apt.crud;
 
 import com.squareup.javapoet.*;
-import io.codebot.apt.code.Expression;
-import io.codebot.apt.code.JpaMappingSnippet;
-import io.codebot.apt.code.MethodCodeBuffer;
+import io.codebot.apt.code.CodeBuilder;
+import io.codebot.apt.code.CodeBuilders;
 import io.codebot.apt.code.QuerydslJpaFindSnippet;
+import io.codebot.apt.code.Variables;
 import io.codebot.apt.type.*;
 
 import javax.lang.model.element.Modifier;
@@ -233,27 +233,20 @@ public class ServiceGenerator {
                 service.getType().asDeclaredType(),
                 service.getType().getFactory().getTypeUtils()
         );
-        MethodCodeBuffer methodBody = new MethodCodeBuffer(method, methodBuilder);
-
-        //SpecificationJpaFindSnippet findSnippet = new SpecificationJpaFindSnippet();
+        CodeBuilder methodBody = CodeBuilders.create(method.getElement());
         QuerydslJpaFindSnippet findSnippet = new QuerydslJpaFindSnippet();
         findSnippet.setEntity(entity);
         findSnippet.setJpaRepository(CodeBlock.of("this.repository"));
-//        findSnippet.setJpaSpecificationExecutor(CodeBlock.of("this.jpaSpecificationExecutor"));
+        findSnippet.setJpaSpecificationExecutor(CodeBlock.of("this.jpaSpecificationExecutor"));
         findSnippet.setQuerydslPredicateExecutor(CodeBlock.of("this.querydslPredicateExecutor"));
-        method.getParameters().forEach(param ->
-                findSnippet.addContextVariable(param.getSimpleName(), param.getType())
+        findSnippet.find(
+                methodBody,
+                method.getParameters().stream()
+                        .map(it -> Variables.of(it.getType(), it.getSimpleName()))
+                        .collect(Collectors.toList()),
+                method.getReturnType()
         );
-        Expression resultExpr = findSnippet.writeTo(methodBody).writeAsVariableTo(methodBody, "result");
-
-        JpaMappingSnippet mappingSnippet = new JpaMappingSnippet();
-        mappingSnippet.setEntity(entity);
-        mappingSnippet.setSourceExpression(resultExpr);
-        mappingSnippet.setTargetType(method.getReturnType());
-        Expression returnExpr = mappingSnippet.writeTo(methodBody);
-
-        methodBody.add("return $L;\n", returnExpr.getCode());
-
+        methodBody.appendTo(methodBuilder);
         return methodBuilder.build();
     }
 }
