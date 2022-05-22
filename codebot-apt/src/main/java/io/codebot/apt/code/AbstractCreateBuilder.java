@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-public abstract class AbstractCreateBuilder implements CreateBuilder {
+public abstract class AbstractCreateBuilder {
     private Entity entity;
 
     public void setEntity(Entity entity) {
@@ -22,7 +22,6 @@ public abstract class AbstractCreateBuilder implements CreateBuilder {
         return entity;
     }
 
-    @Override
     public void create(CodeWriter codeWriter, List<Variable> variables, Type returnType) {
         Map<String, Expression> sources = Maps.newLinkedHashMap();
         for (Variable variable : variables) {

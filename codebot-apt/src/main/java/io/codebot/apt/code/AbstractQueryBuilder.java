@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-public abstract class AbstractQueryBuilder implements QueryBuilder {
+public abstract class AbstractQueryBuilder {
     private Entity entity;
 
     public void setEntity(Entity entity) {
@@ -23,7 +23,6 @@ public abstract class AbstractQueryBuilder implements QueryBuilder {
         return entity;
     }
 
-    @Override
     public void find(CodeWriter codeWriter, List<Variable> variables, Type returnType) {
         Variable result;
         if (variables.isEmpty()) {

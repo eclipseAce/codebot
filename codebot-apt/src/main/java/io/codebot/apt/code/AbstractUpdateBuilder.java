@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-public abstract class AbstractUpdateBuilder implements UpdateBuilder {
+public abstract class AbstractUpdateBuilder {
     private Entity entity;
 
     public void setEntity(Entity entity) {
@@ -22,7 +22,6 @@ public abstract class AbstractUpdateBuilder implements UpdateBuilder {
         return entity;
     }
 
-    @Override
     public void update(CodeWriter codeWriter, List<Variable> variables, Type returnType) {
         Expression entityId = null;
         Map<String, Expression> sources = Maps.newLinkedHashMap();
