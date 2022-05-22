@@ -60,31 +60,31 @@ public class JpaQuerySnippet extends AbstractQuerySnippet {
     }
 
     @Override
-    protected Expression doFindAll(CodeBuilder codeBuilder) {
+    protected Variable doFindAll(CodeBuilder codeBuilder) {
         Type entityType = getEntity().getType();
         TypeFactory typeFactory = entityType.getFactory();
         if (getPageable() != null) {
             return Expressions.of(
                     typeFactory.getType(PAGE_FQN, entityType.getTypeMirror()),
                     CodeBlock.of("$1L.findAll($2N)", getJpaRepository(), getPageable().getName())
-            );
+            ).asVariable(codeBuilder, "result");
         }
         return Expressions.of(
                 typeFactory.getListType(entityType.getTypeMirror()),
                 CodeBlock.of("$1L.findAll()", getJpaRepository())
-        );
+        ).asVariable(codeBuilder, "result");
     }
 
     @Override
-    protected Expression doFindById(CodeBuilder codeBuilder, Variable idVariable) {
+    protected Variable doFindById(CodeBuilder codeBuilder, Variable idVariable) {
         return Expressions.of(
                 getEntity().getType(),
                 CodeBlock.of("$1L.getById($2N)", getJpaRepository(), idVariable.getName())
-        );
+        ).asVariable(codeBuilder, "result");
     }
 
     @Override
-    protected Expression doFind(CodeBuilder codeBuilder, List<Variable> variables) {
+    protected Variable doFind(CodeBuilder codeBuilder, List<Variable> variables) {
         NameAllocator localNames = codeBuilder.names().clone();
         String rootVar = localNames.newName("root");
         String queryVar = localNames.newName("query");
@@ -160,18 +160,18 @@ public class JpaQuerySnippet extends AbstractQuerySnippet {
                         typeFactory.getType(PAGE_FQN, entityType.getTypeMirror()),
                         CodeBlock.of("$1L.findAll($2L, $3N)",
                                 jpaSpecificationExecutor, specification, getPageable().getName())
-                );
+                ).asVariable(codeBuilder, "result");
             }
             return Expressions.of(
                     typeFactory.getListType(entityType.getTypeMirror()),
                     CodeBlock.of("$1L.findAll($2L)", jpaSpecificationExecutor, specification)
-            );
+            ).asVariable(codeBuilder, "result");
         }
         return doFindAll(codeBuilder);
     }
 
     @Override
-    protected CodeBlock doMappings(CodeBuilder codeBuilder, Expression source, Type targetType) {
+    protected CodeBlock doMappings(CodeBuilder codeBuilder, Variable source, Type targetType) {
         Type sourceType = source.getType();
 
         if (targetType.erasure().isAssignableFrom(PAGE_FQN)
@@ -183,12 +183,12 @@ public class JpaQuerySnippet extends AbstractQuerySnippet {
             CodeBuilder mappingBuilder = CodeBuilders.create(codeBuilder.names());
             String itVar = mappingBuilder.names().newName("it");
 
-            mappingBuilder.add("$1L.map($2N -> {\n$>", source.getCode(), itVar);
+            mappingBuilder.add("$1N.map($2N -> {\n$>", source.getName(), itVar);
             mappingBuilder.add("return $L;\n", doMappings(
                     mappingBuilder,
-                    Expressions.of(
+                    Variables.of(
                             typeFactory.getType(sourceType.asMember(pageElement.getTypeParameters().get(0))),
-                            CodeBlock.of("$N", itVar)
+                            itVar
                     ),
                     targetType.getTypeArguments().get(0)
             ));

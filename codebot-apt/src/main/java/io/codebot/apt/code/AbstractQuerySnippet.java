@@ -25,28 +25,28 @@ public abstract class AbstractQuerySnippet implements QuerySnippet {
 
     @Override
     public void find(CodeBuilder codeBuilder, List<Variable> variables, Type returnType) {
-        Expression findExpr;
+        Variable result;
         if (variables.isEmpty()) {
-            findExpr = doFindAll(codeBuilder);
+            result = doFindAll(codeBuilder);
         } else if (variables.size() == 1
                 && getEntity().getIdName().equals(variables.get(0).getName())
                 && getEntity().getIdType().isAssignableFrom(variables.get(0).getType())) {
-            findExpr = doFindById(codeBuilder, variables.get(0));
+            result = doFindById(codeBuilder, variables.get(0));
         } else {
-            findExpr = doFind(codeBuilder, variables);
+            result = doFind(codeBuilder, variables);
         }
         codeBuilder.add("return $L;\n", doMappings(
-                codeBuilder, findExpr.asVariable(codeBuilder, "result").asExpression(), returnType
+                codeBuilder, result, returnType
         ));
     }
 
-    protected abstract Expression doFindAll(CodeBuilder codeBuilder);
+    protected abstract Variable doFindAll(CodeBuilder codeBuilder);
 
-    protected abstract Expression doFindById(CodeBuilder codeBuilder, Variable idVariable);
+    protected abstract Variable doFindById(CodeBuilder codeBuilder, Variable idVariable);
 
-    protected abstract Expression doFind(CodeBuilder codeBuilder, List<Variable> variables);
+    protected abstract Variable doFind(CodeBuilder codeBuilder, List<Variable> variables);
 
-    protected CodeBlock doMappings(CodeBuilder codeBuilder, Expression source, Type targetType) {
+    protected CodeBlock doMappings(CodeBuilder codeBuilder, Variable source, Type targetType) {
         Type sourceType = source.getType();
 
         if (targetType.erasure().isAssignableFrom(List.class.getName())
@@ -57,18 +57,18 @@ public abstract class AbstractQuerySnippet implements QuerySnippet {
 
             CodeBuilder mappingBuilder = CodeBuilders.create(codeBuilder.names());
             if (sourceType.erasure().isAssignableTo(Collection.class.getName())) {
-                mappingBuilder.add("$1L.stream()", source.getCode());
+                mappingBuilder.add("$N.stream()", source.getName());
             } else {
-                mappingBuilder.add("$1T.stream($2L.spliterator(), false)", StreamSupport.class, source.getCode());
+                mappingBuilder.add("$1T.stream($2N.spliterator(), false)", StreamSupport.class, source.getName());
             }
 
             String itVar = mappingBuilder.names().newName("it");
             mappingBuilder.add(".map($1N -> {\n$>", itVar);
             mappingBuilder.add("return $L;\n", doMappings(
                     mappingBuilder,
-                    Expressions.of(
+                    Variables.of(
                             typeFactory.getType(sourceType.asMember(iterableElement.getTypeParameters().get(0))),
-                            CodeBlock.of("$N", itVar)
+                            itVar
                     ),
                     targetType.getTypeArguments().get(0)
             ));
@@ -79,7 +79,7 @@ public abstract class AbstractQuerySnippet implements QuerySnippet {
 
         if (sourceType.equals(getEntity().getType())
                 && targetType.isAssignableFrom(getEntity().getIdType())) {
-            return CodeBlock.of("$1L.$2N()", source.getCode(), getEntity().getIdGetter().getSimpleName());
+            return CodeBlock.of("$1N.$2N()", source.getName(), getEntity().getIdGetter().getSimpleName());
         }
 
         String tempVar = codeBuilder.names().newName("temp");
@@ -87,7 +87,7 @@ public abstract class AbstractQuerySnippet implements QuerySnippet {
         for (SetAccessor setter : targetType.getSetters()) {
             sourceType.findGetter(setter.getAccessedName(), setter.getAccessedType()).ifPresent(it ->
                     codeBuilder.add("$1N.$2N($3L.$4N());\n",
-                            tempVar, setter.getSimpleName(), source.getCode(), it.getSimpleName()
+                            tempVar, setter.getSimpleName(), source.getName(), it.getSimpleName()
                     )
             );
         }

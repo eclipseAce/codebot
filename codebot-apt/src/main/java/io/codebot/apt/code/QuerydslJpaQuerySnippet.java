@@ -26,7 +26,7 @@ public class QuerydslJpaQuerySnippet extends JpaQuerySnippet {
     }
 
     @Override
-    protected Expression doFind(CodeBuilder codeBuilder, List<Variable> variables) {
+    protected Variable doFind(CodeBuilder codeBuilder, List<Variable> variables) {
         String builderVar = codeBuilder.names().newName("builder");
 
         Entity entity = getEntity();
@@ -91,12 +91,12 @@ public class QuerydslJpaQuerySnippet extends JpaQuerySnippet {
                         typeFactory.getType(PAGE_FQN, entityType.getTypeMirror()),
                         CodeBlock.of("$1L.findAll($2N, $3N)",
                                 querydslPredicateExecutor, builderVar, getPageable().getName())
-                );
+                ).asVariable(codeBuilder, "result");
             }
             return Expressions.of(
                     typeFactory.getIterableType(entityType.getTypeMirror()),
                     CodeBlock.of("$1L.findAll($2N)", querydslPredicateExecutor, builderVar)
-            );
+            ).asVariable(codeBuilder, "result");
         }
         return doFindAll(codeBuilder);
     }

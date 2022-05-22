@@ -24,12 +24,14 @@ public abstract class AbstractUpdateSnippet implements UpdateSnippet {
 
     @Override
     public void update(CodeBuilder codeBuilder, List<Variable> variables, Type returnType) {
-        Expression findExpr = null;
+        Expression entityId = null;
         Map<String, Expression> sources = Maps.newLinkedHashMap();
         for (Variable variable : variables) {
             if (variable.getName().equals(getEntity().getIdName())
                     && variable.getType().isAssignableTo(getEntity().getIdType())) {
-                findExpr = doFindById(codeBuilder, variable.asExpression());
+                if (entityId == null) {
+                    entityId = variable.asExpression();
+                }
                 continue;
             }
             Optional<SetAccessor> setter = getEntity().getType()
@@ -41,11 +43,11 @@ public abstract class AbstractUpdateSnippet implements UpdateSnippet {
             for (GetAccessor getter : variable.getType().getGetters()) {
                 if (getter.getAccessedName().equals(getEntity().getIdName())
                         && getter.getAccessedType().isAssignableTo(getEntity().getIdType())) {
-                    if (findExpr == null) {
-                        findExpr = doFindById(codeBuilder, Expressions.of(
+                    if (entityId == null) {
+                        entityId = Expressions.of(
                                 getter.getAccessedType(),
                                 CodeBlock.of("$1N.$2N()", variable.getName(), getter.getSimpleName())
-                        ));
+                        );
                     }
                     continue;
                 }
@@ -60,29 +62,32 @@ public abstract class AbstractUpdateSnippet implements UpdateSnippet {
             }
         }
 
-        if (findExpr == null) {
+        if (entityId == null) {
             // no id found
             return;
         }
-        Variable entityVar = findExpr.asVariable(codeBuilder, "entity");
-        doUpdate(codeBuilder, entityVar.asExpression(), sources);
+        Variable result = doUpdate(codeBuilder, entityId, sources);
 
         if (returnType.isVoid()) {
             return;
         }
+
+        codeBuilder.add("return $L;\n", doMappings(codeBuilder, result, returnType));
+    }
+
+    protected abstract Variable doUpdate(CodeBuilder codeBuilder, Expression targetId,
+                                         Map<String, Expression> sources);
+
+    protected CodeBlock doMappings(CodeBuilder codeBuilder, Variable source, Type targetType) {
         String tempVar = codeBuilder.names().newName("temp");
-        codeBuilder.add("$1T $2N = new $1T();\n", returnType.getTypeMirror(), tempVar);
-        for (SetAccessor setter : returnType.getSetters()) {
-            findExpr.getType().findGetter(setter.getAccessedName(), setter.getAccessedType()).ifPresent(it ->
+        codeBuilder.add("$1T $2N = new $1T();\n", targetType.getTypeMirror(), tempVar);
+        for (SetAccessor setter : targetType.getSetters()) {
+            source.getType().findGetter(setter.getAccessedName(), setter.getAccessedType()).ifPresent(it ->
                     codeBuilder.add("$1N.$2N($3N.$4N());\n",
-                            tempVar, setter.getSimpleName(), entityVar.getName(), it.getSimpleName()
+                            tempVar, setter.getSimpleName(), source.getName(), it.getSimpleName()
                     )
             );
         }
-        codeBuilder.add("return $N;\n", tempVar);
+        return CodeBlock.of("$N", tempVar);
     }
-
-    protected abstract Expression doFindById(CodeBuilder codeBuilder, Expression id);
-
-    protected abstract void doUpdate(CodeBuilder codeBuilder, Expression target, Map<String, Expression> sources);
 }
