@@ -2,20 +2,12 @@ package io.codebot.apt.crud;
 
 import com.squareup.javapoet.*;
 import io.codebot.apt.code.*;
-import io.codebot.apt.type.Variable;
-import io.codebot.apt.type.*;
+import io.codebot.apt.type.Executable;
 
 import javax.lang.model.element.Modifier;
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 public class ServiceGenerator {
-
-    private static final String PAGE_FQN = "org.springframework.data.domain.Page";
-    public static final String TRANSACTIONAL_FQN = "org.springframework.transaction.annotation.Transactional";
     public static final String JPA_REPOSITORY_FQN = "org.springframework.data.jpa.repository.JpaRepository";
     public static final String AUTOWIRED_FQN = "org.springframework.beans.factory.annotation.Autowired";
     public static final String JPA_SPECIFICATION_EXECUTOR_FQN = "org.springframework.data.jpa.repository.JpaSpecificationExecutor";
@@ -69,94 +61,25 @@ public class ServiceGenerator {
         return JavaFile.builder(service.getImplTypeName().packageName(), serviceBuilder.build()).build();
     }
 
-    private CodeBlock returns(String sourceVar, Type sourceType, Type returnType,
-                              Entity entity, NameAllocator names) {
-        CodeBlock.Builder builder = CodeBlock.builder();
-        if (returnType.erasure().isAssignableFrom(PAGE_FQN)
-                && sourceType.erasure().isAssignableFrom(PAGE_FQN)) {
-            String itVar = names.newName("it");
-            builder.add("return $1N.map($2N -> {\n$>", sourceVar, itVar);
-            builder.add(returns(
-                    itVar,
-                    sourceType.getTypeArguments().get(0),
-                    returnType.getTypeArguments().get(0),
-                    entity, names.clone()
-            ));
-            builder.add("$<});\n");
-        } //
-        else if (returnType.erasure().isAssignableFrom(List.class.getName())
-                && sourceType.erasure().isAssignableTo(Iterable.class.getName())) {
-            String itVar = names.newName("it");
-            CodeBlock stream = sourceType.erasure().isAssignableTo(Collection.class.getName())
-                    ? CodeBlock.of("$1N.stream()", sourceVar)
-                    : CodeBlock.of("$1T.stream($2N.spliterator(), false)", StreamSupport.class, sourceVar);
-            builder.add("return $1L.map($2N -> {\n$>", stream, itVar);
-            builder.add(returns(
-                    itVar,
-                    sourceType.getTypeArguments().get(0),
-                    returnType.getTypeArguments().get(0),
-                    entity, names.clone()
-            ));
-            builder.add("$<}).collect($1T.toList());\n", Collectors.class);
-        } //
-        else if (sourceType.equals(entity.getType())
-                && returnType.isAssignableFrom(entity.getIdType())) {
-            builder.add("return $1N.$2N();\n", sourceVar, entity.getIdGetter().getSimpleName());
-        } //
-        else {
-            String tempVar = names.newName("temp");
-            builder.add("$1T $2N = new $1T();\n",
-                    returnType.getTypeMirror(), tempVar
-            );
-            for (SetAccessor setter : returnType.getSetters()) {
-                sourceType.findGetter(setter.getAccessedName(), setter.getAccessedType()).ifPresent(it ->
-                        builder.add("$1N.$2N($3N.$4N());\n",
-                                tempVar, setter.getSimpleName(), sourceVar, it.getSimpleName()
-                        ));
-            }
-            builder.add("return $N;\n", tempVar);
-        }
-        return builder.build();
-    }
-
     public MethodSpec buildCreateMethod(Service service, Entity entity, Executable method) {
-        NameAllocator names = new NameAllocator();
-        method.getParameters().forEach(it -> names.newName(it.getSimpleName(), it));
-        MethodSpec.Builder builder = MethodSpec.overriding(
+        MethodSpec.Builder methodBuilder = MethodSpec.overriding(
                 method.getElement(),
                 service.getType().asDeclaredType(),
                 service.getType().getFactory().getTypeUtils()
         );
-
-        String entityVar = names.newName("entity");
-        builder.addAnnotation(ClassName.bestGuess(TRANSACTIONAL_FQN));
-        builder.addCode("$1T $2N = new $1T();\n", entity.getType().getTypeMirror(), entityVar);
-        for (Variable param : method.getParameters()) {
-            Optional<SetAccessor> setter = entity.getType().findSetter(
-                    param.getSimpleName(), param.getType()
-            );
-            if (setter.isPresent()) {
-                builder.addCode("$1N.$2N($3N);\n",
-                        entityVar, setter.get().getSimpleName(), names.get(param)
-                );
-                continue;
-            }
-            for (GetAccessor getter : param.getType().getGetters()) {
-                entity.getType().findSetter(
-                        getter.getAccessedName(), getter.getAccessedType()
-                ).ifPresent(it -> builder.addCode("$1N.$2N($3N.$4N());\n",
-                        entityVar, it.getSimpleName(),
-                        names.get(param), getter.getSimpleName()
-                ));
-            }
-        }
-        builder.addCode("this.repository.save($1N);\n", entityVar);
-        if (!method.getReturnType().isVoid()) {
-            builder.addCode(returns(
-                    entityVar, entity.getType(), method.getReturnType(), entity, names
-            ));
-        }
-        return builder.build();
+        CodeWriter methodBody = CodeWriters.create(method.getElement());
+        JpaCreateBuilder create = new JpaCreateBuilder();
+        create.setEntity(entity);
+        create.setJpaRepository(CodeBlock.of("this.repository"));
+        create.create(
+                methodBody,
+                method.getParameters().stream()
+                        .map(it -> methodBody.newVariable(it.getSimpleName(), it.getType()))
+                        .collect(Collectors.toList()),
+                method.getReturnType()
+        );
+        methodBuilder.addCode(methodBody.getCode());
+        return methodBuilder.build();
     }
 
     public MethodSpec buildUpdateMethod(Service service, Entity entity, Executable method) {
@@ -165,18 +88,18 @@ public class ServiceGenerator {
                 service.getType().asDeclaredType(),
                 service.getType().getFactory().getTypeUtils()
         );
-        CodeBuilder methodBody = CodeBuilders.create(method.getElement());
-        JpaUpdateSnippet updateSnippet = new JpaUpdateSnippet();
-        updateSnippet.setEntity(entity);
-        updateSnippet.setJpaRepository(CodeBlock.of("this.repository"));
-        updateSnippet.update(
+        CodeWriter methodBody = CodeWriters.create(method.getElement());
+        JpaUpdateBuilder update = new JpaUpdateBuilder();
+        update.setEntity(entity);
+        update.setJpaRepository(CodeBlock.of("this.repository"));
+        update.update(
                 methodBody,
                 method.getParameters().stream()
-                        .map(it -> Variables.of(it.getType(), it.getSimpleName()))
+                        .map(it -> methodBody.newVariable(it.getSimpleName(), it.getType()))
                         .collect(Collectors.toList()),
                 method.getReturnType()
         );
-        methodBody.appendTo(methodBuilder);
+        methodBuilder.addCode(methodBody.getCode());
         return methodBuilder.build();
     }
 
@@ -186,20 +109,20 @@ public class ServiceGenerator {
                 service.getType().asDeclaredType(),
                 service.getType().getFactory().getTypeUtils()
         );
-        CodeBuilder methodBody = CodeBuilders.create(method.getElement());
-        QuerydslJpaQuerySnippet findSnippet = new QuerydslJpaQuerySnippet();
-        findSnippet.setEntity(entity);
-        findSnippet.setJpaRepository(CodeBlock.of("this.repository"));
-        findSnippet.setJpaSpecificationExecutor(CodeBlock.of("this.jpaSpecificationExecutor"));
-        findSnippet.setQuerydslPredicateExecutor(CodeBlock.of("this.querydslPredicateExecutor"));
-        findSnippet.find(
+        CodeWriter methodBody = CodeWriters.create(method.getElement());
+        QuerydslJpaQueryBuilder query = new QuerydslJpaQueryBuilder();
+        query.setEntity(entity);
+        query.setJpaRepository(CodeBlock.of("this.repository"));
+        query.setJpaSpecificationExecutor(CodeBlock.of("this.jpaSpecificationExecutor"));
+        query.setQuerydslPredicateExecutor(CodeBlock.of("this.querydslPredicateExecutor"));
+        query.find(
                 methodBody,
                 method.getParameters().stream()
-                        .map(it -> Variables.of(it.getType(), it.getSimpleName()))
+                        .map(it -> methodBody.newVariable(it.getSimpleName(), it.getType()))
                         .collect(Collectors.toList()),
                 method.getReturnType()
         );
-        methodBody.appendTo(methodBuilder);
+        methodBuilder.addCode(methodBody.getCode());
         return methodBuilder.build();
     }
 }

@@ -14,7 +14,7 @@ import org.apache.commons.lang3.StringUtils;
 import javax.lang.model.element.TypeElement;
 import java.util.List;
 
-public class QuerydslJpaQuerySnippet extends JpaQuerySnippet {
+public class QuerydslJpaQueryBuilder extends JpaQueryBuilder {
     private static final String PREDICATE_FQN = "com.querydsl.core.types.Predicate";
     private static final String ENTITY_PATH_FQN = "com.querydsl.core.types.EntityPath";
     private static final String BOOLEAN_BUILDER_FQN = "com.querydsl.core.BooleanBuilder";
@@ -26,8 +26,8 @@ public class QuerydslJpaQuerySnippet extends JpaQuerySnippet {
     }
 
     @Override
-    protected Variable doFind(CodeBuilder codeBuilder, List<Variable> variables) {
-        String builderVar = codeBuilder.names().newName("builder");
+    protected Variable doFind(CodeWriter codeWriter, List<Variable> variables) {
+        String builderVar = codeWriter.newName("builder");
 
         Entity entity = getEntity();
         Type entityType = entity.getType();
@@ -84,21 +84,21 @@ public class QuerydslJpaQuerySnippet extends JpaQuerySnippet {
         }.scan(variables);
 
         if (!predicateBuild.isEmpty()) {
-            codeBuilder.add("$1T $2N = new $1T();\n", ClassName.bestGuess(BOOLEAN_BUILDER_FQN), builderVar);
-            codeBuilder.add(predicateBuild);
+            codeWriter.add("$1T $2N = new $1T();\n", ClassName.bestGuess(BOOLEAN_BUILDER_FQN), builderVar);
+            codeWriter.add(predicateBuild);
             if (getPageable() != null) {
-                return Expressions.of(
+                return codeWriter.newVariable("result", Expressions.of(
                         typeFactory.getType(PAGE_FQN, entityType.getTypeMirror()),
                         CodeBlock.of("$1L.findAll($2N, $3N)",
                                 querydslPredicateExecutor, builderVar, getPageable().getName())
-                ).asVariable(codeBuilder, "result");
+                ));
             }
-            return Expressions.of(
+            return codeWriter.newVariable("result", Expressions.of(
                     typeFactory.getIterableType(entityType.getTypeMirror()),
                     CodeBlock.of("$1L.findAll($2N)", querydslPredicateExecutor, builderVar)
-            ).asVariable(codeBuilder, "result");
+            ));
         }
-        return doFindAll(codeBuilder);
+        return doFindAll(codeWriter);
     }
 
     protected CodeBlock getEntityQuery(ClassName entityName) {

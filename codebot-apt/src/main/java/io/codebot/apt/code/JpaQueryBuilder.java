@@ -3,7 +3,6 @@ package io.codebot.apt.code;
 import com.google.common.collect.Lists;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
-import com.squareup.javapoet.NameAllocator;
 import io.codebot.apt.type.Executable;
 import io.codebot.apt.type.GetAccessor;
 import io.codebot.apt.type.Type;
@@ -14,7 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-public class JpaQuerySnippet extends AbstractQuerySnippet {
+public class JpaQueryBuilder extends AbstractQueryBuilder {
     protected static final String PAGE_FQN = "org.springframework.data.domain.Page";
     protected static final String PAGEABLE_FQN = "org.springframework.data.domain.Pageable";
 
@@ -45,7 +44,7 @@ public class JpaQuerySnippet extends AbstractQuerySnippet {
     }
 
     @Override
-    public void find(CodeBuilder codeBuilder, List<Variable> variables, Type returnType) {
+    public void find(CodeWriter codeWriter, List<Variable> variables, Type returnType) {
         List<Variable> queryVariables = Lists.newArrayList();
         for (Variable variable : variables) {
             if (variable.getType().isAssignableTo(PAGEABLE_FQN)) {
@@ -56,45 +55,45 @@ public class JpaQuerySnippet extends AbstractQuerySnippet {
             }
             queryVariables.add(variable);
         }
-        super.find(codeBuilder, queryVariables, returnType);
+        super.find(codeWriter, queryVariables, returnType);
     }
 
     @Override
-    protected Variable doFindAll(CodeBuilder codeBuilder) {
+    protected Variable doFindAll(CodeWriter codeWriter) {
         Type entityType = getEntity().getType();
         TypeFactory typeFactory = entityType.getFactory();
         if (getPageable() != null) {
-            return Expressions.of(
+            return codeWriter.newVariable("result", Expressions.of(
                     typeFactory.getType(PAGE_FQN, entityType.getTypeMirror()),
                     CodeBlock.of("$1L.findAll($2N)", getJpaRepository(), getPageable().getName())
-            ).asVariable(codeBuilder, "result");
+            ));
         }
-        return Expressions.of(
+        return codeWriter.newVariable("result", Expressions.of(
                 typeFactory.getListType(entityType.getTypeMirror()),
                 CodeBlock.of("$1L.findAll()", getJpaRepository())
-        ).asVariable(codeBuilder, "result");
+        ));
     }
 
     @Override
-    protected Variable doFindById(CodeBuilder codeBuilder, Variable idVariable) {
-        return Expressions.of(
+    protected Variable doFindById(CodeWriter codeWriter, Variable idVariable) {
+        return codeWriter.newVariable("result", Expressions.of(
                 getEntity().getType(),
                 CodeBlock.of("$1L.getById($2N)", getJpaRepository(), idVariable.getName())
-        ).asVariable(codeBuilder, "result");
+        ));
     }
 
     @Override
-    protected Variable doFind(CodeBuilder codeBuilder, List<Variable> variables) {
-        NameAllocator localNames = codeBuilder.names().clone();
-        String rootVar = localNames.newName("root");
-        String queryVar = localNames.newName("query");
-        String builderVar = localNames.newName("builder");
-        String predicatesVar = localNames.newName("predicates");
+    protected Variable doFind(CodeWriter codeWriter, List<Variable> variables) {
+        CodeWriter specificationBody = codeWriter.fork();
+        String rootVar = specificationBody.newName("root");
+        String queryVar = specificationBody.newName("query");
+        String builderVar = specificationBody.newName("builder");
+        String predicatesVar = specificationBody.newName("predicates");
 
         Type entityType = getEntity().getType();
         TypeFactory typeFactory = entityType.getFactory();
 
-        CodeBlock specificationBody = new VariableScanner() {
+        specificationBody.add(new VariableScanner() {
             @Override
             public CodeBlock scanVariable(Variable variable) {
                 if (entityType.findGetter(variable.getName(), variable.getType()).isPresent()) {
@@ -143,35 +142,35 @@ public class JpaQuerySnippet extends AbstractQuerySnippet {
                 }
                 return null;
             }
-        }.scan(variables);
+        }.scan(variables));
 
         if (!specificationBody.isEmpty()) {
             CodeBlock specification = CodeBlock.builder()
                     .add("($1N, $2N, $3N) -> {\n$>", rootVar, queryVar, builderVar)
                     .add("$1T<$2T> $3N = new $1T<>();\n",
                             ArrayList.class, ClassName.bestGuess(PREDICATE_FQN), predicatesVar)
-                    .add(specificationBody)
+                    .add(specificationBody.getCode())
                     .add("return $1N.and($2N.toArray(new $3T[0]));\n",
                             builderVar, predicatesVar, ClassName.bestGuess(PREDICATE_FQN))
                     .add("$<}")
                     .build();
             if (getPageable() != null) {
-                return Expressions.of(
+                return codeWriter.newVariable("result", Expressions.of(
                         typeFactory.getType(PAGE_FQN, entityType.getTypeMirror()),
                         CodeBlock.of("$1L.findAll($2L, $3N)",
                                 jpaSpecificationExecutor, specification, getPageable().getName())
-                ).asVariable(codeBuilder, "result");
+                ));
             }
-            return Expressions.of(
+            return codeWriter.newVariable("result", Expressions.of(
                     typeFactory.getListType(entityType.getTypeMirror()),
                     CodeBlock.of("$1L.findAll($2L)", jpaSpecificationExecutor, specification)
-            ).asVariable(codeBuilder, "result");
+            ));
         }
-        return doFindAll(codeBuilder);
+        return doFindAll(codeWriter);
     }
 
     @Override
-    protected CodeBlock doMappings(CodeBuilder codeBuilder, Variable source, Type targetType) {
+    protected CodeBlock doMappings(CodeWriter codeWriter, Variable source, Type targetType) {
         Type sourceType = source.getType();
 
         if (targetType.erasure().isAssignableFrom(PAGE_FQN)
@@ -180,22 +179,19 @@ public class JpaQuerySnippet extends AbstractQuerySnippet {
             TypeFactory typeFactory = getEntity().getType().getFactory();
             TypeElement pageElement = typeFactory.getElementUtils().getTypeElement(PAGE_FQN);
 
-            CodeBuilder mappingBuilder = CodeBuilders.create(codeBuilder.names());
-            String itVar = mappingBuilder.names().newName("it");
+            CodeWriter mappingBuilder = codeWriter.fork();
+            Variable itVar = mappingBuilder.newVariable(
+                    "it", typeFactory.getType(sourceType.asMember(pageElement.getTypeParameters().get(0)))
+            );
 
-            mappingBuilder.add("$1N.map($2N -> {\n$>", source.getName(), itVar);
+            mappingBuilder.add("$1N.map($2N -> {\n$>", source.getName(), itVar.getName());
             mappingBuilder.add("return $L;\n", doMappings(
-                    mappingBuilder,
-                    Variables.of(
-                            typeFactory.getType(sourceType.asMember(pageElement.getTypeParameters().get(0))),
-                            itVar
-                    ),
-                    targetType.getTypeArguments().get(0)
+                    mappingBuilder, itVar, targetType.getTypeArguments().get(0)
             ));
             mappingBuilder.add("$<})");
-            return mappingBuilder.toCode();
+            return mappingBuilder.getCode();
         }
-        return super.doMappings(codeBuilder, source, targetType);
+        return super.doMappings(codeWriter, source, targetType);
     }
 
     protected interface VariableScanner {

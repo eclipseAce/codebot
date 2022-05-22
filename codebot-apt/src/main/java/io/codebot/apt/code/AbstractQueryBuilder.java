@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-public abstract class AbstractQuerySnippet implements QuerySnippet {
+public abstract class AbstractQueryBuilder implements QueryBuilder {
     private Entity entity;
 
     public void setEntity(Entity entity) {
@@ -24,29 +24,29 @@ public abstract class AbstractQuerySnippet implements QuerySnippet {
     }
 
     @Override
-    public void find(CodeBuilder codeBuilder, List<Variable> variables, Type returnType) {
+    public void find(CodeWriter codeWriter, List<Variable> variables, Type returnType) {
         Variable result;
         if (variables.isEmpty()) {
-            result = doFindAll(codeBuilder);
+            result = doFindAll(codeWriter);
         } else if (variables.size() == 1
                 && getEntity().getIdName().equals(variables.get(0).getName())
                 && getEntity().getIdType().isAssignableFrom(variables.get(0).getType())) {
-            result = doFindById(codeBuilder, variables.get(0));
+            result = doFindById(codeWriter, variables.get(0));
         } else {
-            result = doFind(codeBuilder, variables);
+            result = doFind(codeWriter, variables);
         }
-        codeBuilder.add("return $L;\n", doMappings(
-                codeBuilder, result, returnType
+        codeWriter.add("return $L;\n", doMappings(
+                codeWriter, result, returnType
         ));
     }
 
-    protected abstract Variable doFindAll(CodeBuilder codeBuilder);
+    protected abstract Variable doFindAll(CodeWriter codeWriter);
 
-    protected abstract Variable doFindById(CodeBuilder codeBuilder, Variable idVariable);
+    protected abstract Variable doFindById(CodeWriter codeWriter, Variable idVariable);
 
-    protected abstract Variable doFind(CodeBuilder codeBuilder, List<Variable> variables);
+    protected abstract Variable doFind(CodeWriter codeWriter, List<Variable> variables);
 
-    protected CodeBlock doMappings(CodeBuilder codeBuilder, Variable source, Type targetType) {
+    protected CodeBlock doMappings(CodeWriter codeWriter, Variable source, Type targetType) {
         Type sourceType = source.getType();
 
         if (targetType.erasure().isAssignableFrom(List.class.getName())
@@ -55,26 +55,23 @@ public abstract class AbstractQuerySnippet implements QuerySnippet {
             TypeFactory typeFactory = getEntity().getType().getFactory();
             TypeElement iterableElement = typeFactory.getElementUtils().getTypeElement(Iterable.class.getName());
 
-            CodeBuilder mappingBuilder = CodeBuilders.create(codeBuilder.names());
+            CodeWriter mappingBuilder = codeWriter.fork();
             if (sourceType.erasure().isAssignableTo(Collection.class.getName())) {
                 mappingBuilder.add("$N.stream()", source.getName());
             } else {
                 mappingBuilder.add("$1T.stream($2N.spliterator(), false)", StreamSupport.class, source.getName());
             }
 
-            String itVar = mappingBuilder.names().newName("it");
-            mappingBuilder.add(".map($1N -> {\n$>", itVar);
+            Variable itVar = mappingBuilder.newVariable(
+                    "it", typeFactory.getType(sourceType.asMember(iterableElement.getTypeParameters().get(0)))
+            );
+            mappingBuilder.add(".map($1N -> {\n$>", itVar.getName());
             mappingBuilder.add("return $L;\n", doMappings(
-                    mappingBuilder,
-                    Variables.of(
-                            typeFactory.getType(sourceType.asMember(iterableElement.getTypeParameters().get(0))),
-                            itVar
-                    ),
-                    targetType.getTypeArguments().get(0)
+                    mappingBuilder, itVar, targetType.getTypeArguments().get(0)
             ));
             mappingBuilder.add("$<}).collect($T.toList())", Collectors.class);
 
-            return mappingBuilder.toCode();
+            return mappingBuilder.getCode();
         }
 
         if (sourceType.equals(getEntity().getType())
@@ -82,11 +79,11 @@ public abstract class AbstractQuerySnippet implements QuerySnippet {
             return CodeBlock.of("$1N.$2N()", source.getName(), getEntity().getIdGetter().getSimpleName());
         }
 
-        String tempVar = codeBuilder.names().newName("temp");
-        codeBuilder.add("$1T $2N = new $1T();\n", targetType.getTypeMirror(), tempVar);
+        String tempVar = codeWriter.newName("temp");
+        codeWriter.add("$1T $2N = new $1T();\n", targetType.getTypeMirror(), tempVar);
         for (SetAccessor setter : targetType.getSetters()) {
             sourceType.findGetter(setter.getAccessedName(), setter.getAccessedType()).ifPresent(it ->
-                    codeBuilder.add("$1N.$2N($3L.$4N());\n",
+                    codeWriter.add("$1N.$2N($3L.$4N());\n",
                             tempVar, setter.getSimpleName(), source.getName(), it.getSimpleName()
                     )
             );

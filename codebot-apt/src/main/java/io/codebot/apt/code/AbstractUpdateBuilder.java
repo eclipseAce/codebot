@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-public abstract class AbstractUpdateSnippet implements UpdateSnippet {
+public abstract class AbstractUpdateBuilder implements UpdateBuilder {
     private Entity entity;
 
     public void setEntity(Entity entity) {
@@ -23,7 +23,7 @@ public abstract class AbstractUpdateSnippet implements UpdateSnippet {
     }
 
     @Override
-    public void update(CodeBuilder codeBuilder, List<Variable> variables, Type returnType) {
+    public void update(CodeWriter codeWriter, List<Variable> variables, Type returnType) {
         Expression entityId = null;
         Map<String, Expression> sources = Maps.newLinkedHashMap();
         for (Variable variable : variables) {
@@ -66,24 +66,24 @@ public abstract class AbstractUpdateSnippet implements UpdateSnippet {
             // no id found
             return;
         }
-        Variable result = doUpdate(codeBuilder, entityId, sources);
+        Variable result = doUpdate(codeWriter, entityId, sources);
 
         if (returnType.isVoid()) {
             return;
         }
 
-        codeBuilder.add("return $L;\n", doMappings(codeBuilder, result, returnType));
+        codeWriter.add("return $L;\n", doMappings(codeWriter, result, returnType));
     }
 
-    protected abstract Variable doUpdate(CodeBuilder codeBuilder, Expression targetId,
+    protected abstract Variable doUpdate(CodeWriter codeWriter, Expression targetId,
                                          Map<String, Expression> sources);
 
-    protected CodeBlock doMappings(CodeBuilder codeBuilder, Variable source, Type targetType) {
-        String tempVar = codeBuilder.names().newName("temp");
-        codeBuilder.add("$1T $2N = new $1T();\n", targetType.getTypeMirror(), tempVar);
+    protected CodeBlock doMappings(CodeWriter codeWriter, Variable source, Type targetType) {
+        String tempVar = codeWriter.newName("temp");
+        codeWriter.add("$1T $2N = new $1T();\n", targetType.getTypeMirror(), tempVar);
         for (SetAccessor setter : targetType.getSetters()) {
             source.getType().findGetter(setter.getAccessedName(), setter.getAccessedType()).ifPresent(it ->
-                    codeBuilder.add("$1N.$2N($3N.$4N());\n",
+                    codeWriter.add("$1N.$2N($3N.$4N());\n",
                             tempVar, setter.getSimpleName(), source.getName(), it.getSimpleName()
                     )
             );
