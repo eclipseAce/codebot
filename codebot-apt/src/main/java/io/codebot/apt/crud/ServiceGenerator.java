@@ -14,6 +14,8 @@ public class ServiceGenerator {
     public static final String QUERYDSL_PREDICATE_EXECUTOR_FQN = "org.springframework.data.querydsl.QuerydslPredicateExecutor";
     public static final String SERVICE_FQN = "org.springframework.stereotype.Service";
 
+    private AbstractBuilder builder;
+
     public JavaFile generate(Service service, Entity entity) {
         TypeSpec.Builder serviceBuilder = TypeSpec.classBuilder(service.getImplTypeName());
         serviceBuilder.addModifiers(Modifier.PUBLIC);
@@ -47,6 +49,13 @@ public class ServiceGenerator {
                 .addAnnotation(ClassName.bestGuess(AUTOWIRED_FQN))
                 .build()
         );
+
+        JpaBuilder builder = new JpaBuilder();
+        builder.setEntity(entity);
+        builder.setJpaRepository(CodeBlock.of("this.repository"));
+        builder.setJpaSpecificationExecutor(CodeBlock.of("this.jpaSpecificationExecutor"));
+        this.builder = builder;
+
         for (Executable method : service.getType().getMethods()) {
             if (method.getSimpleName().startsWith("create")) {
                 serviceBuilder.addMethod(buildCreateMethod(service, entity, method));
@@ -68,10 +77,7 @@ public class ServiceGenerator {
                 service.getType().getFactory().getTypeUtils()
         );
         CodeWriter methodBody = CodeWriters.create(method.getElement());
-        JpaCreateBuilder create = new JpaCreateBuilder();
-        create.setEntity(entity);
-        create.setJpaRepository(CodeBlock.of("this.repository"));
-        create.create(
+        builder.create(
                 methodBody,
                 method.getParameters().stream()
                         .map(it -> methodBody.newVariable(it.getSimpleName(), it.getType()))
@@ -89,10 +95,7 @@ public class ServiceGenerator {
                 service.getType().getFactory().getTypeUtils()
         );
         CodeWriter methodBody = CodeWriters.create(method.getElement());
-        JpaUpdateBuilder update = new JpaUpdateBuilder();
-        update.setEntity(entity);
-        update.setJpaRepository(CodeBlock.of("this.repository"));
-        update.update(
+        builder.update(
                 methodBody,
                 method.getParameters().stream()
                         .map(it -> methodBody.newVariable(it.getSimpleName(), it.getType()))
@@ -110,12 +113,7 @@ public class ServiceGenerator {
                 service.getType().getFactory().getTypeUtils()
         );
         CodeWriter methodBody = CodeWriters.create(method.getElement());
-        QuerydslJpaQueryBuilder query = new QuerydslJpaQueryBuilder();
-        query.setEntity(entity);
-        query.setJpaRepository(CodeBlock.of("this.repository"));
-        query.setJpaSpecificationExecutor(CodeBlock.of("this.jpaSpecificationExecutor"));
-        query.setQuerydslPredicateExecutor(CodeBlock.of("this.querydslPredicateExecutor"));
-        query.find(
+        builder.query(
                 methodBody,
                 method.getParameters().stream()
                         .map(it -> methodBody.newVariable(it.getSimpleName(), it.getType()))

@@ -11,9 +11,10 @@ import io.codebot.apt.type.TypeFactory;
 import javax.lang.model.element.TypeElement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
-public class JpaQueryBuilder extends AbstractQueryBuilder {
+public class JpaBuilder extends AbstractBuilder {
     protected static final String PAGE_FQN = "org.springframework.data.domain.Page";
     protected static final String PAGEABLE_FQN = "org.springframework.data.domain.Pageable";
 
@@ -39,12 +40,55 @@ public class JpaQueryBuilder extends AbstractQueryBuilder {
         return jpaRepository;
     }
 
+    protected CodeBlock getJpaSpecificationExecutor() {
+        return jpaSpecificationExecutor;
+    }
+
     protected Variable getPageable() {
         return pageable;
     }
 
     @Override
-    public void find(CodeWriter codeWriter, List<Variable> variables, Type returnType) {
+    protected Variable doCreate(CodeWriter codeWriter, Map<String, Expression> sources) {
+        Type entityType = getEntity().getType();
+
+        Variable entity = codeWriter.newVariable("entity", Expressions.of(
+                entityType, CodeBlock.of("new $1T()", entityType.getTypeMirror())
+        ));
+
+        for (Map.Entry<String, Expression> source : sources.entrySet()) {
+            entityType.findSetter(source.getKey(), source.getValue().getType()).ifPresent(setter ->
+                    codeWriter.add("$1N.$2N($3L);\n",
+                            entity.getName(), setter.getSimpleName(), source.getValue().getCode()
+                    )
+            );
+        }
+        codeWriter.add("$1L.save($2N);\n", getJpaRepository(), entity.getName());
+
+        return entity;
+    }
+
+    @Override
+    protected Variable doUpdate(CodeWriter codeWriter, Expression targetId, Map<String, Expression> sources) {
+        Variable entity = codeWriter.newVariable("entity", Expressions.of(
+                getEntity().getType(),
+                CodeBlock.of("$1L.getById($2L)", getJpaRepository(), targetId.getCode())
+        ));
+
+        for (Map.Entry<String, Expression> source : sources.entrySet()) {
+            entity.getType().findSetter(source.getKey(), source.getValue().getType()).ifPresent(setter ->
+                    codeWriter.add("$1N.$2N($3L);\n",
+                            entity.getName(), setter.getSimpleName(), source.getValue().getCode()
+                    )
+            );
+        }
+        codeWriter.add("$1L.save($2N);\n", getJpaRepository(), entity.getName());
+
+        return entity;
+    }
+
+    @Override
+    public void query(CodeWriter codeWriter, List<Variable> variables, Type returnType) {
         List<Variable> queryVariables = Lists.newArrayList();
         for (Variable variable : variables) {
             if (variable.getType().isAssignableTo(PAGEABLE_FQN)) {
@@ -55,7 +99,7 @@ public class JpaQueryBuilder extends AbstractQueryBuilder {
             }
             queryVariables.add(variable);
         }
-        super.find(codeWriter, queryVariables, returnType);
+        super.query(codeWriter, queryVariables, returnType);
     }
 
     @Override
