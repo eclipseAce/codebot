@@ -24,7 +24,7 @@ public class Type implements Annotated, Modified {
 
     private final Lazy<List<Annotation>> lazyAnnotations;
     private final Lazy<List<Type>> lazyTypeArguments;
-    private final Lazy<List<Variable>> lazyFields;
+    private final Lazy<List<Field>> lazyFields;
     private final Lazy<List<Executable>> lazyMethods;
 
     Type(TypeFactory factory, TypeMirror typeMirror) {
@@ -58,7 +58,7 @@ public class Type implements Annotated, Modified {
         return lazyTypeArguments.get();
     }
 
-    public List<Variable> getFields() {
+    public List<Field> getFields() {
         return lazyFields.get();
     }
 
@@ -219,8 +219,8 @@ public class Type implements Annotated, Modified {
         });
     }
 
-    private Lazy<List<Variable>> lazyFields() {
-        return !isDeclared() ? Lazy.constant(ImmutableList.of()) : Lazy.of(() -> Variable.fieldsOf(this));
+    private Lazy<List<Field>> lazyFields() {
+        return !isDeclared() ? Lazy.constant(ImmutableList.of()) : Lazy.of(() -> Field.fieldsOf(this));
     }
 
     private Lazy<List<Executable>> lazyMethods() {

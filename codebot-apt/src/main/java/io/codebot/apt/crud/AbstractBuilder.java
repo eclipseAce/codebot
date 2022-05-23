@@ -1,8 +1,9 @@
-package io.codebot.apt.code;
+package io.codebot.apt.crud;
 
 import com.google.common.collect.Maps;
 import com.squareup.javapoet.CodeBlock;
-import io.codebot.apt.crud.Entity;
+import com.squareup.javapoet.MethodSpec;
+import io.codebot.apt.code.*;
 import io.codebot.apt.type.GetAccessor;
 import io.codebot.apt.type.SetAccessor;
 import io.codebot.apt.type.Type;
@@ -27,41 +28,43 @@ public abstract class AbstractBuilder {
         return entity;
     }
 
-    public void create(CodeWriter codeWriter, List<Variable> variables, Type returnType) {
+    public MethodSpec create(Method overridden) {
+        MethodWriter methodWriter = MethodWriters.overriding(overridden);
+        CodeWriter bodyWriter = methodWriter.body();
+
         Map<String, Expression> sources = Maps.newLinkedHashMap();
-        for (Variable variable : variables) {
-            Optional<SetAccessor> setter = getEntity().getType()
-                    .findSetter(variable.getName(), variable.getType());
+        for (Parameter param : overridden.getParameters()) {
+            Optional<SetAccessor> setter = getEntity().getType().findSetter(param.getName(), param.getType());
             if (setter.isPresent()) {
-                sources.put(variable.getName(), variable.asExpression());
+                sources.put(param.getName(), param.asExpression());
                 continue;
             }
-            for (GetAccessor getter : variable.getType().getGetters()) {
-                setter = getEntity().getType()
-                        .findSetter(getter.getAccessedName(), getter.getAccessedType());
+            for (GetAccessor getter : param.getType().getGetters()) {
+                setter = getEntity().getType().findSetter(getter.getAccessedName(), getter.getAccessedType());
                 if (setter.isPresent()) {
                     sources.put(getter.getAccessedName(), Expressions.of(
                             getter.getAccessedType(),
-                            CodeBlock.of("$1N.$2N()", variable.getName(), getter.getSimpleName())
+                            CodeBlock.of("$1N.$2N()", param.getName(), getter.getSimpleName())
                     ));
                 }
             }
         }
-        Variable result = doCreate(codeWriter, sources);
-
-        if (returnType.isVoid()) {
-            return;
+        Variable result = doCreate(methodWriter, sources);
+        if (!overridden.getReturnType().isVoid()) {
+            bodyWriter.add("return $L;\n", doMappings(bodyWriter, result, overridden.getReturnType()));
         }
-
-        codeWriter.add("return $L;\n", doMappings(codeWriter, result, returnType));
+        return methodWriter.getMethod();
     }
 
-    protected abstract Variable doCreate(CodeWriter codeWriter, Map<String, Expression> sources);
+    protected abstract Variable doCreate(MethodWriter methodWriter, Map<String, Expression> sources);
 
-    public void update(CodeWriter codeWriter, List<Variable> variables, Type returnType) {
+    public MethodSpec update(Method overridden) {
+        MethodWriter methodWriter = MethodWriters.overriding(overridden);
+        CodeWriter bodyWriter = methodWriter.body();
+
         Expression entityId = null;
         Map<String, Expression> sources = Maps.newLinkedHashMap();
-        for (Variable variable : variables) {
+        for (Parameter variable : overridden.getParameters()) {
             if (variable.getName().equals(getEntity().getIdName())
                     && variable.getType().isAssignableTo(getEntity().getIdType())) {
                 if (entityId == null) {
@@ -96,45 +99,43 @@ public abstract class AbstractBuilder {
                 }
             }
         }
-
-        if (entityId == null) {
-            // no id found
-            return;
+        if (entityId != null) {
+            Variable result = doUpdate(methodWriter, entityId, sources);
+            if (!overridden.getReturnType().isVoid()) {
+                bodyWriter.add("return $L;\n", doMappings(bodyWriter, result, overridden.getReturnType()));
+            }
         }
-        Variable result = doUpdate(codeWriter, entityId, sources);
-
-        if (returnType.isVoid()) {
-            return;
-        }
-
-        codeWriter.add("return $L;\n", doMappings(codeWriter, result, returnType));
+        return methodWriter.getMethod();
     }
 
-    protected abstract Variable doUpdate(CodeWriter codeWriter, Expression targetId,
-                                         Map<String, Expression> sources);
+    protected abstract Variable doUpdate(MethodWriter methodWriter, Expression targetId, Map<String, Expression> sources);
 
+    public MethodSpec query(Method overridden) {
+        MethodWriter methodWriter = MethodWriters.overriding(overridden);
+        CodeWriter bodyWriter = methodWriter.body();
 
-    public void query(CodeWriter codeWriter, List<Variable> variables, Type returnType) {
         Variable result;
-        if (variables.isEmpty()) {
-            result = doFindAll(codeWriter);
-        } else if (variables.size() == 1
-                && getEntity().getIdName().equals(variables.get(0).getName())
-                && getEntity().getIdType().isAssignableFrom(variables.get(0).getType())) {
-            result = doFindById(codeWriter, variables.get(0));
+        List<Parameter> queryParams = getQueryParameters(overridden);
+        if (queryParams.isEmpty()) {
+            result = doQuery(overridden, methodWriter);
+        } else if (queryParams.size() == 1
+                && getEntity().getIdName().equals(queryParams.get(0).getName())
+                && getEntity().getIdType().isAssignableFrom(queryParams.get(0).getType())) {
+            result = doQuery(overridden, methodWriter, queryParams.get(0));
         } else {
-            result = doFind(codeWriter, variables);
+            result = doQuery(overridden, methodWriter, queryParams);
         }
-        codeWriter.add("return $L;\n", doMappings(
-                codeWriter, result, returnType
-        ));
+        bodyWriter.add("return $L;\n", doMappings(bodyWriter, result, overridden.getReturnType()));
+        return methodWriter.getMethod();
     }
 
-    protected abstract Variable doFindAll(CodeWriter codeWriter);
+    protected abstract List<Parameter> getQueryParameters(Method overridden);
 
-    protected abstract Variable doFindById(CodeWriter codeWriter, Variable idVariable);
+    protected abstract Variable doQuery(Method overridden, MethodWriter methodWriter);
 
-    protected abstract Variable doFind(CodeWriter codeWriter, List<Variable> variables);
+    protected abstract Variable doQuery(Method overridden, MethodWriter methodWriter, Parameter idParam);
+
+    protected abstract Variable doQuery(Method overridden, MethodWriter methodWriter, List<Parameter> params);
 
     protected CodeBlock doMappings(CodeWriter codeWriter, Variable source, Type targetType) {
         Type sourceType = source.getType();
@@ -152,8 +153,9 @@ public abstract class AbstractBuilder {
                 mappingBuilder.add("$1T.stream($2N.spliterator(), false)", StreamSupport.class, source.getName());
             }
 
-            Variable itVar = mappingBuilder.newVariable(
-                    "it", typeFactory.getType(sourceType.asMember(iterableElement.getTypeParameters().get(0)))
+            Variable itVar = Variables.of(
+                    typeFactory.getType(sourceType.asMember(iterableElement.getTypeParameters().get(0))),
+                    mappingBuilder.allocateName("it")
             );
             mappingBuilder.add(".map($1N -> {\n$>", itVar.getName());
             mappingBuilder.add("return $L;\n", doMappings(
@@ -169,7 +171,7 @@ public abstract class AbstractBuilder {
             return CodeBlock.of("$1N.$2N()", source.getName(), getEntity().getIdGetter().getSimpleName());
         }
 
-        String tempVar = codeWriter.newName("temp");
+        String tempVar = codeWriter.allocateName("temp");
         codeWriter.add("$1T $2N = new $1T();\n", targetType.getTypeMirror(), tempVar);
         for (SetAccessor setter : targetType.getSetters()) {
             sourceType.findGetter(setter.getAccessedName(), setter.getAccessedType()).ifPresent(it ->

@@ -21,7 +21,7 @@ public class Executable implements Annotated, Modified {
     private final ExecutableType executableType;
     private final Type returnType;
     private final Lazy<List<Annotation>> lazyAnnotations;
-    private final Lazy<List<Variable>> lazyParameters;
+    private final Lazy<List<Parameter>> lazyParameters;
     private final Lazy<List<Type>> lazyThrownTypes;
 
     Executable(Type enclosingType, ExecutableElement executableElement) {
@@ -33,7 +33,7 @@ public class Executable implements Annotated, Modified {
                 executableElement.getAnnotationMirrors().stream().map(Annotation::new).iterator()
         ));
         this.lazyParameters = Lazy.of(() ->
-                Variable.parametersOf(enclosingType, executableElement)
+                Parameter.parametersOf(enclosingType, executableElement)
         );
         this.lazyThrownTypes = Lazy.of(() -> ImmutableList.copyOf(
                 executableType.getThrownTypes().stream().map(it ->
@@ -64,7 +64,7 @@ public class Executable implements Annotated, Modified {
         return returnType;
     }
 
-    public List<Variable> getParameters() {
+    public List<Parameter> getParameters() {
         return lazyParameters.get();
     }
 

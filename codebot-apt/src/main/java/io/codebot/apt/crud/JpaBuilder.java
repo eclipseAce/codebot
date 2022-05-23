@@ -1,8 +1,9 @@
-package io.codebot.apt.code;
+package io.codebot.apt.crud;
 
 import com.google.common.collect.Lists;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
+import io.codebot.apt.code.*;
 import io.codebot.apt.type.Executable;
 import io.codebot.apt.type.GetAccessor;
 import io.codebot.apt.type.Type;
@@ -13,6 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 public class JpaBuilder extends AbstractBuilder {
     protected static final String PAGE_FQN = "org.springframework.data.domain.Page";
@@ -25,8 +27,6 @@ public class JpaBuilder extends AbstractBuilder {
 
     private CodeBlock jpaRepository;
     private CodeBlock jpaSpecificationExecutor;
-
-    private Variable pageable;
 
     public void setJpaRepository(CodeBlock jpaRepository) {
         this.jpaRepository = jpaRepository;
@@ -44,100 +44,95 @@ public class JpaBuilder extends AbstractBuilder {
         return jpaSpecificationExecutor;
     }
 
-    protected Variable getPageable() {
-        return pageable;
-    }
-
     @Override
-    protected Variable doCreate(CodeWriter codeWriter, Map<String, Expression> sources) {
+    protected Variable doCreate(MethodWriter methodWriter, Map<String, Expression> sources) {
         Type entityType = getEntity().getType();
 
-        Variable entity = codeWriter.newVariable("entity", Expressions.of(
+        Variable entity = methodWriter.body().declareVariable("entity", Expressions.of(
                 entityType, CodeBlock.of("new $1T()", entityType.getTypeMirror())
         ));
 
         for (Map.Entry<String, Expression> source : sources.entrySet()) {
             entityType.findSetter(source.getKey(), source.getValue().getType()).ifPresent(setter ->
-                    codeWriter.add("$1N.$2N($3L);\n",
+                    methodWriter.body().add("$1N.$2N($3L);\n",
                             entity.getName(), setter.getSimpleName(), source.getValue().getCode()
                     )
             );
         }
-        codeWriter.add("$1L.save($2N);\n", getJpaRepository(), entity.getName());
+        methodWriter.body().add("$1L.save($2N);\n", getJpaRepository(), entity.getName());
 
         return entity;
     }
 
     @Override
-    protected Variable doUpdate(CodeWriter codeWriter, Expression targetId, Map<String, Expression> sources) {
-        Variable entity = codeWriter.newVariable("entity", Expressions.of(
+    protected Variable doUpdate(MethodWriter methodWriter, Expression targetId, Map<String, Expression> sources) {
+        Variable entity = methodWriter.body().declareVariable("entity", Expressions.of(
                 getEntity().getType(),
                 CodeBlock.of("$1L.getById($2L)", getJpaRepository(), targetId.getCode())
         ));
 
         for (Map.Entry<String, Expression> source : sources.entrySet()) {
             entity.getType().findSetter(source.getKey(), source.getValue().getType()).ifPresent(setter ->
-                    codeWriter.add("$1N.$2N($3L);\n",
+                    methodWriter.body().add("$1N.$2N($3L);\n",
                             entity.getName(), setter.getSimpleName(), source.getValue().getCode()
                     )
             );
         }
-        codeWriter.add("$1L.save($2N);\n", getJpaRepository(), entity.getName());
+        methodWriter.body().add("$1L.save($2N);\n", getJpaRepository(), entity.getName());
 
         return entity;
     }
 
     @Override
-    public void query(CodeWriter codeWriter, List<Variable> variables, Type returnType) {
-        List<Variable> queryVariables = Lists.newArrayList();
-        for (Variable variable : variables) {
-            if (variable.getType().isAssignableTo(PAGEABLE_FQN)) {
-                if (pageable == null) {
-                    pageable = variable;
-                }
-                continue;
-            }
-            queryVariables.add(variable);
-        }
-        super.query(codeWriter, queryVariables, returnType);
+    protected List<Parameter> getQueryParameters(Method overridden) {
+        return overridden.getParameters().stream()
+                .filter(it -> !it.getType().isAssignableTo(PAGEABLE_FQN))
+                .collect(Collectors.toList());
+    }
+
+    protected Parameter getPageableParameter(Method overridden) {
+        return overridden.getParameters().stream()
+                .filter(it -> it.getType().isAssignableTo(PAGEABLE_FQN))
+                .findFirst().orElse(null);
     }
 
     @Override
-    protected Variable doFindAll(CodeWriter codeWriter) {
+    protected Variable doQuery(Method overridden, MethodWriter methodWriter) {
         Type entityType = getEntity().getType();
         TypeFactory typeFactory = entityType.getFactory();
-        if (getPageable() != null) {
-            return codeWriter.newVariable("result", Expressions.of(
+        Parameter pageable = getPageableParameter(overridden);
+        if (pageable != null) {
+            return methodWriter.body().declareVariable("result", Expressions.of(
                     typeFactory.getType(PAGE_FQN, entityType.getTypeMirror()),
-                    CodeBlock.of("$1L.findAll($2N)", getJpaRepository(), getPageable().getName())
+                    CodeBlock.of("$1L.findAll($2N)", getJpaRepository(), pageable.getName())
             ));
         }
-        return codeWriter.newVariable("result", Expressions.of(
+        return methodWriter.body().declareVariable("result", Expressions.of(
                 typeFactory.getListType(entityType.getTypeMirror()),
                 CodeBlock.of("$1L.findAll()", getJpaRepository())
         ));
     }
 
     @Override
-    protected Variable doFindById(CodeWriter codeWriter, Variable idVariable) {
-        return codeWriter.newVariable("result", Expressions.of(
+    protected Variable doQuery(Method overridden, MethodWriter methodWriter, Parameter idParam) {
+        return methodWriter.body().declareVariable("result", Expressions.of(
                 getEntity().getType(),
-                CodeBlock.of("$1L.getById($2N)", getJpaRepository(), idVariable.getName())
+                CodeBlock.of("$1L.getById($2N)", getJpaRepository(), idParam.getName())
         ));
     }
 
     @Override
-    protected Variable doFind(CodeWriter codeWriter, List<Variable> variables) {
-        CodeWriter specificationBody = codeWriter.fork();
-        String rootVar = specificationBody.newName("root");
-        String queryVar = specificationBody.newName("query");
-        String builderVar = specificationBody.newName("builder");
-        String predicatesVar = specificationBody.newName("predicates");
+    protected Variable doQuery(Method overridden, MethodWriter methodWriter, List<Parameter> params) {
+        CodeWriter specificationBody = methodWriter.body().fork();
+        String rootVar = specificationBody.allocateName("root");
+        String queryVar = specificationBody.allocateName("query");
+        String builderVar = specificationBody.allocateName("builder");
+        String predicatesVar = specificationBody.allocateName("predicates");
 
         Type entityType = getEntity().getType();
         TypeFactory typeFactory = entityType.getFactory();
 
-        specificationBody.add(new VariableScanner() {
+        specificationBody.add(new ParameterScanner() {
             @Override
             public CodeBlock scanVariable(Variable variable) {
                 if (entityType.findGetter(variable.getName(), variable.getType()).isPresent()) {
@@ -154,7 +149,7 @@ public class JpaBuilder extends AbstractBuilder {
                 }
                 List<String> formats = Lists.newArrayList();
                 List<Object> formatArgs = Lists.newArrayList();
-                for (io.codebot.apt.type.Variable arg : method.getParameters()) {
+                for (io.codebot.apt.type.Parameter arg : method.getParameters()) {
                     if (arg.getType().isAssignableFrom(ROOT_FQN, entityType.getTypeMirror())) {
                         formats.add("$N");
                         formatArgs.add(rootVar);
@@ -186,7 +181,7 @@ public class JpaBuilder extends AbstractBuilder {
                 }
                 return null;
             }
-        }.scan(variables));
+        }.scan(params));
 
         if (!specificationBody.isEmpty()) {
             CodeBlock specification = CodeBlock.builder()
@@ -198,19 +193,26 @@ public class JpaBuilder extends AbstractBuilder {
                             builderVar, predicatesVar, ClassName.bestGuess(PREDICATE_FQN))
                     .add("$<}")
                     .build();
-            if (getPageable() != null) {
-                return codeWriter.newVariable("result", Expressions.of(
-                        typeFactory.getType(PAGE_FQN, entityType.getTypeMirror()),
-                        CodeBlock.of("$1L.findAll($2L, $3N)",
-                                jpaSpecificationExecutor, specification, getPageable().getName())
+            if (!overridden.getReturnType().isIterable()) {
+                return methodWriter.body().declareVariable("result", Expressions.of(
+                        entityType,
+                        CodeBlock.of("$1L.findOne($2L).orElse(null)", jpaSpecificationExecutor, specification)
                 ));
             }
-            return codeWriter.newVariable("result", Expressions.of(
+            Parameter pageable = getPageableParameter(overridden);
+            if (pageable != null) {
+                return methodWriter.body().declareVariable("result", Expressions.of(
+                        typeFactory.getType(PAGE_FQN, entityType.getTypeMirror()),
+                        CodeBlock.of("$1L.findAll($2L, $3N)",
+                                jpaSpecificationExecutor, specification, pageable.getName())
+                ));
+            }
+            return methodWriter.body().declareVariable("result", Expressions.of(
                     typeFactory.getListType(entityType.getTypeMirror()),
                     CodeBlock.of("$1L.findAll($2L)", jpaSpecificationExecutor, specification)
             ));
         }
-        return doFindAll(codeWriter);
+        return doQuery(overridden, methodWriter);
     }
 
     @Override
@@ -224,8 +226,9 @@ public class JpaBuilder extends AbstractBuilder {
             TypeElement pageElement = typeFactory.getElementUtils().getTypeElement(PAGE_FQN);
 
             CodeWriter mappingBuilder = codeWriter.fork();
-            Variable itVar = mappingBuilder.newVariable(
-                    "it", typeFactory.getType(sourceType.asMember(pageElement.getTypeParameters().get(0)))
+            Variable itVar = Variables.of(
+                    typeFactory.getType(sourceType.asMember(pageElement.getTypeParameters().get(0))),
+                    mappingBuilder.allocateName("it")
             );
 
             mappingBuilder.add("$1N.map($2N -> {\n$>", source.getName(), itVar.getName());
@@ -238,24 +241,24 @@ public class JpaBuilder extends AbstractBuilder {
         return super.doMappings(codeWriter, source, targetType);
     }
 
-    protected interface VariableScanner {
-        default CodeBlock scan(List<Variable> variables) {
+    protected interface ParameterScanner {
+        default CodeBlock scan(List<Parameter> params) {
             CodeBlock.Builder builder = CodeBlock.builder();
-            for (Variable variable : variables) {
-                CodeBlock code = scanVariable(variable);
+            for (Parameter param : params) {
+                CodeBlock code = scanVariable(param);
                 if (code == null || code.isEmpty()) {
-                    code = variable.getType().getMethods().stream()
-                            .map(method -> scanVariableMethod(variable, method))
+                    code = param.getType().getMethods().stream()
+                            .map(method -> scanVariableMethod(param, method))
                             .filter(Objects::nonNull)
                             .collect(CodeBlock.joining(""));
                 }
                 if (code.isEmpty()) {
-                    code = variable.getType().getGetters().stream()
-                            .map(getter -> scanVariableGetter(variable, getter))
+                    code = param.getType().getGetters().stream()
+                            .map(getter -> scanVariableGetter(param, getter))
                             .filter(Objects::nonNull)
                             .collect(CodeBlock.joining(""));
                 }
-                builder.add(postProcessAfterVariableScan(variable, code));
+                builder.add(postProcessAfterVariableScan(param, code));
             }
             return builder.build();
         }

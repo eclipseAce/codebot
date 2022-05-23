@@ -2,14 +2,14 @@ package io.codebot.apt.crud;
 
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.TypeName;
+import io.codebot.apt.type.Field;
 import io.codebot.apt.type.GetAccessor;
 import io.codebot.apt.type.Type;
-import io.codebot.apt.type.Variable;
 
 public class Entity {
     private final Type type;
     private final ClassName typeName;
-    private final Variable idField;
+    private final Field idField;
     private final String idName;
     private final Type idType;
     private final TypeName idTypeName;
@@ -37,7 +37,7 @@ public class Entity {
         return typeName;
     }
 
-    public Variable getIdField() {
+    public Field getIdField() {
         return idField;
     }
 

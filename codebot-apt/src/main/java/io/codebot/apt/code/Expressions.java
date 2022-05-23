@@ -9,11 +9,11 @@ public final class Expressions {
     }
 
     public static Expression of(Type type, CodeBlock code) {
-        return new ImmutableExpression(type, code);
+        return new ExpressionImpl(type, code);
     }
 
     @Value
-    private static class ImmutableExpression implements Expression {
+    private static class ExpressionImpl implements Expression {
         Type type;
         CodeBlock code;
     }

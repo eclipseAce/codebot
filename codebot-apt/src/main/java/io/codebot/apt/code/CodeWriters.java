@@ -2,10 +2,6 @@ package io.codebot.apt.code;
 
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.NameAllocator;
-import io.codebot.apt.type.Type;
-import lombok.Value;
-
-import javax.lang.model.element.ExecutableElement;
 
 public final class CodeWriters {
     private CodeWriters() {
@@ -13,14 +9,6 @@ public final class CodeWriters {
 
     public static CodeWriter create() {
         return new CodeWriterImpl(new NameAllocator());
-    }
-
-    public static CodeWriter create(ExecutableElement method) {
-        CodeWriter codeWriter = create();
-        method.getParameters().forEach(param ->
-                codeWriter.newName(param.getSimpleName().toString())
-        );
-        return codeWriter;
     }
 
     private static class CodeWriterImpl implements CodeWriter {
@@ -50,20 +38,13 @@ public final class CodeWriters {
         }
 
         @Override
-        public String newName(String nameSuggestion) {
+        public String allocateName(String nameSuggestion) {
             return nameAllocator.newName(nameSuggestion);
         }
 
         @Override
-        public Variable newVariable(String nameSuggestion, Type type) {
-            Variable variable = new VariableImpl(type, newName(nameSuggestion));
-            add("$1T $2N;\n", variable.getType().getTypeMirror(), variable.getName());
-            return variable;
-        }
-
-        @Override
-        public Variable newVariable(String nameSuggestion, Expression expression) {
-            Variable variable = new VariableImpl(expression.getType(), newName(nameSuggestion));
+        public Variable declareVariable(String nameSuggestion, Expression expression) {
+            Variable variable = Variables.of(expression.getType(), allocateName(nameSuggestion));
             add("$1T $2N = $3L;\n", variable.getType().getTypeMirror(), variable.getName(), expression.getCode());
             return variable;
         }
@@ -77,11 +58,5 @@ public final class CodeWriters {
         public CodeBlock getCode() {
             return builder.build();
         }
-    }
-
-    @Value
-    private static class VariableImpl implements Variable {
-        Type type;
-        String name;
     }
 }

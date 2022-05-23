@@ -1,7 +1,6 @@
 package io.codebot.apt.code;
 
 import com.squareup.javapoet.CodeBlock;
-import io.codebot.apt.type.Type;
 
 public interface CodeWriter {
     CodeWriter add(CodeBlock code);
@@ -10,11 +9,9 @@ public interface CodeWriter {
 
     CodeWriter fork();
 
-    String newName(String nameSuggestion);
+    String allocateName(String nameSuggestion);
 
-    Variable newVariable(String nameSuggestion, Type type);
-
-    Variable newVariable(String nameSuggestion, Expression expression);
+    Variable declareVariable(String nameSuggestion, Expression expression);
 
     boolean isEmpty();
 
