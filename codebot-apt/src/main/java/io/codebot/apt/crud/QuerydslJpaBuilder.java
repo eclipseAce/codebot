@@ -26,10 +26,12 @@ public class QuerydslJpaBuilder extends JpaBuilder {
     }
 
     @Override
-    protected Variable doQuery(Method overridden, MethodWriter methodWriter, List<Parameter> params) {
-        String builderVar = methodWriter.body().allocateName("builder");
+    protected Variable doQuery(Method overridden,
+                               Entity entity,
+                               MethodCreator creator,
+                               List<? extends Parameter> params) {
+        String builderVar = creator.body().allocateName("builder");
 
-        Entity entity = getEntity();
         Type entityType = entity.getType();
         TypeFactory typeFactory = entityType.getFactory();
         CodeBlock predicateBuild = new ParameterScanner() {
@@ -84,23 +86,23 @@ public class QuerydslJpaBuilder extends JpaBuilder {
         }.scan(params);
 
         if (!predicateBuild.isEmpty()) {
-            methodWriter.body()
+            creator.body()
                     .add("$1T $2N = new $1T();\n", ClassName.bestGuess(BOOLEAN_BUILDER_FQN), builderVar)
                     .add(predicateBuild);
             Parameter pageable = getPageableParameter(overridden);
             if (pageable != null) {
-                return methodWriter.body().declareVariable("result", Expressions.of(
+                return creator.body().declareVariable("result", Expressions.of(
                         typeFactory.getType(PAGE_FQN, entityType.getTypeMirror()),
                         CodeBlock.of("$1L.findAll($2N, $3N)",
                                 querydslPredicateExecutor, builderVar, pageable.getName())
                 ));
             }
-            return methodWriter.body().declareVariable("result", Expressions.of(
+            return creator.body().declareVariable("result", Expressions.of(
                     typeFactory.getIterableType(entityType.getTypeMirror()),
                     CodeBlock.of("$1L.findAll($2N)", querydslPredicateExecutor, builderVar)
             ));
         }
-        return doQuery(overridden, methodWriter);
+        return doQuery(overridden, entity, creator);
     }
 
     protected CodeBlock getEntityQuery(ClassName entityName) {

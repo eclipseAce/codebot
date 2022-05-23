@@ -45,47 +45,49 @@ public class JpaBuilder extends AbstractBuilder {
     }
 
     @Override
-    protected Variable doCreate(MethodWriter methodWriter, Map<String, Expression> sources) {
-        Type entityType = getEntity().getType();
-
-        Variable entity = methodWriter.body().declareVariable("entity", Expressions.of(
+    protected Variable doCreate(Method overridden,
+                                Entity entity,
+                                MethodCreator creator,
+                                Map<String, Expression> sources) {
+        Type entityType = entity.getType();
+        Variable entityVar = creator.body().declareVariable("entityVar", Expressions.of(
                 entityType, CodeBlock.of("new $1T()", entityType.getTypeMirror())
         ));
-
         for (Map.Entry<String, Expression> source : sources.entrySet()) {
             entityType.findSetter(source.getKey(), source.getValue().getType()).ifPresent(setter ->
-                    methodWriter.body().add("$1N.$2N($3L);\n",
-                            entity.getName(), setter.getSimpleName(), source.getValue().getCode()
+                    creator.body().add("$1N.$2N($3L);\n",
+                            entityVar.getName(), setter.getSimpleName(), source.getValue().getCode()
                     )
             );
         }
-        methodWriter.body().add("$1L.save($2N);\n", getJpaRepository(), entity.getName());
-
-        return entity;
+        creator.body().add("$1L.save($2N);\n", getJpaRepository(), entityVar.getName());
+        return entityVar;
     }
 
     @Override
-    protected Variable doUpdate(MethodWriter methodWriter, Expression targetId, Map<String, Expression> sources) {
-        Variable entity = methodWriter.body().declareVariable("entity", Expressions.of(
-                getEntity().getType(),
-                CodeBlock.of("$1L.getById($2L)", getJpaRepository(), targetId.getCode())
+    protected Variable doUpdate(Method overridden,
+                                Entity entity,
+                                MethodCreator creator,
+                                Expression entityId,
+                                Map<String, Expression> sources) {
+        Variable entityVar = creator.body().declareVariable("entity", Expressions.of(
+                entity.getType(),
+                CodeBlock.of("$1L.getById($2L)", getJpaRepository(), entityId.getCode())
         ));
-
         for (Map.Entry<String, Expression> source : sources.entrySet()) {
             entity.getType().findSetter(source.getKey(), source.getValue().getType()).ifPresent(setter ->
-                    methodWriter.body().add("$1N.$2N($3L);\n",
-                            entity.getName(), setter.getSimpleName(), source.getValue().getCode()
+                    creator.body().add("$1N.$2N($3L);\n",
+                            entityVar.getName(), setter.getSimpleName(), source.getValue().getCode()
                     )
             );
         }
-        methodWriter.body().add("$1L.save($2N);\n", getJpaRepository(), entity.getName());
-
-        return entity;
+        creator.body().add("$1L.save($2N);\n", getJpaRepository(), entityVar.getName());
+        return entityVar;
     }
 
     @Override
-    protected List<Parameter> getQueryParameters(Method overridden) {
-        return overridden.getParameters().stream()
+    protected List<? extends Parameter> getQueryParameters(List<? extends Parameter> params) {
+        return params.stream()
                 .filter(it -> !it.getType().isAssignableTo(PAGEABLE_FQN))
                 .collect(Collectors.toList());
     }
@@ -97,39 +99,47 @@ public class JpaBuilder extends AbstractBuilder {
     }
 
     @Override
-    protected Variable doQuery(Method overridden, MethodWriter methodWriter) {
-        Type entityType = getEntity().getType();
+    protected Variable doQuery(Method overridden,
+                               Entity entity,
+                               MethodCreator creator) {
+        Type entityType = entity.getType();
         TypeFactory typeFactory = entityType.getFactory();
         Parameter pageable = getPageableParameter(overridden);
         if (pageable != null) {
-            return methodWriter.body().declareVariable("result", Expressions.of(
+            return creator.body().declareVariable("result", Expressions.of(
                     typeFactory.getType(PAGE_FQN, entityType.getTypeMirror()),
                     CodeBlock.of("$1L.findAll($2N)", getJpaRepository(), pageable.getName())
             ));
         }
-        return methodWriter.body().declareVariable("result", Expressions.of(
+        return creator.body().declareVariable("result", Expressions.of(
                 typeFactory.getListType(entityType.getTypeMirror()),
                 CodeBlock.of("$1L.findAll()", getJpaRepository())
         ));
     }
 
     @Override
-    protected Variable doQuery(Method overridden, MethodWriter methodWriter, Parameter idParam) {
-        return methodWriter.body().declareVariable("result", Expressions.of(
-                getEntity().getType(),
+    protected Variable doQuery(Method overridden,
+                               Entity entity,
+                               MethodCreator creator,
+                               Parameter idParam) {
+        return creator.body().declareVariable("result", Expressions.of(
+                entity.getType(),
                 CodeBlock.of("$1L.getById($2N)", getJpaRepository(), idParam.getName())
         ));
     }
 
     @Override
-    protected Variable doQuery(Method overridden, MethodWriter methodWriter, List<Parameter> params) {
-        CodeWriter specificationBody = methodWriter.body().fork();
+    protected Variable doQuery(Method overridden,
+                               Entity entity,
+                               MethodCreator creator,
+                               List<? extends Parameter> params) {
+        CodeWriter specificationBody = creator.body().fork();
         String rootVar = specificationBody.allocateName("root");
         String queryVar = specificationBody.allocateName("query");
         String builderVar = specificationBody.allocateName("builder");
         String predicatesVar = specificationBody.allocateName("predicates");
 
-        Type entityType = getEntity().getType();
+        Type entityType = entity.getType();
         TypeFactory typeFactory = entityType.getFactory();
 
         specificationBody.add(new ParameterScanner() {
@@ -194,38 +204,40 @@ public class JpaBuilder extends AbstractBuilder {
                     .add("$<}")
                     .build();
             if (!overridden.getReturnType().isIterable()) {
-                return methodWriter.body().declareVariable("result", Expressions.of(
+                return creator.body().declareVariable("result", Expressions.of(
                         entityType,
                         CodeBlock.of("$1L.findOne($2L).orElse(null)", jpaSpecificationExecutor, specification)
                 ));
             }
             Parameter pageable = getPageableParameter(overridden);
             if (pageable != null) {
-                return methodWriter.body().declareVariable("result", Expressions.of(
+                return creator.body().declareVariable("result", Expressions.of(
                         typeFactory.getType(PAGE_FQN, entityType.getTypeMirror()),
                         CodeBlock.of("$1L.findAll($2L, $3N)",
                                 jpaSpecificationExecutor, specification, pageable.getName())
                 ));
             }
-            return methodWriter.body().declareVariable("result", Expressions.of(
+            return creator.body().declareVariable("result", Expressions.of(
                     typeFactory.getListType(entityType.getTypeMirror()),
                     CodeBlock.of("$1L.findAll($2L)", jpaSpecificationExecutor, specification)
             ));
         }
-        return doQuery(overridden, methodWriter);
+        return doQuery(overridden, entity, creator);
     }
 
     @Override
-    protected CodeBlock doMappings(CodeWriter codeWriter, Variable source, Type targetType) {
+    protected CodeBlock doMappings(Entity entity,
+                                   CodeWriter writer,
+                                   Variable source,
+                                   Type targetType) {
         Type sourceType = source.getType();
-
         if (targetType.erasure().isAssignableFrom(PAGE_FQN)
                 && sourceType.erasure().isAssignableTo(PAGE_FQN)) {
 
-            TypeFactory typeFactory = getEntity().getType().getFactory();
+            TypeFactory typeFactory = entity.getType().getFactory();
             TypeElement pageElement = typeFactory.getElementUtils().getTypeElement(PAGE_FQN);
 
-            CodeWriter mappingBuilder = codeWriter.fork();
+            CodeWriter mappingBuilder = writer.fork();
             Variable itVar = Variables.of(
                     typeFactory.getType(sourceType.asMember(pageElement.getTypeParameters().get(0))),
                     mappingBuilder.allocateName("it")
@@ -233,16 +245,16 @@ public class JpaBuilder extends AbstractBuilder {
 
             mappingBuilder.add("$1N.map($2N -> {\n$>", source.getName(), itVar.getName());
             mappingBuilder.add("return $L;\n", doMappings(
-                    mappingBuilder, itVar, targetType.getTypeArguments().get(0)
+                    entity, mappingBuilder, itVar, targetType.getTypeArguments().get(0)
             ));
             mappingBuilder.add("$<})");
             return mappingBuilder.getCode();
         }
-        return super.doMappings(codeWriter, source, targetType);
+        return super.doMappings(entity, writer, source, targetType);
     }
 
     protected interface ParameterScanner {
-        default CodeBlock scan(List<Parameter> params) {
+        default CodeBlock scan(List<? extends Parameter> params) {
             CodeBlock.Builder builder = CodeBlock.builder();
             for (Parameter param : params) {
                 CodeBlock code = scanVariable(param);

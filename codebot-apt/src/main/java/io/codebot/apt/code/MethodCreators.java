@@ -8,15 +8,15 @@ import io.codebot.apt.type.Type;
 
 import javax.lang.model.element.Modifier;
 
-public final class MethodWriters {
-    private MethodWriters() {
+public final class MethodCreators {
+    private MethodCreators() {
     }
 
-    public static MethodWriter create(String name) {
-        return new MethodWriterImpl(MethodSpec.methodBuilder(name), CodeWriters.create());
+    public static MethodCreator create(String name) {
+        return new MethodCreatorImpl(MethodSpec.methodBuilder(name), CodeWriters.create());
     }
 
-    public static MethodWriter overriding(Method method) {
+    public static MethodCreator overriding(Method method) {
         MethodSpec.Builder builder = MethodSpec.overriding(
                 method.getElement(),
                 method.getContainingType().asDeclaredType(),
@@ -24,14 +24,14 @@ public final class MethodWriters {
         );
         CodeWriter codeWriter = CodeWriters.create();
         method.getParameters().forEach(param -> codeWriter.allocateName(param.getName()));
-        return new MethodWriterImpl(builder, codeWriter);
+        return new MethodCreatorImpl(builder, codeWriter);
     }
 
-    private static class MethodWriterImpl implements MethodWriter {
+    private static class MethodCreatorImpl implements MethodCreator {
         private final MethodSpec.Builder builder;
         private final CodeWriter codeWriter;
 
-        public MethodWriterImpl(MethodSpec.Builder builder, CodeWriter codeWriter) {
+        public MethodCreatorImpl(MethodSpec.Builder builder, CodeWriter codeWriter) {
             this.builder = builder;
             this.codeWriter = codeWriter;
         }
@@ -42,31 +42,31 @@ public final class MethodWriters {
         }
 
         @Override
-        public MethodWriterImpl addModifiers(Modifier... modifiers) {
+        public MethodCreatorImpl addModifiers(Modifier... modifiers) {
             builder.addModifiers(modifiers);
             return this;
         }
 
         @Override
-        public MethodWriterImpl addAnnotation(AnnotationSpec annotation) {
+        public MethodCreatorImpl addAnnotation(AnnotationSpec annotation) {
             builder.addAnnotation(annotation);
             return this;
         }
 
         @Override
-        public MethodWriter addParameter(ParameterSpec parameter) {
+        public MethodCreator addParameter(ParameterSpec parameter) {
             builder.addParameter(parameter);
             return this;
         }
 
         @Override
-        public MethodWriter returns(Type type) {
+        public MethodCreator returns(Type type) {
             builder.returns(TypeName.get(type.getTypeMirror()));
             return this;
         }
 
         @Override
-        public MethodSpec getMethod() {
+        public MethodSpec create() {
             return builder.build().toBuilder().addCode(codeWriter.getCode()).build();
         }
     }

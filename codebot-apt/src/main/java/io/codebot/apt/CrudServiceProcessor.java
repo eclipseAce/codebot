@@ -136,7 +136,6 @@ public class CrudServiceProcessor extends AbstractProcessor {
                         .build());
 
         JpaBuilder builder = new JpaBuilder();
-        builder.setEntity(entity);
         builder.setJpaRepository(CodeBlock.of("this.repository"));
         builder.setJpaSpecificationExecutor(CodeBlock.of("this.jpaSpecificationExecutor"));
 
@@ -144,16 +143,16 @@ public class CrudServiceProcessor extends AbstractProcessor {
             Method method = Methods.of(serviceType, exec.getElement());
 
             if (exec.getSimpleName().startsWith("create")) {
-                serviceBuilder.addMethod(builder.create(method));
+                serviceBuilder.addMethod(builder.create(method, entity));
                 controllerBuilder.addMethod(generateControllerMethod(entity, serviceName, method));
             } //
             else if (exec.getSimpleName().startsWith("update")) {
-                serviceBuilder.addMethod(builder.update(method));
+                serviceBuilder.addMethod(builder.update(method, entity));
 
                 controllerBuilder.addMethod(generateControllerMethod(entity, serviceName, method));
             } //
             else if (exec.getSimpleName().startsWith("find")) {
-                serviceBuilder.addMethod(builder.query(method));
+                serviceBuilder.addMethod(builder.query(method, entity));
 
                 controllerBuilder.addMethod(generateControllerMethod(entity, serviceName, method));
             }
@@ -163,7 +162,7 @@ public class CrudServiceProcessor extends AbstractProcessor {
     }
 
     private MethodSpec generateControllerMethod(Entity entity, ClassName serviceName, Method method) {
-        MethodWriter writer = MethodWriters.create(method.getSimpleName());
+        MethodCreator writer = MethodCreators.create(method.getSimpleName());
         writer.addModifiers(Modifier.PUBLIC);
 
         Parameter idParam = null;
@@ -220,6 +219,6 @@ public class CrudServiceProcessor extends AbstractProcessor {
                 .addMember("path", "$S", path)
                 .build()
         );
-        return writer.getMethod();
+        return writer.create();
     }
 }
