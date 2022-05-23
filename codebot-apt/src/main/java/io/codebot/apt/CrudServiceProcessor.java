@@ -3,13 +3,14 @@ package io.codebot.apt;
 import com.google.auto.service.AutoService;
 import com.google.common.base.Throwables;
 import com.squareup.javapoet.*;
-import io.codebot.apt.code.Methods;
+import io.codebot.apt.code.*;
 import io.codebot.apt.crud.Entity;
 import io.codebot.apt.crud.JpaBuilder;
 import io.codebot.apt.type.Annotation;
 import io.codebot.apt.type.Executable;
 import io.codebot.apt.type.Type;
 import io.codebot.apt.type.TypeFactory;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
@@ -19,6 +20,7 @@ import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
+import java.io.IOException;
 import java.util.Set;
 
 @AutoService(Processor.class)
@@ -50,8 +52,7 @@ public class CrudServiceProcessor extends AbstractProcessor {
         for (TypeElement serviceElement : ElementFilter.typesIn(roundEnv.getElementsAnnotatedWith(annotation))) {
             Type serviceType = typeFactory.getType(serviceElement);
             try {
-                generateServiceImpl(serviceType).writeTo(filer);
-                generateController(serviceType).writeTo(filer);
+                generate(serviceType);
             } catch (Exception e) {
                 messager.printMessage(
                         Diagnostic.Kind.ERROR,
@@ -73,12 +74,16 @@ public class CrudServiceProcessor extends AbstractProcessor {
 
     private static final String SERVICE_FQN = "org.springframework.stereotype.Service";
     private static final String AUTOWIRED_FQN = "org.springframework.beans.factory.annotation.Autowired";
+    private static final String REST_CONTROLLER_FQN = "org.springframework.web.bind.annotation.RestController";
 
-    private JavaFile generateServiceImpl(Type serviceType) {
+    private static final String REQUEST_METHOD_FQN = "org.springframework.web.bind.annotation.RequestMethod";
+    private static final String REQUEST_MAPPING_FQN = "org.springframework.web.bind.annotation.RequestMapping";
+    private static final String REQUEST_PARAM_FQN = "org.springframework.web.bind.annotation.RequestParam";
+    private static final String REQUEST_BODY_FQN = "org.springframework.web.bind.annotation.RequestBody";
+
+    private void generate(Type serviceType) throws IOException {
         Entity entity = new Entity(
-                serviceType.findAnnotation(CRUD_SERVICE_FQN)
-                        .map(it -> typeFactory.getType(it.getValue("value")))
-                        .get()
+                serviceType.findAnnotation(CRUD_SERVICE_FQN).map(it -> typeFactory.getType(it.getValue("value"))).get()
         );
 
         ClassName serviceName = ClassName.get(serviceType.asTypeElement());
@@ -117,29 +122,6 @@ public class CrudServiceProcessor extends AbstractProcessor {
                 .build()
         );
 
-        JpaBuilder builder = new JpaBuilder();
-        builder.setEntity(entity);
-        builder.setJpaRepository(CodeBlock.of("this.repository"));
-        builder.setJpaSpecificationExecutor(CodeBlock.of("this.jpaSpecificationExecutor"));
-
-        for (Executable method : serviceType.getMethods()) {
-            if (method.getSimpleName().startsWith("create")) {
-                serviceBuilder.addMethod(builder.create(Methods.of(serviceType, method.getElement())));
-            } //
-            else if (method.getSimpleName().startsWith("update")) {
-                serviceBuilder.addMethod(builder.update(Methods.of(serviceType, method.getElement())));
-            } //
-            else if (method.getSimpleName().startsWith("find")) {
-                serviceBuilder.addMethod(builder.query(Methods.of(serviceType, method.getElement())));
-            }
-        }
-        return JavaFile.builder(serviceImplName.packageName(), serviceBuilder.build()).build();
-    }
-
-    private static final String REST_CONTROLLER_FQN = "org.springframework.web.bind.annotation.RestController";
-
-    private JavaFile generateController(Type serviceType) {
-        ClassName serviceName = ClassName.get(serviceType.asTypeElement());
         ClassName controllerName = ClassName.get(
                 serviceName.packageName().replaceAll("[^.]+$", "controller"),
                 serviceName.simpleName().replaceAll("Service$", "Controller")
@@ -152,6 +134,92 @@ public class CrudServiceProcessor extends AbstractProcessor {
                         .addModifiers(Modifier.PRIVATE)
                         .addAnnotation(ClassName.bestGuess(AUTOWIRED_FQN))
                         .build());
-        return JavaFile.builder(controllerName.packageName(), controllerBuilder.build()).build();
+
+        JpaBuilder builder = new JpaBuilder();
+        builder.setEntity(entity);
+        builder.setJpaRepository(CodeBlock.of("this.repository"));
+        builder.setJpaSpecificationExecutor(CodeBlock.of("this.jpaSpecificationExecutor"));
+
+        for (Executable exec : serviceType.getMethods()) {
+            Method method = Methods.of(serviceType, exec.getElement());
+
+            if (exec.getSimpleName().startsWith("create")) {
+                serviceBuilder.addMethod(builder.create(method));
+                controllerBuilder.addMethod(generateControllerMethod(entity, serviceName, method));
+            } //
+            else if (exec.getSimpleName().startsWith("update")) {
+                serviceBuilder.addMethod(builder.update(method));
+
+                controllerBuilder.addMethod(generateControllerMethod(entity, serviceName, method));
+            } //
+            else if (exec.getSimpleName().startsWith("find")) {
+                serviceBuilder.addMethod(builder.query(method));
+
+                controllerBuilder.addMethod(generateControllerMethod(entity, serviceName, method));
+            }
+        }
+        JavaFile.builder(serviceImplName.packageName(), serviceBuilder.build()).build().writeTo(filer);
+        JavaFile.builder(controllerName.packageName(), controllerBuilder.build()).build().writeTo(filer);
+    }
+
+    private MethodSpec generateControllerMethod(Entity entity, ClassName serviceName, Method method) {
+        MethodWriter writer = MethodWriters.create(method.getSimpleName());
+        writer.addModifiers(Modifier.PUBLIC);
+
+        Parameter idParam = null;
+        Parameter bodyParam = null;
+        for (Parameter param : method.getParameters()) {
+            if (param.getName().equals(entity.getIdName())
+                    && param.getType().isAssignableTo(entity.getIdType())) {
+                writer.addParameter(ParameterSpec
+                        .builder(TypeName.get(param.getType().getTypeMirror()), param.getName())
+                        .addAnnotation(AnnotationSpec
+                                .builder(ClassName.bestGuess(REQUEST_PARAM_FQN))
+                                .addMember("name", "$S", param.getName())
+                                .build()
+                        )
+                        .build()
+                );
+                idParam = param;
+                continue;
+            }
+            if (bodyParam == null) {
+                writer.addParameter(ParameterSpec
+                        .builder(TypeName.get(param.getType().getTypeMirror()), param.getName())
+                        .addAnnotation(AnnotationSpec
+                                .builder(ClassName.bestGuess(REQUEST_BODY_FQN))
+                                .build()
+                        )
+                        .build()
+                );
+                bodyParam = param;
+                continue;
+            }
+            writer.addParameter(ParameterSpec
+                    .builder(TypeName.get(param.getType().getTypeMirror()), param.getName())
+                    .build()
+            );
+        }
+        writer.returns(method.getReturnType());
+        if (!method.getReturnType().isVoid()) {
+            writer.body().add("return ");
+        }
+        writer.body().add("this.service.$1N($2L);\n",
+                method.getSimpleName(),
+                method.getParameters().stream()
+                        .map(param -> CodeBlock.of("$N", param.getName()))
+                        .collect(CodeBlock.joining(", "))
+        );
+        String path = String.format("/%s/%s",
+                StringUtils.uncapitalize(serviceName.simpleName().replaceAll("Service$", "")),
+                method.getSimpleName()
+        );
+        writer.addAnnotation(AnnotationSpec
+                .builder(ClassName.bestGuess(REQUEST_MAPPING_FQN))
+                .addMember("method", "$T.POST", ClassName.bestGuess(REQUEST_METHOD_FQN))
+                .addMember("path", "$S", path)
+                .build()
+        );
+        return writer.getMethod();
     }
 }

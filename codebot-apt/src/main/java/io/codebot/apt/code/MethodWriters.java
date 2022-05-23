@@ -3,11 +3,17 @@ package io.codebot.apt.code;
 import com.squareup.javapoet.AnnotationSpec;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterSpec;
+import com.squareup.javapoet.TypeName;
+import io.codebot.apt.type.Type;
 
 import javax.lang.model.element.Modifier;
 
 public final class MethodWriters {
     private MethodWriters() {
+    }
+
+    public static MethodWriter create(String name) {
+        return new MethodWriterImpl(MethodSpec.methodBuilder(name), CodeWriters.create());
     }
 
     public static MethodWriter overriding(Method method) {
@@ -50,6 +56,12 @@ public final class MethodWriters {
         @Override
         public MethodWriter addParameter(ParameterSpec parameter) {
             builder.addParameter(parameter);
+            return this;
+        }
+
+        @Override
+        public MethodWriter returns(Type type) {
+            builder.returns(TypeName.get(type.getTypeMirror()));
             return this;
         }
 

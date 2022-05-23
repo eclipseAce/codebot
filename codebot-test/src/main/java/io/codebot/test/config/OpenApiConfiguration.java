@@ -29,7 +29,7 @@ public class OpenApiConfiguration {
         return GroupedOpenApi.builder()
                 .group("All APIs")
                 .pathsToMatch(new String[] {
-                        "/api/**"
+                        "/**"
                 })
 //                .addOperationCustomizer((operation, handlerMethod) -> {
 //                    operation.setSecurity(Arrays.asList(new SecurityRequirement().addList("user")));

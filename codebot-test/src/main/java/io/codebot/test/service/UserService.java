@@ -19,7 +19,7 @@ public interface UserService {
 
     void updatePassword(UserSetPassword dto);
 
-    UserDetails updatePassword(long id, UserSetPassword dto);
+    UserDetails updatePassword2(long id, UserSetPassword dto);
 
     void updateProfile(UserSetProfile dto);
 
@@ -33,5 +33,5 @@ public interface UserService {
 
     Page<UserSummary> findPage(UserQuery query, Pageable pageable);
 
-    Page<UserSummary> findPage(Pageable pageable);
+    Page<UserSummary> findPage2(Pageable pageable);
 }
