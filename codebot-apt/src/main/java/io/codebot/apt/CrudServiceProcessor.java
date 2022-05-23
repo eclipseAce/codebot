@@ -27,12 +27,6 @@ import java.util.Set;
 public class CrudServiceProcessor extends AbstractProcessor {
     public static final String CRUD_SERVICE_FQN = "io.codebot.CrudService";
 
-    public static final String JPA_REPOSITORY_FQN = "org.springframework.data.jpa.repository.JpaRepository";
-    public static final String AUTOWIRED_FQN = "org.springframework.beans.factory.annotation.Autowired";
-    public static final String JPA_SPECIFICATION_EXECUTOR_FQN = "org.springframework.data.jpa.repository.JpaSpecificationExecutor";
-    public static final String QUERYDSL_PREDICATE_EXECUTOR_FQN = "org.springframework.data.querydsl.QuerydslPredicateExecutor";
-    public static final String SERVICE_FQN = "org.springframework.stereotype.Service";
-
     private Elements elementUtils;
     private Types typeUtils;
     private Messager messager;
@@ -56,7 +50,8 @@ public class CrudServiceProcessor extends AbstractProcessor {
         for (TypeElement serviceElement : ElementFilter.typesIn(roundEnv.getElementsAnnotatedWith(annotation))) {
             Type serviceType = typeFactory.getType(serviceElement);
             try {
-                generate(serviceType).writeTo(filer);
+                generateServiceImpl(serviceType).writeTo(filer);
+                generateController(serviceType).writeTo(filer);
             } catch (Exception e) {
                 messager.printMessage(
                         Diagnostic.Kind.ERROR,
@@ -71,7 +66,15 @@ public class CrudServiceProcessor extends AbstractProcessor {
         return false;
     }
 
-    private JavaFile generate(Type serviceType) {
+
+    private static final String JPA_REPOSITORY_FQN = "org.springframework.data.jpa.repository.JpaRepository";
+    private static final String JPA_SPECIFICATION_EXECUTOR_FQN = "org.springframework.data.jpa.repository.JpaSpecificationExecutor";
+    private static final String QUERYDSL_PREDICATE_EXECUTOR_FQN = "org.springframework.data.querydsl.QuerydslPredicateExecutor";
+
+    private static final String SERVICE_FQN = "org.springframework.stereotype.Service";
+    private static final String AUTOWIRED_FQN = "org.springframework.beans.factory.annotation.Autowired";
+
+    private JavaFile generateServiceImpl(Type serviceType) {
         Entity entity = new Entity(
                 serviceType.findAnnotation(CRUD_SERVICE_FQN)
                         .map(it -> typeFactory.getType(it.getValue("value")))
@@ -131,5 +134,24 @@ public class CrudServiceProcessor extends AbstractProcessor {
             }
         }
         return JavaFile.builder(serviceImplName.packageName(), serviceBuilder.build()).build();
+    }
+
+    private static final String REST_CONTROLLER_FQN = "org.springframework.web.bind.annotation.RestController";
+
+    private JavaFile generateController(Type serviceType) {
+        ClassName serviceName = ClassName.get(serviceType.asTypeElement());
+        ClassName controllerName = ClassName.get(
+                serviceName.packageName().replaceAll("[^.]+$", "controller"),
+                serviceName.simpleName().replaceAll("Service$", "Controller")
+        );
+        TypeSpec.Builder controllerBuilder = TypeSpec.classBuilder(controllerName)
+                .addModifiers(Modifier.PUBLIC)
+                .addAnnotation(ClassName.bestGuess(REST_CONTROLLER_FQN))
+                .addField(FieldSpec
+                        .builder(TypeName.get(serviceType.getTypeMirror()), "service")
+                        .addModifiers(Modifier.PRIVATE)
+                        .addAnnotation(ClassName.bestGuess(AUTOWIRED_FQN))
+                        .build());
+        return JavaFile.builder(controllerName.packageName(), controllerBuilder.build()).build();
     }
 }
