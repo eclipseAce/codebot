@@ -141,6 +141,10 @@ public class Type implements Annotated, Modified {
         return isAssignableTo(factory.getIterableType(typeUtils.getWildcardType(null, null)));
     }
 
+    public Type getIterableElementType() {
+        return getFactory().getType(asMember(getFactory().ITERABLE_ELEMENT.getTypeParameters().get(0)));
+    }
+
     public boolean isAssignableTo(TypeMirror type) {
         return typeUtils.isAssignable(getTypeMirror(), type);
     }

@@ -2,10 +2,11 @@ package io.codebot.apt.code;
 
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.NameAllocator;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class CodeWriters {
-    private CodeWriters() {
-    }
 
     public static CodeWriter create() {
         return new CodeWriterImpl(new NameAllocator());

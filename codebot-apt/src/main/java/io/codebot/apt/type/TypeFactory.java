@@ -10,10 +10,10 @@ import java.util.List;
 import java.util.Map;
 
 public class TypeFactory {
-    private final TypeElement iterableElement;
-    private final TypeElement collectionElement;
-    private final TypeElement listElement;
-    private final TypeElement mapElement;
+    public final TypeElement ITERABLE_ELEMENT;
+    public final TypeElement COLLECTION_ELEMENT;
+    public final TypeElement LIST_ELEMENT;
+    public final TypeElement MAP_ELEMENT;
 
     private final Elements elementUtils;
     private final Types typeUtils;
@@ -22,10 +22,10 @@ public class TypeFactory {
         this.elementUtils = processingEnv.getElementUtils();
         this.typeUtils = processingEnv.getTypeUtils();
 
-        this.iterableElement = elementUtils.getTypeElement(Iterable.class.getName());
-        this.collectionElement = elementUtils.getTypeElement(Collection.class.getName());
-        this.listElement = elementUtils.getTypeElement(List.class.getName());
-        this.mapElement = elementUtils.getTypeElement(Map.class.getName());
+        this.ITERABLE_ELEMENT = elementUtils.getTypeElement(Iterable.class.getName());
+        this.COLLECTION_ELEMENT = elementUtils.getTypeElement(Collection.class.getName());
+        this.LIST_ELEMENT = elementUtils.getTypeElement(List.class.getName());
+        this.MAP_ELEMENT = elementUtils.getTypeElement(Map.class.getName());
     }
 
     public Elements getElementUtils() {
@@ -49,10 +49,10 @@ public class TypeFactory {
     }
 
     public Type getIterableType(TypeMirror elementType) {
-        return getType(iterableElement, elementType);
+        return getType(ITERABLE_ELEMENT, elementType);
     }
 
     public Type getListType(TypeMirror elementType) {
-        return getType(listElement, elementType);
+        return getType(LIST_ELEMENT, elementType);
     }
 }

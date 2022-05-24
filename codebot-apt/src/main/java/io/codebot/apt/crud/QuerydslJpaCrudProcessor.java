@@ -3,40 +3,39 @@ package io.codebot.apt.crud;
 import com.google.common.collect.Lists;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
+import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
 import io.codebot.apt.code.*;
 import io.codebot.apt.type.Executable;
 import io.codebot.apt.type.GetAccessor;
 import io.codebot.apt.type.Type;
-import io.codebot.apt.type.TypeFactory;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.lang.model.element.TypeElement;
 import java.util.List;
 
-public class QuerydslJpaBuilder extends JpaBuilder {
+public class QuerydslJpaCrudProcessor extends JpaCrudProcessor {
+    private static final String QUERYDSL_PREDICATE_EXECUTOR_FQN = "org.springframework.data.querydsl.QuerydslPredicateExecutor";
+
     private static final String PREDICATE_FQN = "com.querydsl.core.types.Predicate";
     private static final String ENTITY_PATH_FQN = "com.querydsl.core.types.EntityPath";
     private static final String BOOLEAN_BUILDER_FQN = "com.querydsl.core.BooleanBuilder";
 
-    private CodeBlock querydslPredicateExecutor;
-
-    public void setQuerydslPredicateExecutor(CodeBlock querydslPredicateExecutor) {
-        this.querydslPredicateExecutor = querydslPredicateExecutor;
+    protected CodeBlock getQuerydslPredicateExecutor() {
+        return getInjectedField("querydslPredicateExecutor", ParameterizedTypeName.get(
+                ClassName.bestGuess(QUERYDSL_PREDICATE_EXECUTOR_FQN),
+                entity.getTypeName()
+        ));
     }
 
     @Override
-    protected Variable doQuery(Method overridden,
-                               Entity entity,
-                               MethodCreator creator,
-                               List<? extends Parameter> params) {
+    protected Variable doFindByFilters(Method overridden, MethodCreator creator, List<Parameter> filters, Parameter pageable) {
+        Type entityType = entity.getType();
         String builderVar = creator.body().allocateName("builder");
 
-        Type entityType = entity.getType();
-        TypeFactory typeFactory = entityType.getFactory();
         CodeBlock predicateBuild = new ParameterScanner() {
             @Override
-            public CodeBlock scanVariable(Variable variable) {
+            public CodeBlock scanParameter(Variable variable) {
                 if (entityType.findGetter(variable.getName(), variable.getType()).isPresent()) {
                     return CodeBlock.of("$1N.and($2L.$3N.eq($3N));\n",
                             builderVar, getEntityQuery(entity.getTypeName()), variable.getName()
@@ -46,7 +45,7 @@ public class QuerydslJpaBuilder extends JpaBuilder {
             }
 
             @Override
-            public CodeBlock scanVariableMethod(Variable variable, Executable method) {
+            public CodeBlock scanParameterMethod(Variable variable, Executable method) {
                 if (!method.getReturnType().isAssignableTo(PREDICATE_FQN)) {
                     return null;
                 }
@@ -70,7 +69,7 @@ public class QuerydslJpaBuilder extends JpaBuilder {
             }
 
             @Override
-            public CodeBlock scanVariableGetter(Variable variable, GetAccessor getter) {
+            public CodeBlock scanParameterGetter(Variable variable, GetAccessor getter) {
                 if (entityType.findGetter(getter.getAccessedName(), getter.getAccessedType()).isPresent()) {
                     return CodeBlock.builder()
                             .beginControlFlow("if ($1N.$2N() != null)",
@@ -83,26 +82,25 @@ public class QuerydslJpaBuilder extends JpaBuilder {
                 }
                 return null;
             }
-        }.scan(params);
+        }.scan(filters);
 
-        if (!predicateBuild.isEmpty()) {
-            creator.body()
-                    .add("$1T $2N = new $1T();\n", ClassName.bestGuess(BOOLEAN_BUILDER_FQN), builderVar)
-                    .add(predicateBuild);
-            Parameter pageable = getPageableParameter(overridden);
-            if (pageable != null) {
-                return creator.body().declareVariable("result", Expressions.of(
-                        typeFactory.getType(PAGE_FQN, entityType.getTypeMirror()),
-                        CodeBlock.of("$1L.findAll($2N, $3N)",
-                                querydslPredicateExecutor, builderVar, pageable.getName())
-                ));
-            }
+        if (predicateBuild.isEmpty()) {
+            return doFindAll(overridden, creator, pageable);
+        }
+        creator.body()
+                .add("$1T $2N = new $1T();\n", ClassName.bestGuess(BOOLEAN_BUILDER_FQN), builderVar)
+                .add(predicateBuild);
+        if (pageable != null) {
             return creator.body().declareVariable("result", Expressions.of(
-                    typeFactory.getIterableType(entityType.getTypeMirror()),
-                    CodeBlock.of("$1L.findAll($2N)", querydslPredicateExecutor, builderVar)
+                    typeFactory.getType(PAGE_FQN, entityType.getTypeMirror()),
+                    CodeBlock.of("$1L.findAll($2N, $3N)",
+                            getQuerydslPredicateExecutor(), builderVar, pageable.getName())
             ));
         }
-        return doQuery(overridden, entity, creator);
+        return creator.body().declareVariable("result", Expressions.of(
+                typeFactory.getIterableType(entityType.getTypeMirror()),
+                CodeBlock.of("$1L.findAll($2N)", getQuerydslPredicateExecutor(), builderVar)
+        ));
     }
 
     protected CodeBlock getEntityQuery(ClassName entityName) {

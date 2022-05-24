@@ -7,6 +7,7 @@ import io.codebot.apt.type.TypeFactory;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.lang.model.element.ExecutableElement;
@@ -23,9 +24,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class Methods {
-    private Methods() {
-    }
 
     private static final String GETTER_PREFIX = "get";
     private static final String BOOLEAN_GETTER_PREFIX = "is";

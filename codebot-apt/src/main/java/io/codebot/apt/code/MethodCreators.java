@@ -5,12 +5,13 @@ import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterSpec;
 import com.squareup.javapoet.TypeName;
 import io.codebot.apt.type.Type;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
 import javax.lang.model.element.Modifier;
 
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class MethodCreators {
-    private MethodCreators() {
-    }
 
     public static MethodCreator create(String name) {
         return new MethodCreatorImpl(MethodSpec.methodBuilder(name), CodeWriters.create());
