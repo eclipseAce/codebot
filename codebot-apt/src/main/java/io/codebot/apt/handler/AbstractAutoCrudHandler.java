@@ -1,10 +1,10 @@
 package io.codebot.apt.handler;
 
 import com.google.common.collect.Maps;
-import com.squareup.javapoet.*;
-import io.codebot.AutoCrud;
-import io.codebot.AutoExposed;
-import io.codebot.apt.code.CodeWriter;
+import com.squareup.javapoet.AnnotationSpec;
+import com.squareup.javapoet.ClassName;
+import com.squareup.javapoet.CodeBlock;
+import io.codebot.apt.annotation.AutoCrud;
 import io.codebot.apt.code.*;
 import io.codebot.apt.type.GetAccessor;
 import io.codebot.apt.type.SetAccessor;
@@ -23,14 +23,8 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 public abstract class AbstractAutoCrudHandler implements AnnotationHandler {
-    private static final String AUTOWIRED_FQN = "org.springframework.beans.factory.annotation.Autowired";
     private static final String SERVICE_FQN = "org.springframework.stereotype.Service";
     private static final String TRANSACTIONAL_FQN = "org.springframework.transaction.annotation.Transactional";
-    private static final String REST_CONTROLLER_FQN = "org.springframework.web.bind.annotation.RestController";
-    private static final String REQUEST_METHOD_FQN = "org.springframework.web.bind.annotation.RequestMethod";
-    private static final String REQUEST_MAPPING_FQN = "org.springframework.web.bind.annotation.RequestMapping";
-    private static final String REQUEST_PARAM_FQN = "org.springframework.web.bind.annotation.RequestParam";
-    private static final String REQUEST_BODY_FQN = "org.springframework.web.bind.annotation.RequestBody";
 
     protected ProcessingEnvironment processingEnv;
     protected TypeFactory typeFactory;
@@ -39,7 +33,6 @@ public abstract class AbstractAutoCrudHandler implements AnnotationHandler {
     protected Entity entity;
 
     protected TypeCreator serviceCreator;
-    protected TypeCreator controllerCreator;
 
     @Override
     public void handle(ProcessingEnvironment processingEnv, Element element) throws Exception {
@@ -48,7 +41,7 @@ public abstract class AbstractAutoCrudHandler implements AnnotationHandler {
 
         this.superType = typeFactory.getType((TypeElement) element);
         this.entity = new Entity(superType.findAnnotation(AutoCrud.class.getName())
-                .map(it -> typeFactory.getType(it.getValue("value"))).get());
+                .map(it -> typeFactory.getType(it.getValue("entity"))).get());
 
         ClassName superName = ClassName.get((TypeElement) element);
         ClassName serviceName = ClassName.get(superName.packageName(), superName.simpleName() + "Impl");
@@ -62,39 +55,11 @@ public abstract class AbstractAutoCrudHandler implements AnnotationHandler {
             serviceCreator.superclass(superType);
         }
 
-        ClassName controllerName = ClassName.get(
-                superName.packageName().replaceAll("[^.]+$", "controller"),
-                superName.simpleName().replaceAll("Service$", "Controller")
-        );
-        String basePath = superType.findAnnotation(AutoExposed.class.getName())
-                .map(it -> (String) it.getValue("value")).get();
-        this.controllerCreator = TypeCreators
-                .createClass(controllerName.packageName(), controllerName.simpleName())
-                .addModifiers(Modifier.PUBLIC)
-                .addAnnotation(AnnotationSpec
-                        .builder(ClassName.bestGuess(REST_CONTROLLER_FQN))
-                        .build()
-                )
-                .addAnnotation(AnnotationSpec
-                        .builder(ClassName.bestGuess(REQUEST_MAPPING_FQN))
-                        .addMember("path", "$S", basePath)
-                        .build()
-                )
-                .addField(FieldSpec
-                        .builder(TypeName.get(superType.getTypeMirror()), "target")
-                        .addModifiers(Modifier.PRIVATE)
-                        .addAnnotation(ClassName.bestGuess(AUTOWIRED_FQN))
-                        .build()
-                );
-
         Methods.allOf(superType).stream()
                 .filter(it -> it.getModifiers().contains(Modifier.ABSTRACT))
                 .forEach(method -> {
                     MethodCreator serviceMethodCreator = MethodCreators
                             .overriding(method);
-                    MethodCreator controllerMethodCreator = MethodCreators
-                            .create(method.getSimpleName())
-                            .addModifiers(Modifier.PUBLIC);
 
                     if (method.getSimpleName().startsWith("create")) {
                         handleCreateMethod(method, serviceMethodCreator);
@@ -106,65 +71,8 @@ public abstract class AbstractAutoCrudHandler implements AnnotationHandler {
                         handleQueryMethod(method, serviceMethodCreator);
                     }
                     serviceCreator.addMethod(serviceMethodCreator.create());
-
-                    handleExposedMethod(method, controllerMethodCreator);
-                    controllerCreator.addMethod(controllerMethodCreator.create());
                 });
         serviceCreator.create().writeTo(processingEnv.getFiler());
-        controllerCreator.create().writeTo(processingEnv.getFiler());
-    }
-
-    protected void handleExposedMethod(Method method, MethodCreator writer) {
-        Parameter idParam = null;
-        Parameter bodyParam = null;
-        for (Parameter param : method.getParameters()) {
-            if (param.getName().equals(entity.getIdName())
-                    && param.getType().isAssignableTo(entity.getIdType())) {
-                writer.addParameter(ParameterSpec
-                        .builder(TypeName.get(param.getType().getTypeMirror()), param.getName())
-                        .addAnnotation(AnnotationSpec
-                                .builder(ClassName.bestGuess(REQUEST_PARAM_FQN))
-                                .addMember("name", "$S", param.getName())
-                                .build()
-                        )
-                        .build()
-                );
-                idParam = param;
-                continue;
-            }
-            if (bodyParam == null) {
-                writer.addParameter(ParameterSpec
-                        .builder(TypeName.get(param.getType().getTypeMirror()), param.getName())
-                        .addAnnotation(AnnotationSpec
-                                .builder(ClassName.bestGuess(REQUEST_BODY_FQN))
-                                .build()
-                        )
-                        .build()
-                );
-                bodyParam = param;
-                continue;
-            }
-            writer.addParameter(ParameterSpec
-                    .builder(TypeName.get(param.getType().getTypeMirror()), param.getName())
-                    .build()
-            );
-        }
-        writer.returns(method.getReturnType());
-        if (!method.getReturnType().isVoid()) {
-            writer.body().add("return ");
-        }
-        writer.body().add("this.target.$1N($2L);\n",
-                method.getSimpleName(),
-                method.getParameters().stream()
-                        .map(param -> CodeBlock.of("$N", param.getName()))
-                        .collect(CodeBlock.joining(", "))
-        );
-        writer.addAnnotation(AnnotationSpec
-                .builder(ClassName.bestGuess(REQUEST_MAPPING_FQN))
-                .addMember("method", "$T.POST", ClassName.bestGuess(REQUEST_METHOD_FQN))
-                .addMember("path", "$S", "/" + method.getSimpleName())
-                .build()
-        );
     }
 
     protected void handleCreateMethod(Method overridden, MethodCreator creator) {

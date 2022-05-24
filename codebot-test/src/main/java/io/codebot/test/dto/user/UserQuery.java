@@ -40,7 +40,7 @@ public class UserQuery {
                                                                   CriteriaBuilder cb) {
         return cb.and(
                 cb.greaterThanOrEqualTo(root.get("createdAt"), createdAt[0]),
-                cb.lessThanOrEqualTo(root.get("createdAt"), createdAt[0])
+                cb.lessThanOrEqualTo(root.get("createdAt"), createdAt[1])
         );
     }
 

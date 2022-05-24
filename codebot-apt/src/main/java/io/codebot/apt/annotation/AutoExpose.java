@@ -1,4 +1,4 @@
-package io.codebot;
+package io.codebot.apt.annotation;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -7,6 +7,8 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.CLASS)
 @Target(ElementType.TYPE)
-public @interface AutoCrud {
-    Class<?> value();
+public @interface AutoExpose {
+    String title() default "";
+
+    String path() default "";
 }

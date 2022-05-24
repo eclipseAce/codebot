@@ -8,7 +8,6 @@
 	<packaging>pom</packaging>
 
 	<modules>
-		<module>codebot-core</module>
 		<module>codebot-apt</module>
 		<module>codebot-test</module>
     </modules>

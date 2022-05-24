@@ -3,9 +3,11 @@ package io.codebot.apt;
 import com.google.auto.service.AutoService;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
-import io.codebot.AutoCrud;
+import io.codebot.apt.annotation.AutoCrud;
+import io.codebot.apt.annotation.AutoExpose;
 import io.codebot.apt.handler.AnnotationHandler;
-import io.codebot.apt.handler.QuerydslJpaAutoCrudHandler;
+import io.codebot.apt.handler.AutoExposeHandler;
+import io.codebot.apt.handler.JpaAutoCrudHandler;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
@@ -18,7 +20,10 @@ import java.util.Set;
 
 @AutoService(Processor.class)
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
-@SupportedAnnotationTypes("io.codebot.AutoCrud")
+@SupportedAnnotationTypes({
+        "io.codebot.apt.annotation.AutoExpose",
+        "io.codebot.apt.annotation.AutoCrud"
+})
 public class CodebotProcessor extends AbstractProcessor {
     private Map<String, Class<? extends AnnotationHandler>> annotationHandlers;
 
@@ -26,7 +31,8 @@ public class CodebotProcessor extends AbstractProcessor {
     public synchronized void init(ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
         annotationHandlers = Maps.newLinkedHashMap();
-        annotationHandlers.put(AutoCrud.class.getName(), QuerydslJpaAutoCrudHandler.class);
+        annotationHandlers.put(AutoExpose.class.getName(), AutoExposeHandler.class);
+        annotationHandlers.put(AutoCrud.class.getName(), JpaAutoCrudHandler.class);
     }
 
     @Override

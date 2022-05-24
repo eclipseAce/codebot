@@ -1,7 +1,8 @@
 package io.codebot.test.service;
 
-import io.codebot.AutoCrud;
-import io.codebot.AutoExposed;
+import io.codebot.apt.annotation.AutoCrud;
+import io.codebot.apt.annotation.AutoExpose;
+import io.codebot.apt.annotation.Exposed;
 import io.codebot.test.domain.User;
 import io.codebot.test.dto.user.*;
 import org.springframework.data.domain.Page;
@@ -9,89 +10,44 @@ import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
-@AutoCrud(User.class)
-@AutoExposed("/api/user")
+
+@AutoCrud(entity = User.class)
+@AutoExpose(title = "用户接口", path = "/api/user")
 public interface UserService {
 
-    /**
-     * @swagger.title 创建用户
-     * @param dto
-     * @return
-     */
-    long create(UserCreate dto);
+    @Exposed(title = "创建用户")
+    long create(@Exposed.Body UserCreate dto);
 
-    /**
-     * @swagger.title 创建用户
-     * @param create
-     * @return
-     */
-    UserDetails createAndGet(UserCreate create);
+    @Exposed(title = "创建用户2")
+    UserDetails createAndGet(@Exposed.Body UserCreate create);
 
-    /**
-     * @swagger.title 创建默认用户
-     * @return
-     */
+    @Exposed(title = "创建默认用户")
     long createDefault();
 
-    /**
-     * @swagger.title 修改用户密码
-     * @param dto
-     */
-    void updatePassword(UserSetPassword dto);
+    @Exposed(title = "修改用户密码")
+    void updatePassword(@Exposed.Body UserSetPassword dto);
 
-    /**
-     * @swagger.title 修改用户密码2
-     * @param id
-     * @param dto
-     * @return
-     */
-    UserDetails updatePassword2(long id, UserSetPassword dto);
+    @Exposed(title = "修改用户密码2")
+    UserDetails updatePassword2(@Exposed.Path long id, @Exposed.Body UserSetPassword dto);
 
-    /**
-     * @swagger.title 修改用户资料
-     * @param dto
-     */
-    void updateProfile(UserSetProfile dto);
+    @Exposed(title = "修改用户资料")
+    void updateProfile(@Exposed.Body UserSetProfile dto);
 
-    /**
-     * @swagger.title 修改用户锁定状态
-     * @param dto
-     */
-    void updateLocked(UserSetLocked dto);
+    @Exposed(title = "修改用户锁定状态")
+    void updateLocked(@Exposed.Body UserSetLocked dto);
 
-    /**
-     * @swagger.title 获取用户
-     * @param id
-     * @return
-     */
-    UserDetails findById(long id);
+    @Exposed(title = "获取用户")
+    UserDetails findById(@Exposed.Path long id);
 
-    /**
-     * @swagger.title 根据用户名获取用户
-     * @param username
-     * @return
-     */
-    UserDetails findByUsername(String username);
+    @Exposed(title = "根据用户名获取用户")
+    UserDetails findByUsername(@Exposed.Param String username);
 
-    /**
-     * @swagger.title 查询用户
-     * @param query
-     * @return
-     */
-    List<UserSummary> findList(UserQuery query);
+    @Exposed(title = "查询用户")
+    List<UserSummary> findList(@Exposed.Body UserQuery query);
 
-    /**
-     * @swagger.title 查询分页用户
-     * @param query
-     * @param pageable
-     * @return
-     */
-    Page<UserSummary> findPage(UserQuery query, Pageable pageable);
+    @Exposed(title = "查询分页用户")
+    Page<UserSummary> findPage(@Exposed.Body UserQuery query, Pageable pageable);
 
-    /**
-     * @swagger.title 分页获取所有用户
-     * @param pageable
-     * @return
-     */
+    @Exposed(title = "分页获取所有用户")
     Page<UserSummary> findAllPage(Pageable pageable);
 }
