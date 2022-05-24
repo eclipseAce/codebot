@@ -1,9 +1,10 @@
-package io.codebot.apt.crud;
+package io.codebot.apt.handler;
 
 import com.google.common.collect.Maps;
-import com.squareup.javapoet.AnnotationSpec;
-import com.squareup.javapoet.ClassName;
-import com.squareup.javapoet.CodeBlock;
+import com.squareup.javapoet.*;
+import io.codebot.AutoCrud;
+import io.codebot.AutoExposed;
+import io.codebot.apt.code.CodeWriter;
 import io.codebot.apt.code.*;
 import io.codebot.apt.type.GetAccessor;
 import io.codebot.apt.type.SetAccessor;
@@ -11,9 +12,9 @@ import io.codebot.apt.type.Type;
 import io.codebot.apt.type.TypeFactory;
 
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -21,10 +22,15 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-public abstract class AbstractCrudProcessor {
-    private static final String CRUD_SERVICE_FQN = "io.codebot.CrudService";
+public abstract class AbstractAutoCrudHandler implements AnnotationHandler {
+    private static final String AUTOWIRED_FQN = "org.springframework.beans.factory.annotation.Autowired";
     private static final String SERVICE_FQN = "org.springframework.stereotype.Service";
     private static final String TRANSACTIONAL_FQN = "org.springframework.transaction.annotation.Transactional";
+    private static final String REST_CONTROLLER_FQN = "org.springframework.web.bind.annotation.RestController";
+    private static final String REQUEST_METHOD_FQN = "org.springframework.web.bind.annotation.RequestMethod";
+    private static final String REQUEST_MAPPING_FQN = "org.springframework.web.bind.annotation.RequestMapping";
+    private static final String REQUEST_PARAM_FQN = "org.springframework.web.bind.annotation.RequestParam";
+    private static final String REQUEST_BODY_FQN = "org.springframework.web.bind.annotation.RequestBody";
 
     protected ProcessingEnvironment processingEnv;
     protected TypeFactory typeFactory;
@@ -32,47 +38,136 @@ public abstract class AbstractCrudProcessor {
     protected Type superType;
     protected Entity entity;
 
-    protected TypeCreator classCreator;
+    protected TypeCreator serviceCreator;
+    protected TypeCreator controllerCreator;
 
-    public void init(ProcessingEnvironment processingEnv, TypeElement element) {
+    @Override
+    public void handle(ProcessingEnvironment processingEnv, Element element) throws Exception {
         this.processingEnv = processingEnv;
         this.typeFactory = new TypeFactory(processingEnv);
 
-        this.superType = typeFactory.getType(element);
+        this.superType = typeFactory.getType((TypeElement) element);
+        this.entity = new Entity(superType.findAnnotation(AutoCrud.class.getName())
+                .map(it -> typeFactory.getType(it.getValue("value"))).get());
 
-        ClassName superName = ClassName.get(element);
-        ClassName className = ClassName.get(superName.packageName(), superName.simpleName() + "Impl");
-        this.classCreator = TypeCreators
-                .createClass(className.packageName(), className.simpleName())
+        ClassName superName = ClassName.get((TypeElement) element);
+        ClassName serviceName = ClassName.get(superName.packageName(), superName.simpleName() + "Impl");
+        this.serviceCreator = TypeCreators
+                .createClass(serviceName.packageName(), serviceName.simpleName())
                 .addModifiers(Modifier.PUBLIC)
                 .addAnnotation(AnnotationSpec.builder(ClassName.bestGuess(SERVICE_FQN)).build());
         if (superType.isInterface()) {
-            classCreator.addSuperinterface(superType);
+            serviceCreator.addSuperinterface(superType);
         } else {
-            classCreator.superclass(superType);
+            serviceCreator.superclass(superType);
         }
-    }
 
-    public void process() throws IOException {
+        ClassName controllerName = ClassName.get(
+                superName.packageName().replaceAll("[^.]+$", "controller"),
+                superName.simpleName().replaceAll("Service$", "Controller")
+        );
+        String basePath = superType.findAnnotation(AutoExposed.class.getName())
+                .map(it -> (String) it.getValue("value")).get();
+        this.controllerCreator = TypeCreators
+                .createClass(controllerName.packageName(), controllerName.simpleName())
+                .addModifiers(Modifier.PUBLIC)
+                .addAnnotation(AnnotationSpec
+                        .builder(ClassName.bestGuess(REST_CONTROLLER_FQN))
+                        .build()
+                )
+                .addAnnotation(AnnotationSpec
+                        .builder(ClassName.bestGuess(REQUEST_MAPPING_FQN))
+                        .addMember("path", "$S", basePath)
+                        .build()
+                )
+                .addField(FieldSpec
+                        .builder(TypeName.get(superType.getTypeMirror()), "target")
+                        .addModifiers(Modifier.PRIVATE)
+                        .addAnnotation(ClassName.bestGuess(AUTOWIRED_FQN))
+                        .build()
+                );
+
         Methods.allOf(superType).stream()
                 .filter(it -> it.getModifiers().contains(Modifier.ABSTRACT))
                 .forEach(method -> {
-                    MethodCreator creator = MethodCreators.overriding(method);
+                    MethodCreator serviceMethodCreator = MethodCreators
+                            .overriding(method);
+                    MethodCreator controllerMethodCreator = MethodCreators
+                            .create(method.getSimpleName())
+                            .addModifiers(Modifier.PUBLIC);
+
                     if (method.getSimpleName().startsWith("create")) {
-                        processCreateMethod(method, creator);
+                        handleCreateMethod(method, serviceMethodCreator);
                     } //
                     else if (method.getSimpleName().startsWith("update")) {
-                        processUpdateMethod(method, creator);
+                        handleUpdateMethod(method, serviceMethodCreator);
                     } //
                     else if (method.getSimpleName().startsWith("find")) {
-                        processQueryMethod(method, creator);
+                        handleQueryMethod(method, serviceMethodCreator);
                     }
-                    classCreator.addMethod(creator.create());
+                    serviceCreator.addMethod(serviceMethodCreator.create());
+
+                    handleExposedMethod(method, controllerMethodCreator);
+                    controllerCreator.addMethod(controllerMethodCreator.create());
                 });
-        classCreator.create().writeTo(processingEnv.getFiler());
+        serviceCreator.create().writeTo(processingEnv.getFiler());
+        controllerCreator.create().writeTo(processingEnv.getFiler());
     }
 
-    protected void processCreateMethod(Method overridden, MethodCreator creator) {
+    protected void handleExposedMethod(Method method, MethodCreator writer) {
+        Parameter idParam = null;
+        Parameter bodyParam = null;
+        for (Parameter param : method.getParameters()) {
+            if (param.getName().equals(entity.getIdName())
+                    && param.getType().isAssignableTo(entity.getIdType())) {
+                writer.addParameter(ParameterSpec
+                        .builder(TypeName.get(param.getType().getTypeMirror()), param.getName())
+                        .addAnnotation(AnnotationSpec
+                                .builder(ClassName.bestGuess(REQUEST_PARAM_FQN))
+                                .addMember("name", "$S", param.getName())
+                                .build()
+                        )
+                        .build()
+                );
+                idParam = param;
+                continue;
+            }
+            if (bodyParam == null) {
+                writer.addParameter(ParameterSpec
+                        .builder(TypeName.get(param.getType().getTypeMirror()), param.getName())
+                        .addAnnotation(AnnotationSpec
+                                .builder(ClassName.bestGuess(REQUEST_BODY_FQN))
+                                .build()
+                        )
+                        .build()
+                );
+                bodyParam = param;
+                continue;
+            }
+            writer.addParameter(ParameterSpec
+                    .builder(TypeName.get(param.getType().getTypeMirror()), param.getName())
+                    .build()
+            );
+        }
+        writer.returns(method.getReturnType());
+        if (!method.getReturnType().isVoid()) {
+            writer.body().add("return ");
+        }
+        writer.body().add("this.target.$1N($2L);\n",
+                method.getSimpleName(),
+                method.getParameters().stream()
+                        .map(param -> CodeBlock.of("$N", param.getName()))
+                        .collect(CodeBlock.joining(", "))
+        );
+        writer.addAnnotation(AnnotationSpec
+                .builder(ClassName.bestGuess(REQUEST_MAPPING_FQN))
+                .addMember("method", "$T.POST", ClassName.bestGuess(REQUEST_METHOD_FQN))
+                .addMember("path", "$S", "/" + method.getSimpleName())
+                .build()
+        );
+    }
+
+    protected void handleCreateMethod(Method overridden, MethodCreator creator) {
         Map<String, Expression> sources = Maps.newLinkedHashMap();
         for (Parameter param : overridden.getParameters()) {
             Optional<SetAccessor> setter = entity.getType().findSetter(param.getName(), param.getType());
@@ -102,7 +197,7 @@ public abstract class AbstractCrudProcessor {
     protected abstract Variable doCreateEntity(Method overridden, MethodCreator creator,
                                                Map<String, Expression> sources);
 
-    protected void processUpdateMethod(Method overridden, MethodCreator creator) {
+    protected void handleUpdateMethod(Method overridden, MethodCreator creator) {
         Expression entityId = null;
         Map<String, Expression> sources = Maps.newLinkedHashMap();
         for (Parameter variable : overridden.getParameters()) {
@@ -155,7 +250,7 @@ public abstract class AbstractCrudProcessor {
     protected abstract Variable doUpdateEntity(Method overridden, MethodCreator creator,
                                                Expression entityId, Map<String, Expression> sources);
 
-    protected void processQueryMethod(Method overridden, MethodCreator creator) {
+    protected void handleQueryMethod(Method overridden, MethodCreator creator) {
         Variable result = doQueryEntities(overridden, creator);
         creator.body().add("return $L;\n", doTypeMapping(creator.body(), result, overridden.getReturnType()));
     }

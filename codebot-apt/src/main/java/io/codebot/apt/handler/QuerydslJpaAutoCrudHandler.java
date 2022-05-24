@@ -1,4 +1,4 @@
-package io.codebot.apt.crud;
+package io.codebot.apt.handler;
 
 import com.google.common.collect.Lists;
 import com.squareup.javapoet.ClassName;
@@ -14,7 +14,7 @@ import org.apache.commons.lang3.StringUtils;
 import javax.lang.model.element.TypeElement;
 import java.util.List;
 
-public class QuerydslJpaCrudProcessor extends JpaCrudProcessor {
+public class QuerydslJpaAutoCrudHandler extends JpaAutoCrudHandler {
     private static final String QUERYDSL_PREDICATE_EXECUTOR_FQN = "org.springframework.data.querydsl.QuerydslPredicateExecutor";
 
     private static final String PREDICATE_FQN = "com.querydsl.core.types.Predicate";

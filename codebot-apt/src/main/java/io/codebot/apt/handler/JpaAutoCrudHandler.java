@@ -1,4 +1,4 @@
-package io.codebot.apt.crud;
+package io.codebot.apt.handler;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public class JpaCrudProcessor extends AbstractCrudProcessor {
+public class JpaAutoCrudHandler extends AbstractAutoCrudHandler {
     protected static final String AUTOWIRED_FQN = "org.springframework.beans.factory.annotation.Autowired";
 
     protected static final String JPA_REPOSITORY_FQN = "org.springframework.data.jpa.repository.JpaRepository";
@@ -33,7 +33,7 @@ public class JpaCrudProcessor extends AbstractCrudProcessor {
 
     protected CodeBlock getInjectedField(String fieldName, TypeName type) {
         return injectedFields.computeIfAbsent(fieldName, k -> {
-            classCreator.addField(FieldSpec
+            serviceCreator.addField(FieldSpec
                     .builder(type, fieldName, Modifier.PRIVATE)
                     .addAnnotation(ClassName.bestGuess(AUTOWIRED_FQN))
                     .build()

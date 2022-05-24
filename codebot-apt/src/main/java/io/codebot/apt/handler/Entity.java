@@ -1,4 +1,4 @@
-package io.codebot.apt.crud;
+package io.codebot.apt.handler;
 
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.TypeName;
