@@ -4,8 +4,8 @@ import com.google.auto.service.AutoService;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
 import io.codebot.apt.annotation.Expose;
-import io.codebot.apt.processor.TypeElementProcessor;
-import io.codebot.apt.processor.ExposedTypeElementProcessor;
+import io.codebot.apt.processor.AnnotatedElementProcessor;
+import io.codebot.apt.processor.ExposeTypeProcessor;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
@@ -19,10 +19,10 @@ import java.util.Set;
 @AutoService(Processor.class)
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
 public class CodebotProcessor extends AbstractProcessor {
-    private final Map<String, TypeElementProcessor> elementProcessors = Maps.newLinkedHashMap();
+    private final Map<String, AnnotatedElementProcessor> elementProcessors = Maps.newLinkedHashMap();
 
     public CodebotProcessor() {
-        elementProcessors.put(Expose.class.getName(), new ExposedTypeElementProcessor());
+        elementProcessors.put(Expose.class.getName(), new ExposeTypeProcessor());
     }
 
     @Override
@@ -40,20 +40,21 @@ public class CodebotProcessor extends AbstractProcessor {
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         for (TypeElement annotation : annotations) {
             for (TypeElement element : ElementFilter.typesIn(roundEnv.getElementsAnnotatedWith(annotation))) {
-                TypeElementProcessor processor = elementProcessors.get(annotation.getQualifiedName().toString());
-                if (processor != null) {
-                    AnnotationMirror annotationMirror = element.getAnnotationMirrors().stream()
-                            .filter(it -> annotation.equals(it.getAnnotationType().asElement()))
-                            .findFirst().orElse(null);
-                    try {
-                        processor.process(element);
-                    } catch (Exception e) {
-                        processingEnv.getMessager().printMessage(
-                                Diagnostic.Kind.ERROR,
-                                Throwables.getStackTraceAsString(e),
-                                element, annotationMirror
-                        );
-                    }
+                AnnotatedElementProcessor processor = elementProcessors.get(annotation.getQualifiedName().toString());
+                if (processor == null) {
+                    continue;
+                }
+                AnnotationMirror annotationMirror = element.getAnnotationMirrors().stream()
+                        .filter(it -> annotation.equals(it.getAnnotationType().asElement()))
+                        .findFirst().orElse(null);
+                try {
+                    processor.process(element, annotationMirror);
+                } catch (Exception e) {
+                    processingEnv.getMessager().printMessage(
+                            Diagnostic.Kind.ERROR,
+                            Throwables.getStackTraceAsString(e),
+                            element, annotationMirror
+                    );
                 }
             }
         }

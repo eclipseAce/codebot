@@ -6,11 +6,10 @@ import io.codebot.apt.code.Annotation;
 import io.codebot.apt.code.Method;
 import io.codebot.apt.code.Parameter;
 
-import javax.lang.model.element.Modifier;
-import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.*;
 import javax.lang.model.type.DeclaredType;
 
-public class ExposedTypeElementProcessor extends AbstractTypeElementProcessor {
+public class ExposeTypeProcessor extends AbstractAnnotatedElementProcessor {
     private static final String VALID_FQN = "javax.validation.Valid";
 
     private static final String AUTOWIRED_FQN = "org.springframework.beans.factory.annotation.Autowired";
@@ -29,14 +28,15 @@ public class ExposedTypeElementProcessor extends AbstractTypeElementProcessor {
     private static final String PAGEABLE_AS_QUERY_PARAM_FQN = "org.springdoc.core.converters.models.PageableAsQueryParam";
 
     @Override
-    public void process(TypeElement element) throws Exception {
-        DeclaredType type = typeOps.getDeclaredType(element);
-        Annotation typeAnnotation = annotationUtils.find(element, Expose.class);
-        if (typeAnnotation == null) {
+    public void process(Element element, AnnotationMirror annotationMirror) throws Exception {
+        if (element.getKind() != ElementKind.CLASS && element.getKind() != ElementKind.INTERFACE) {
             return;
         }
 
-        ClassName typeName = ClassName.get(element);
+        DeclaredType type = typeOps.getDeclaredType((TypeElement) element);
+        Annotation typeAnnotation = annotationUtils.of(annotationMirror);
+
+        ClassName typeName = ClassName.get((TypeElement) element);
         ClassName controllerName = ClassName.get(
                 typeName.packageName().replaceAll("[^.]+$", "controller"),
                 typeName.simpleName().replaceAll("Service$", "Controller")

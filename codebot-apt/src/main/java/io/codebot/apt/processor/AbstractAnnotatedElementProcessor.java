@@ -7,7 +7,7 @@ import io.codebot.apt.code.TypeOps;
 
 import javax.annotation.processing.ProcessingEnvironment;
 
-public abstract class AbstractTypeElementProcessor implements TypeElementProcessor {
+public abstract class AbstractAnnotatedElementProcessor implements AnnotatedElementProcessor {
     protected ProcessingEnvironment processingEnv;
     protected TypeOps typeOps;
     protected Annotations annotationUtils;

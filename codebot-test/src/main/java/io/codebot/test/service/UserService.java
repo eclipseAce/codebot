@@ -1,19 +1,15 @@
 package io.codebot.test.service;
 
-import io.codebot.apt.annotation.Crud;
 import io.codebot.apt.annotation.Expose;
 import io.codebot.apt.annotation.Expose.Body;
 import io.codebot.apt.annotation.Expose.Param;
 import io.codebot.apt.annotation.Expose.Path;
-import io.codebot.test.domain.User;
 import io.codebot.test.dto.user.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
-
-@Crud(entity = User.class)
 @Expose(title = "用户接口", path = "/api/user")
 public interface UserService {
 
