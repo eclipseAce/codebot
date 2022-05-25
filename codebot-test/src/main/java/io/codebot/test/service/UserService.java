@@ -1,7 +1,6 @@
 package io.codebot.test.service;
 
-import io.codebot.apt.annotation.AutoCrud;
-import io.codebot.apt.annotation.AutoExpose;
+import io.codebot.apt.annotation.CrudService;
 import io.codebot.apt.annotation.Exposed;
 import io.codebot.apt.annotation.Exposed.Body;
 import io.codebot.apt.annotation.Exposed.Param;
@@ -14,8 +13,7 @@ import org.springframework.data.domain.Pageable;
 import java.util.List;
 
 
-@AutoCrud(entity = User.class)
-@AutoExpose
+@CrudService(User.class)
 @Exposed(title = "用户接口", path = "/api/user")
 public interface UserService {
 
