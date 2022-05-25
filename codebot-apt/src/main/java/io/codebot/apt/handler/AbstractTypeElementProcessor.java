@@ -1,6 +1,9 @@
 package io.codebot.apt.handler;
 
-import io.codebot.apt.code.*;
+import io.codebot.apt.code.Annotations;
+import io.codebot.apt.code.Fields;
+import io.codebot.apt.code.Methods;
+import io.codebot.apt.code.TypeOps;
 
 import javax.annotation.processing.ProcessingEnvironment;
 
@@ -11,8 +14,6 @@ public abstract class AbstractTypeElementProcessor implements TypeElementProcess
     protected Methods methodUtils;
     protected Fields fieldUtils;
 
-    protected MethodCreators methodCreatorUtils;
-
     @Override
     public void init(ProcessingEnvironment processingEnv) {
         this.processingEnv = processingEnv;
@@ -20,6 +21,5 @@ public abstract class AbstractTypeElementProcessor implements TypeElementProcess
         this.annotationUtils = Annotations.instanceOf(processingEnv);
         this.methodUtils = Methods.instanceOf(processingEnv);
         this.fieldUtils = Fields.instanceOf(processingEnv);
-        this.methodCreatorUtils = MethodCreators.instanceOf(processingEnv);
     }
 }

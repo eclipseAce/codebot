@@ -14,6 +14,8 @@ public @interface Exposed {
 
     String path() default "";
 
+    String method() default "";
+
     @Retention(RetentionPolicy.CLASS)
     @Target(ElementType.PARAMETER)
     @interface Body {

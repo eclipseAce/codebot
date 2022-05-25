@@ -11,6 +11,8 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 
 public class ExposedTypeElementProcessor extends AbstractTypeElementProcessor {
+    private static final String VALID_FQN = "javax.validation.Valid";
+
     private static final String AUTOWIRED_FQN = "org.springframework.beans.factory.annotation.Autowired";
 
     private static final String REST_CONTROLLER_FQN = "org.springframework.web.bind.annotation.RestController";
@@ -97,11 +99,14 @@ public class ExposedTypeElementProcessor extends AbstractTypeElementProcessor {
             if (!pathCustomized) {
                 path.append("/").append(method.getSimpleName());
             }
+            boolean hasBodyParam = false;
             for (Parameter param : method.getParameters()) {
                 ParameterSpec.Builder paramBuilder = ParameterSpec
                         .builder(TypeName.get(param.getType()), param.getName());
                 if (annotationUtils.isPresent(param.getElement(), Exposed.Body.class)) {
                     paramBuilder.addAnnotation(ClassName.bestGuess(REQUEST_BODY_FQN));
+                    paramBuilder.addAnnotation(ClassName.bestGuess(VALID_FQN));
+                    hasBodyParam = true;
                 } //
                 else if (annotationUtils.isPresent(param.getElement(), Exposed.Param.class)) {
                     paramBuilder.addAnnotation(AnnotationSpec
@@ -126,9 +131,16 @@ public class ExposedTypeElementProcessor extends AbstractTypeElementProcessor {
                 controllerMethod.addParameter(paramBuilder.build());
             }
 
+            String exposeMethod = "";
+            if (methodAnnotation != null) {
+                exposeMethod = methodAnnotation.getString("method");
+            }
+            if (exposeMethod.isEmpty()) {
+                exposeMethod = hasBodyParam ? "POST" : "GET";
+            }
             controllerMethod.addAnnotation(AnnotationSpec
                     .builder(ClassName.bestGuess(REQUEST_MAPPING_FQN))
-                    .addMember("method", "$T.POST", ClassName.bestGuess(REQUEST_METHOD_FQN))
+                    .addMember("method", "$T.$L", ClassName.bestGuess(REQUEST_METHOD_FQN), exposeMethod)
                     .addMember("path", "$S", path)
                     .build()
             );
