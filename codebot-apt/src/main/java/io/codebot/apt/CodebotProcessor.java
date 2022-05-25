@@ -3,7 +3,7 @@ package io.codebot.apt;
 import com.google.auto.service.AutoService;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
-import io.codebot.apt.annotation.Exposed;
+import io.codebot.apt.annotation.Expose;
 import io.codebot.apt.processor.TypeElementProcessor;
 import io.codebot.apt.processor.ExposedTypeElementProcessor;
 
@@ -22,7 +22,7 @@ public class CodebotProcessor extends AbstractProcessor {
     private final Map<String, TypeElementProcessor> elementProcessors = Maps.newLinkedHashMap();
 
     public CodebotProcessor() {
-        elementProcessors.put(Exposed.class.getName(), new ExposedTypeElementProcessor());
+        elementProcessors.put(Expose.class.getName(), new ExposedTypeElementProcessor());
     }
 
     @Override

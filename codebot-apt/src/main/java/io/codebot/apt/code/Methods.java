@@ -87,10 +87,10 @@ public final class Methods {
                 .collect(Collectors.toList());
     }
 
-    private void collectMethodsInHierarchy(DeclaredType declaredType,
+    private void collectMethodsInHierarchy(DeclaredType containingType,
                                            List<ExecutableElement> collected,
                                            Set<TypeElement> visited) {
-        TypeElement element = (TypeElement) declaredType.asElement();
+        TypeElement element = (TypeElement) containingType.asElement();
         if (Object.class.getName().contentEquals(element.getQualifiedName()) || !visited.add(element)) {
             return;
         }

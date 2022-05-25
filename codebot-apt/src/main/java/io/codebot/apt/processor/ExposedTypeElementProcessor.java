@@ -1,7 +1,7 @@
 package io.codebot.apt.processor;
 
 import com.squareup.javapoet.*;
-import io.codebot.apt.annotation.Exposed;
+import io.codebot.apt.annotation.Expose;
 import io.codebot.apt.code.Annotation;
 import io.codebot.apt.code.Method;
 import io.codebot.apt.code.Parameter;
@@ -31,7 +31,7 @@ public class ExposedTypeElementProcessor extends AbstractTypeElementProcessor {
     @Override
     public void process(TypeElement element) throws Exception {
         DeclaredType type = typeOps.getDeclaredType(element);
-        Annotation typeAnnotation = annotationUtils.find(element, Exposed.class);
+        Annotation typeAnnotation = annotationUtils.find(element, Expose.class);
         if (typeAnnotation == null) {
             return;
         }
@@ -69,7 +69,7 @@ public class ExposedTypeElementProcessor extends AbstractTypeElementProcessor {
             );
         }
         for (Method method : methodUtils.allOf(type)) {
-            Annotation methodAnnotation = annotationUtils.find(method.getElement(), Exposed.class);
+            Annotation methodAnnotation = annotationUtils.find(method.getElement(), Expose.class);
             if (methodAnnotation == null && !typeExposed
                     || methodAnnotation != null && !methodAnnotation.getBoolean("value")) {
                 continue;
@@ -103,19 +103,19 @@ public class ExposedTypeElementProcessor extends AbstractTypeElementProcessor {
             for (Parameter param : method.getParameters()) {
                 ParameterSpec.Builder paramBuilder = ParameterSpec
                         .builder(TypeName.get(param.getType()), param.getName());
-                if (annotationUtils.isPresent(param.getElement(), Exposed.Body.class)) {
+                if (annotationUtils.isPresent(param.getElement(), Expose.Body.class)) {
                     paramBuilder.addAnnotation(ClassName.bestGuess(REQUEST_BODY_FQN));
                     paramBuilder.addAnnotation(ClassName.bestGuess(VALID_FQN));
                     hasBodyParam = true;
                 } //
-                else if (annotationUtils.isPresent(param.getElement(), Exposed.Param.class)) {
+                else if (annotationUtils.isPresent(param.getElement(), Expose.Param.class)) {
                     paramBuilder.addAnnotation(AnnotationSpec
                             .builder(ClassName.bestGuess(REQUEST_PARAM_FQN))
                             .addMember("name", "$S", param.getName())
                             .build()
                     );
                 } //
-                else if (annotationUtils.isPresent(param.getElement(), Exposed.Path.class)) {
+                else if (annotationUtils.isPresent(param.getElement(), Expose.Path.class)) {
                     paramBuilder.addAnnotation(AnnotationSpec
                             .builder(ClassName.bestGuess(PATH_VARIABLE_FQN))
                             .addMember("name", "$S", param.getName())

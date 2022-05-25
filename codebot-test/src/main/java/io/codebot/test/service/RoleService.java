@@ -1,15 +1,15 @@
 package io.codebot.test.service;
 
-import io.codebot.apt.annotation.CrudService;
-import io.codebot.apt.annotation.Exposed;
+import io.codebot.apt.annotation.Crud;
+import io.codebot.apt.annotation.Expose;
 import io.codebot.test.domain.Role;
 import io.codebot.test.dto.role.RoleCreate;
 
-@CrudService(Role.class)
-@Exposed(path = "/api/role")
+@Crud(Role.class)
+@Expose(path = "/api/role")
 public interface RoleService {
 
-    @Exposed(title = "创建角色")
-    long create(@Exposed.Body RoleCreate dto);
+    @Expose(title = "创建角色")
+    long create(@Expose.Body RoleCreate dto);
 
 }

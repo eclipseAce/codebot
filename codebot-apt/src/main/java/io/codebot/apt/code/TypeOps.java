@@ -58,11 +58,15 @@ public final class TypeOps {
         return isAssignable(t, getDeclaredType(List.class.getName()));
     }
 
+    public boolean isPrimitive(TypeMirror t) {
+        return t.getKind().isPrimitive();
+    }
+
     public boolean isVoid(TypeMirror t) {
         return t.getKind() == TypeKind.VOID;
     }
 
-    public boolean isPrimitive(TypeMirror t) {
-        return t.getKind().isPrimitive();
+    public boolean isDeclared(TypeMirror t) {
+        return t.getKind() == TypeKind.DECLARED;
     }
 }
