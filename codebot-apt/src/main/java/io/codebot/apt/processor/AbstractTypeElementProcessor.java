@@ -1,4 +1,4 @@
-package io.codebot.apt.handler;
+package io.codebot.apt.processor;
 
 import io.codebot.apt.code.Annotations;
 import io.codebot.apt.code.Fields;

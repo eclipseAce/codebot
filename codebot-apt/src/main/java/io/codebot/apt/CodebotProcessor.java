@@ -4,8 +4,8 @@ import com.google.auto.service.AutoService;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
 import io.codebot.apt.annotation.Exposed;
-import io.codebot.apt.handler.TypeElementProcessor;
-import io.codebot.apt.handler.ExposedTypeElementProcessor;
+import io.codebot.apt.processor.TypeElementProcessor;
+import io.codebot.apt.processor.ExposedTypeElementProcessor;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;

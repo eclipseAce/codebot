@@ -1,4 +1,4 @@
-package io.codebot.apt.handler;
+package io.codebot.apt.processor;
 
 import com.squareup.javapoet.*;
 import io.codebot.apt.annotation.Exposed;

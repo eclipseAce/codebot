@@ -1,4 +1,4 @@
-package io.codebot.apt.handler;
+package io.codebot.apt.processor;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.TypeElement;
