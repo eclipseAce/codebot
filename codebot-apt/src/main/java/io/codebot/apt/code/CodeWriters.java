@@ -46,7 +46,7 @@ public final class CodeWriters {
         @Override
         public Variable declareVariable(String nameSuggestion, Expression expression) {
             Variable variable = Variables.of(expression.getType(), allocateName(nameSuggestion));
-            add("$1T $2N = $3L;\n", variable.getType().getTypeMirror(), variable.getName(), expression.getCode());
+            add("$1T $2N = $3L;\n", variable.getType(), variable.getName(), expression.getCode());
             return variable;
         }
 

@@ -1,9 +1,12 @@
 package io.codebot.apt.code;
 
-import com.squareup.javapoet.*;
-import io.codebot.apt.type.Type;
+import com.squareup.javapoet.AnnotationSpec;
+import com.squareup.javapoet.FieldSpec;
+import com.squareup.javapoet.JavaFile;
+import com.squareup.javapoet.MethodSpec;
 
 import javax.lang.model.element.Modifier;
+import javax.lang.model.type.DeclaredType;
 import java.util.function.Supplier;
 
 public interface TypeCreator {
@@ -17,9 +20,9 @@ public interface TypeCreator {
 
     TypeCreator addFieldIfNameAbsent(String name, Supplier<FieldSpec> fieldSupplier);
 
-    TypeCreator addSuperinterface(Type interfaceType);
+    TypeCreator addSuperinterface(DeclaredType interfaceType);
 
-    TypeCreator superclass(Type classType);
+    TypeCreator superclass(DeclaredType classType);
 
     JavaFile create();
 }

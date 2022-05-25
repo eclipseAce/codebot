@@ -1,9 +1,9 @@
 package io.codebot.apt.code;
 
-import io.codebot.apt.type.Type;
+import javax.lang.model.type.TypeMirror;
 
 public interface ReadMethod extends Method {
     String getReadName();
 
-    Type getReadType();
+    TypeMirror getReadType();
 }

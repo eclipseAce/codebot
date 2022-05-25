@@ -11,6 +11,7 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
 import java.util.Optional;
 
 public class AutoExposeHandler implements AnnotationHandler {
@@ -32,10 +33,10 @@ public class AutoExposeHandler implements AnnotationHandler {
     @Override
     public void handle(ProcessingEnvironment processingEnv, Element element) throws Exception {
         Annotations annotationUtils = Annotations.instanceOf(processingEnv);
+        Methods methodUtils = Methods.instanceOf(processingEnv);
+        MethodCreators methodCreatorUtils = MethodCreators.instanceOf(processingEnv);
 
-        TypeFactory typeFactory = new TypeFactory(processingEnv);
-        Type exposedType = typeFactory.getType((TypeElement) element);
-
+        DeclaredType exposedType = processingEnv.getTypeUtils().getDeclaredType((TypeElement) element));
         ClassName exposedName = ClassName.get((TypeElement) element);
         ClassName controllerName = ClassName.get(
                 exposedName.packageName().replaceAll("[^.]+$", "controller"),
@@ -71,7 +72,7 @@ public class AutoExposeHandler implements AnnotationHandler {
                         .addMember("name", "$S", title)
                         .build()
                 ));
-        for (Method method : Methods.allOf(exposedType)) {
+        for (Method method : methodUtils.allOf(exposedType)) {
             Annotation exposed = annotationUtils.find(method.getElement(), Exposed.class);
             if (exposed == null || !exposed.getBoolean("value")) {
                 continue;
@@ -82,7 +83,7 @@ public class AutoExposeHandler implements AnnotationHandler {
                 path.append("/").append(method.getSimpleName());
             }
 
-            MethodCreator methodCreator = MethodCreators
+            MethodCreator methodCreator = methodCreatorUtils
                     .create(method.getSimpleName())
                     .addModifiers(Modifier.PUBLIC)
                     .returns(method.getReturnType());
@@ -97,7 +98,7 @@ public class AutoExposeHandler implements AnnotationHandler {
 
             for (Parameter param : method.getParameters()) {
                 ParameterSpec.Builder paramBuilder = ParameterSpec
-                        .builder(TypeName.get(param.getType().getTypeMirror()), param.getName());
+                        .builder(TypeName.get(param.getType()), param.getName());
                 if (annotationUtils.isPresent(param.getElement(), Exposed.Body.class)) {
                     paramBuilder.addAnnotation(AnnotationSpec
                             .builder(ClassName.bestGuess(REQUEST_BODY_FQN))
@@ -119,7 +120,10 @@ public class AutoExposeHandler implements AnnotationHandler {
                     );
                     path.append("/{").append(param.getName()).append("}");
                 } //
-                else if (param.getType().isAssignableTo(PAGEABLE_FQN)) {
+                else if (processingEnv.getTypeUtils().isAssignable(
+                        param.getType(),
+                        processingEnv.getTypeUtils().
+                        )) {
                     methodCreator.addAnnotation(AnnotationSpec
                             .builder(ClassName.bestGuess(PAGEABLE_AS_QUERY_PARAM_FQN))
                             .build()

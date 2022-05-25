@@ -3,9 +3,9 @@ package io.codebot.apt.code;
 import com.squareup.javapoet.AnnotationSpec;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterSpec;
-import io.codebot.apt.type.Type;
 
 import javax.lang.model.element.Modifier;
+import javax.lang.model.type.TypeMirror;
 
 public interface MethodCreator {
     CodeWriter body();
@@ -16,7 +16,7 @@ public interface MethodCreator {
 
     MethodCreator addParameter(ParameterSpec parameter);
 
-    MethodCreator returns(Type type);
+    MethodCreator returns(TypeMirror type);
 
     MethodSpec create();
 }

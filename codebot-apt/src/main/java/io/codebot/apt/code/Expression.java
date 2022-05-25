@@ -1,10 +1,11 @@
 package io.codebot.apt.code;
 
 import com.squareup.javapoet.CodeBlock;
-import io.codebot.apt.type.Type;
+
+import javax.lang.model.type.TypeMirror;
 
 public interface Expression {
     CodeBlock getCode();
 
-    Type getType();
+    TypeMirror getType();
 }

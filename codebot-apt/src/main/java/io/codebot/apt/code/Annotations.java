@@ -23,7 +23,12 @@ public final class Annotations {
     }
 
     public Annotation of(AnnotationMirror mirror) {
-        return new AnnotationImpl(elementUtils, mirror);
+        Map<String, AnnotationValue> values = elementUtils.getElementValuesWithDefaults(mirror)
+                .entrySet().stream().collect(Collectors.toMap(
+                        it -> it.getKey().getSimpleName().toString(),
+                        Map.Entry::getValue
+                ));
+        return new AnnotationImpl(mirror, values);
     }
 
     public Annotation find(AnnotatedConstruct construct,
@@ -58,19 +63,12 @@ public final class Annotations {
     }
 
     private static class AnnotationImpl implements Annotation {
-        private final Elements elementUtils;
         private final AnnotationMirror mirror;
         private final Map<String, AnnotationValue> values;
 
-        public AnnotationImpl(Elements elementUtils, AnnotationMirror mirror) {
-            this.elementUtils = elementUtils;
+        AnnotationImpl(AnnotationMirror mirror, Map<String, AnnotationValue> values) {
             this.mirror = mirror;
-            this.values = elementUtils
-                    .getElementValuesWithDefaults(mirror).entrySet().stream()
-                    .collect(Collectors.toMap(
-                            it -> it.getKey().getSimpleName().toString(),
-                            Map.Entry::getValue
-                    ));
+            this.values = values;
         }
 
         @Override

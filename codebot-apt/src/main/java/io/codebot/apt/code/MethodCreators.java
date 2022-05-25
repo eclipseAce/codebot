@@ -4,25 +4,29 @@ import com.squareup.javapoet.AnnotationSpec;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterSpec;
 import com.squareup.javapoet.TypeName;
-import io.codebot.apt.type.Type;
 import lombok.AccessLevel;
-import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
+import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Modifier;
+import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Types;
 
-@NoArgsConstructor(access = AccessLevel.PRIVATE)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public final class MethodCreators {
+    private final Types typeUtils;
 
-    public static MethodCreator create(String name) {
+    public static MethodCreators instanceOf(ProcessingEnvironment processingEnv) {
+        return new MethodCreators(processingEnv.getTypeUtils());
+    }
+
+    public MethodCreator create(String name) {
         return new MethodCreatorImpl(MethodSpec.methodBuilder(name), CodeWriters.create());
     }
 
-    public static MethodCreator overriding(Method method) {
-        MethodSpec.Builder builder = MethodSpec.overriding(
-                method.getElement(),
-                method.getContainingType().asDeclaredType(),
-                method.getContainingType().getFactory().getTypeUtils()
-        );
+    public MethodCreator overriding(Method method) {
+        MethodSpec.Builder builder = MethodSpec
+                .overriding(method.getElement(), method.getContainingType(), typeUtils);
         CodeWriter codeWriter = CodeWriters.create();
         method.getParameters().forEach(param -> codeWriter.allocateName(param.getName()));
         return new MethodCreatorImpl(builder, codeWriter);
@@ -61,8 +65,8 @@ public final class MethodCreators {
         }
 
         @Override
-        public MethodCreator returns(Type type) {
-            builder.returns(TypeName.get(type.getTypeMirror()));
+        public MethodCreator returns(TypeMirror type) {
+            builder.returns(TypeName.get(type));
             return this;
         }
 

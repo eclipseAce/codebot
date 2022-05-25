@@ -1,9 +1,7 @@
 package io.codebot.apt.code;
 
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import io.codebot.apt.type.Type;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -14,6 +12,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Types;
 import java.util.List;
@@ -27,19 +26,16 @@ public final class Fields {
         return new Fields(processingEnv.getTypeUtils());
     }
 
-    public Field of(Type containingType, VariableElement element) {
+    public Field of(DeclaredType containingType, VariableElement element) {
         return new FieldImpl(
-                element,
-                containingType.getFactory().getType(
-                        typeUtils.asMemberOf(containingType.asDeclaredType(), element)
-                ),
-                containingType
+                containingType, element,
+                typeUtils.asMemberOf(containingType, element)
         );
     }
 
-    public List<Field> allOf(Type containingType) {
+    public List<Field> allOf(DeclaredType containingType) {
         List<VariableElement> fields = Lists.newArrayList();
-        collectFieldsInHierarchy(containingType.asDeclaredType(), fields);
+        collectFieldsInHierarchy(containingType, fields);
         return fields.stream()
                 .map(it -> of(containingType, it))
                 .collect(Collectors.toList());
@@ -59,14 +55,14 @@ public final class Fields {
     }
 
     private static class FieldImpl implements Field {
+        private final @Getter DeclaredType containingType;
         private final @Getter VariableElement element;
-        private final @Getter Type type;
-        private final @Getter Type declaringType;
+        private final @Getter TypeMirror type;
 
-        FieldImpl(VariableElement element, Type type, Type declaringType) {
+        FieldImpl(DeclaredType containingType, VariableElement element, TypeMirror type) {
+            this.containingType = containingType;
             this.element = element;
             this.type = type;
-            this.declaringType = declaringType;
         }
 
         @Override

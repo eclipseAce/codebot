@@ -1,9 +1,9 @@
 package io.codebot.apt.code;
 
-import io.codebot.apt.type.Type;
+import javax.lang.model.type.TypeMirror;
 
 public interface WriteMethod extends Method {
     String getWriteName();
 
-    Type getWriteType();
+    TypeMirror getWriteType();
 }

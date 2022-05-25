@@ -1,11 +1,11 @@
 package io.codebot.apt.code;
 
 import com.squareup.javapoet.*;
-import io.codebot.apt.type.Type;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
 import javax.lang.model.element.Modifier;
+import javax.lang.model.type.DeclaredType;
 import java.util.function.Supplier;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
@@ -59,14 +59,14 @@ public final class TypeCreators {
         }
 
         @Override
-        public TypeCreator addSuperinterface(Type interfaceType) {
-            builder.addSuperinterface(ClassName.get(interfaceType.asTypeElement()));
+        public TypeCreator addSuperinterface(DeclaredType interfaceType) {
+            builder.addSuperinterface(TypeName.get(interfaceType));
             return this;
         }
 
         @Override
-        public TypeCreator superclass(Type classType) {
-            builder.superclass(ClassName.get(classType.asTypeElement()));
+        public TypeCreator superclass(DeclaredType classType) {
+            builder.superclass(TypeName.get(classType));
             return this;
         }
 

@@ -1,12 +1,13 @@
 package io.codebot.apt.code;
 
 import com.squareup.javapoet.CodeBlock;
-import io.codebot.apt.type.Type;
+
+import javax.lang.model.type.TypeMirror;
 
 public interface Variable {
     String getName();
 
-    Type getType();
+    TypeMirror getType();
 
     default Expression asExpression() {
         return Expressions.of(getType(), CodeBlock.of("$N", getName()));
