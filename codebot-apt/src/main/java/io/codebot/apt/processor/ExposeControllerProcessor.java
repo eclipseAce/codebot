@@ -1,15 +1,17 @@
 package io.codebot.apt.processor;
 
 import com.squareup.javapoet.*;
-import io.codebot.apt.annotation.Expose;
+import io.codebot.apt.annotation.Exposed;
 import io.codebot.apt.code.Annotation;
 import io.codebot.apt.code.Method;
 import io.codebot.apt.code.Parameter;
 
 import javax.lang.model.element.*;
 import javax.lang.model.type.DeclaredType;
+import java.util.List;
+import java.util.stream.Stream;
 
-public class ExposeTypeProcessor extends AbstractAnnotatedElementProcessor {
+public class ExposeControllerProcessor extends AbstractAnnotatedElementProcessor {
     private static final String VALID_FQN = "javax.validation.Valid";
 
     private static final String AUTOWIRED_FQN = "org.springframework.beans.factory.annotation.Autowired";
@@ -47,9 +49,8 @@ public class ExposeTypeProcessor extends AbstractAnnotatedElementProcessor {
                 .addModifiers(Modifier.PUBLIC)
                 .addAnnotation(ClassName.bestGuess(REST_CONTROLLER_FQN));
 
-        boolean typeExposed = typeAnnotation.getBoolean("value");
+        String typeTag = typeAnnotation.getString("tag");
         String typePath = typeAnnotation.getString("path");
-        String typeTitle = typeAnnotation.getString("title");
 
         controller.addAnnotation(AnnotationSpec
                 .builder(ClassName.bestGuess(REQUEST_MAPPING_FQN))
@@ -61,17 +62,16 @@ public class ExposeTypeProcessor extends AbstractAnnotatedElementProcessor {
                 .addAnnotation(ClassName.bestGuess(AUTOWIRED_FQN))
                 .build()
         );
-        if (!typeTitle.isEmpty()) {
+        if (!typeTag.isEmpty()) {
             controller.addAnnotation(AnnotationSpec
                     .builder(ClassName.bestGuess(TAG_FQN))
-                    .addMember("name", "$S", typeTitle)
+                    .addMember("name", "$S", typeTag)
                     .build()
             );
         }
         for (Method method : methodUtils.allOf(type)) {
-            Annotation methodAnnotation = annotationUtils.find(method.getElement(), Expose.class);
-            if (methodAnnotation == null && !typeExposed
-                    || methodAnnotation != null && !methodAnnotation.getBoolean("value")) {
+            Annotation methodAnnotation = annotationUtils.find(method.getElement(), Exposed.class);
+            if (methodAnnotation != null && !methodAnnotation.getBoolean("value")) {
                 continue;
             }
             MethodSpec.Builder controllerMethod = MethodSpec
@@ -83,12 +83,19 @@ public class ExposeTypeProcessor extends AbstractAnnotatedElementProcessor {
             boolean pathCustomized = false;
             if (methodAnnotation != null) {
                 String methodTitle = methodAnnotation.getString("title");
-                if (!methodTitle.isEmpty()) {
-                    controllerMethod.addAnnotation(AnnotationSpec
-                            .builder(ClassName.bestGuess(OPERATION_FQN))
-                            .addMember("summary", "$S", methodTitle)
-                            .build()
-                    );
+                List<String> tags = methodAnnotation.getStringArray("tags");
+                if (!methodTitle.isEmpty() || !tags.isEmpty()) {
+                    AnnotationSpec.Builder operation = AnnotationSpec.builder(ClassName.bestGuess(OPERATION_FQN));
+                    if (!methodTitle.isEmpty()) {
+                        operation.addMember("summary", "$S", methodTitle);
+                    }
+                    if (!tags.isEmpty()) {
+                        operation.addMember("tags", "{$L}", tags.stream()
+                                .map(it -> CodeBlock.of("$S", it))
+                                .collect(CodeBlock.joining(", "))
+                        );
+                    }
+                    controllerMethod.addAnnotation(operation.build());
                 }
                 String methodPath = methodAnnotation.getString("path");
                 if (!methodPath.isEmpty()) {
@@ -103,19 +110,19 @@ public class ExposeTypeProcessor extends AbstractAnnotatedElementProcessor {
             for (Parameter param : method.getParameters()) {
                 ParameterSpec.Builder paramBuilder = ParameterSpec
                         .builder(TypeName.get(param.getType()), param.getName());
-                if (annotationUtils.isPresent(param.getElement(), Expose.Body.class)) {
+                if (annotationUtils.isPresent(param.getElement(), Exposed.Body.class)) {
                     paramBuilder.addAnnotation(ClassName.bestGuess(REQUEST_BODY_FQN));
                     paramBuilder.addAnnotation(ClassName.bestGuess(VALID_FQN));
                     hasBodyParam = true;
                 } //
-                else if (annotationUtils.isPresent(param.getElement(), Expose.Param.class)) {
+                else if (annotationUtils.isPresent(param.getElement(), Exposed.Param.class)) {
                     paramBuilder.addAnnotation(AnnotationSpec
                             .builder(ClassName.bestGuess(REQUEST_PARAM_FQN))
                             .addMember("name", "$S", param.getName())
                             .build()
                     );
                 } //
-                else if (annotationUtils.isPresent(param.getElement(), Expose.Path.class)) {
+                else if (annotationUtils.isPresent(param.getElement(), Exposed.Path.class)) {
                     paramBuilder.addAnnotation(AnnotationSpec
                             .builder(ClassName.bestGuess(PATH_VARIABLE_FQN))
                             .addMember("name", "$S", param.getName())

@@ -6,9 +6,11 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.CLASS)
-@Target({ElementType.METHOD, ElementType.TYPE})
-public @interface Expose {
+@Target(ElementType.METHOD)
+public @interface Exposed {
     boolean value() default true;
+
+    String[] tags() default {};
 
     String title() default "";
 

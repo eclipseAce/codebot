@@ -11,7 +11,9 @@ import javax.lang.model.element.AnnotationValueVisitor;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.SimpleAnnotationValueVisitor8;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
@@ -63,6 +65,21 @@ public final class Annotations {
     }
 
     private static class AnnotationImpl implements Annotation {
+        private static final AnnotationValueVisitor<String, Void> STRING_VISITOR =
+                new SimpleAnnotationValueVisitor8<String, Void>() {
+                    @Override
+                    public String visitString(String s, Void unused) {
+                        return s;
+                    }
+                };
+        private static final AnnotationValueVisitor<Boolean, Void> BOOLEAN_VISITOR =
+                new SimpleAnnotationValueVisitor8<Boolean, Void>() {
+                    @Override
+                    public Boolean visitBoolean(boolean b, Void unused) {
+                        return b;
+                    }
+                };
+
         private final AnnotationMirror mirror;
         private final Map<String, AnnotationValue> values;
 
@@ -87,25 +104,44 @@ public final class Annotations {
         }
 
         @Override
-        public boolean getBoolean(String name) {
-            return visitValue(name, new SimpleAnnotationValueVisitor8<Boolean, Void>() {
-                @Override
-                public Boolean visitBoolean(boolean b, Void unused) {
-                    return b;
-                }
-            });
+        public List<String> getStringArray(String name) {
+            return visitArrayValue(name, STRING_VISITOR);
         }
 
-        private <T> T visitValue(String name, AnnotationValueVisitor<T, Void> visitor) {
+        @Override
+        public boolean getBoolean(String name) {
+            return visitValue(name, BOOLEAN_VISITOR);
+        }
+
+        private AnnotationValue getValue(String name) {
             AnnotationValue value = values.get(name);
             if (value == null) {
                 throw new IllegalArgumentException("annotation value '" + name + "' not present");
             }
-            T obj = value.accept(visitor, null);
+            return value;
+        }
+
+        private <T> T visitValue(String name, AnnotationValueVisitor<T, Void> visitor) {
+            T obj = getValue(name).accept(visitor, null);
             if (obj == null) {
-                throw new IllegalArgumentException("annotation value type error");
+                throw new IllegalArgumentException("annotation value '" + name + "' type error");
             }
             return obj;
+        }
+
+        private <T> List<T> visitArrayValue(String name, AnnotationValueVisitor<T, Void> visitor) {
+            List<T> objList = getValue(name).accept(new SimpleAnnotationValueVisitor8<List<T>, Void>() {
+                @Override
+                public List<T> visitArray(List<? extends AnnotationValue> vals, Void unused) {
+                    return vals.stream()
+                            .map(it -> it.accept(visitor, null))
+                            .collect(Collectors.toList());
+                }
+            }, null);
+            if (objList == null || objList.stream().anyMatch(Objects::isNull)) {
+                throw new IllegalArgumentException("annotation value '" + name + "' type error");
+            }
+            return objList;
         }
     }
 }
