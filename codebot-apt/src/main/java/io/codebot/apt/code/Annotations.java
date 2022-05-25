@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 public final class Annotations {
     private final Elements elementUtils;
 
-    public static Annotations instance(ProcessingEnvironment processingEnv) {
+    public static Annotations instanceOf(ProcessingEnvironment processingEnv) {
         return new Annotations(processingEnv.getElementUtils());
     }
 

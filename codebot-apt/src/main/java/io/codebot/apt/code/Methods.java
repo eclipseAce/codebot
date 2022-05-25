@@ -31,18 +31,6 @@ public final class Methods {
     private static final String BOOLEAN_GETTER_PREFIX = "is";
     private static final String SETTER_PREFIX = "set";
 
-    public static List<? extends Method> allOf(Type containingType) {
-        List<ExecutableElement> elements = Lists.newArrayList();
-        collectMethodsInHierarchy(
-                containingType.asDeclaredType(),
-                elements, Sets.newHashSet(),
-                containingType.getFactory().getElementUtils()
-        );
-        return elements.stream()
-                .map(element -> of(containingType, element))
-                .collect(Collectors.toList());
-    }
-
     public static Method of(Type containingType, ExecutableElement element) {
         TypeFactory typeFactory = containingType.getFactory();
         ExecutableType methodType = containingType.asMember(element);
@@ -84,6 +72,18 @@ public final class Methods {
             return new WriteMethodImpl(method, writeName, method.getParameters().get(0).getType());
         }
         return method;
+    }
+
+    public static List<? extends Method> allOf(Type containingType) {
+        List<ExecutableElement> elements = Lists.newArrayList();
+        collectMethodsInHierarchy(
+                containingType.asDeclaredType(),
+                elements, Sets.newHashSet(),
+                containingType.getFactory().getElementUtils()
+        );
+        return elements.stream()
+                .map(element -> of(containingType, element))
+                .collect(Collectors.toList());
     }
 
     private static void collectMethodsInHierarchy(DeclaredType declaredType,
