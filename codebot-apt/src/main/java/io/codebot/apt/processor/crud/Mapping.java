@@ -13,6 +13,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
@@ -37,7 +38,7 @@ public class Mapping {
     public static List<Mapping> map(ProcessingEnvironment processingEnv, TypeMirror targetType,
                                     List<? extends Variable> variables) {
         return map(processingEnv, targetType, variables.stream()
-                .collect(Collectors.toMap(Variable::getName, Variable::asExpression)));
+                .collect(Collectors.toMap(Variable::getName, Function.identity())));
     }
 
     public static List<Mapping> map(ProcessingEnvironment processingEnv, TypeMirror targetType,

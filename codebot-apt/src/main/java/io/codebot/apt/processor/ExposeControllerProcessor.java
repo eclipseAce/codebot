@@ -5,6 +5,7 @@ import io.codebot.apt.annotation.Exposed;
 import io.codebot.apt.code.Annotation;
 import io.codebot.apt.code.Method;
 import io.codebot.apt.code.Parameter;
+import io.codebot.apt.code.Variable;
 
 import javax.lang.model.element.*;
 import javax.lang.model.type.DeclaredType;
@@ -157,7 +158,7 @@ public class ExposeControllerProcessor extends AbstractAnnotatedElementProcessor
             controllerMethod.addCode("this.target.$N($L);\n",
                     method.getSimpleName(),
                     method.getParameters().stream()
-                            .map(it -> it.asExpression().getCode())
+                            .map(Variable::getCode)
                             .collect(CodeBlock.joining(", "))
             );
 

@@ -44,6 +44,9 @@ public class ImplementCrudProcessor extends AbstractAnnotatedElementProcessor {
 
             if (abstractMethod.getSimpleName().startsWith("create")) {
                 processCreateMethod(entity, abstractMethod, methodBuilder, classBuilder);
+            } //
+            else if (abstractMethod.getSimpleName().startsWith("update")) {
+                processUpdateMethod(entity, abstractMethod, methodBuilder, classBuilder);
             }
 
             classBuilder.addMethod(methodBuilder.build());
@@ -51,43 +54,6 @@ public class ImplementCrudProcessor extends AbstractAnnotatedElementProcessor {
 
         JavaFile.builder(implementedName.packageName(), classBuilder.build()).build()
                 .writeTo(processingEnv.getFiler());
-    }
-
-    private void processCreateMethod(Entity entity,
-                                     Method abstractMethod,
-                                     MethodSpec.Builder methodBuilder,
-                                     TypeSpec.Builder classBuilder) {
-        CodeWriter writer = CodeWriter.create();
-
-        Variable entityVar = writer.writerNewVariable("entity",
-                Expression.of(entity.getType(), "new $T()", entity.getType()));
-
-        Mapping.map(
-                processingEnv,
-                entity.getType(),
-                abstractMethod.getParameters()
-        ).forEach(it -> it.writeTo(writer, entityVar.asExpression()));
-
-        writer.write("$L.save($N);\n", getJpaRepository(entity, classBuilder), entityVar.getName());
-
-        TypeMirror returnType = abstractMethod.getReturnType();
-        if (typeOps.isAssignable(entity.getIdType(), returnType)) {
-            writer.write("return $L;\n", entity.getIdReadMethod().toExpression(entityVar.asExpression()).getCode());
-        } //
-        else if (typeOps.isVoid(returnType)) {
-            Variable resultVar = writer.writerNewVariable("result",
-                    Expression.of(returnType, "new $T()", returnType));
-
-            Mapping.map(
-                    processingEnv,
-                    returnType,
-                    entityVar.asExpression(),
-                    methodUtils.allOf(entity.getType()).readers()
-            ).forEach(it -> it.writeTo(writer, resultVar.asExpression()));
-
-            writer.write("return $N;\n", resultVar.getName());
-        }
-        methodBuilder.addCode(writer.getCode());
     }
 
     private CodeBlock getJpaRepository(Entity entity, TypeSpec.Builder classBuilder) {
@@ -100,5 +66,71 @@ public class ImplementCrudProcessor extends AbstractAnnotatedElementProcessor {
                     .build());
         }
         return CodeBlock.of("this.jpaRepository");
+    }
+
+    private Expression findIdExpression(Entity entity, List<? extends Variable> sources) {
+        for (Variable variable : sources) {
+            if (variable.getName().equals(entity.getIdName())
+                    && typeOps.isAssignable(variable.getType(), entity.getIdType())) {
+                return variable;
+            }
+            if (typeOps.isDeclared(variable.getType())) {
+                for (ReadMethod reader : methodUtils.allOf((DeclaredType) variable.getType()).readers()) {
+                    if (reader.getReadName().equals(entity.getIdName())
+                            && typeOps.isAssignable(reader.getReadType(), entity.getIdType())) {
+                        return reader.toExpression(variable);
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private void handleReturn(Entity entity, Method abstractMethod, CodeWriter code, Variable entityVar) {
+        TypeMirror returnType = abstractMethod.getReturnType();
+        if (typeOps.isAssignable(entity.getIdType(), returnType)) {
+            code.write("return $L;\n", entity.getIdReadMethod().toExpression(entityVar).getCode());
+        } //
+        else if (!typeOps.isVoid(returnType)) {
+            Variable resultVar = code.writeNewVariable("result",
+                    Expression.of(returnType, "new $T()", returnType));
+            Mapping.map(processingEnv, returnType, entityVar, methodUtils.allOf(entity.getType()).readers())
+                    .forEach(it -> it.writeTo(code, resultVar));
+            code.write("return $N;\n", resultVar.getName());
+        }
+    }
+
+    private void processCreateMethod(Entity entity,
+                                     Method abstractMethod,
+                                     MethodSpec.Builder methodBuilder,
+                                     TypeSpec.Builder classBuilder) {
+        CodeWriter code = CodeWriter.create();
+        Variable entityVar = code.writeNewVariable("entity",
+                Expression.of(entity.getType(), "new $T()", entity.getType()));
+        Mapping.map(processingEnv, entity.getType(), abstractMethod.getParameters())
+                .forEach(it -> it.writeTo(code, entityVar));
+        code.write("$L.save($N);\n", getJpaRepository(entity, classBuilder), entityVar.getName());
+        handleReturn(entity, abstractMethod, code, entityVar);
+        methodBuilder.addCode(code.getCode());
+    }
+
+    private void processUpdateMethod(Entity entity,
+                                     Method abstractMethod,
+                                     MethodSpec.Builder methodBuilder,
+                                     TypeSpec.Builder classBuilder) {
+        Expression idExpr = findIdExpression(entity, abstractMethod.getParameters());
+        if (idExpr == null) {
+            return;
+        }
+        CodeWriter code = CodeWriter.create();
+        Variable entityVar = code.writeNewVariable("entity", Expression.of(entity.getType(),
+                "$L.getById($L)", getJpaRepository(entity, classBuilder), idExpr.getCode()
+        ));
+        Mapping.map(processingEnv, entity.getType(), abstractMethod.getParameters()).stream()
+                .filter(it -> !it.getTargetWriteMethod().getWriteName().equals(entity.getIdName()))
+                .forEach(it -> it.writeTo(code, entityVar));
+        code.write("$L.save($N);\n", getJpaRepository(entity, classBuilder), entityVar.getName());
+        handleReturn(entity, abstractMethod, code, entityVar);
+        methodBuilder.addCode(code.getCode());
     }
 }

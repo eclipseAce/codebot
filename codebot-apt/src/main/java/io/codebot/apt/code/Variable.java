@@ -1,17 +1,16 @@
 package io.codebot.apt.code;
 
+import com.squareup.javapoet.CodeBlock;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 import javax.lang.model.type.TypeMirror;
 
-public interface Variable {
+public interface Variable extends Expression {
     String getName();
 
-    TypeMirror getType();
-
-    default Expression asExpression() {
-        return Expression.of(getType(), "$N", getName());
+    default CodeBlock getCode() {
+        return CodeBlock.of("$N", getName());
     }
 
     static Variable of(TypeMirror type, String name) {
