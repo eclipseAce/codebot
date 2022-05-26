@@ -4,8 +4,10 @@ import com.google.auto.service.AutoService;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
 import io.codebot.apt.annotation.ExposeController;
+import io.codebot.apt.annotation.ImplementCrud;
 import io.codebot.apt.processor.AnnotatedElementProcessor;
 import io.codebot.apt.processor.ExposeControllerProcessor;
+import io.codebot.apt.processor.ImplementCrudProcessor;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
@@ -23,6 +25,7 @@ public class CodebotProcessor extends AbstractProcessor {
 
     public CodebotProcessor() {
         elementProcessors.put(ExposeController.class.getName(), new ExposeControllerProcessor());
+        elementProcessors.put(ImplementCrud.class.getName(), new ImplementCrudProcessor());
     }
 
     @Override

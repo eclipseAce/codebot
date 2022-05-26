@@ -8,7 +8,7 @@ public interface CodeWriter {
 
     void write(String format, Object... args);
 
-    Variable writeVariable(String nameSuggestion, Expression expression);
+    Variable writerNewVariable(String nameSuggestion, Expression expression);
 
     String newName(String nameSuggestion);
 
@@ -51,7 +51,7 @@ public interface CodeWriter {
         }
 
         @Override
-        public Variable writeVariable(String nameSuggestion, Expression expression) {
+        public Variable writerNewVariable(String nameSuggestion, Expression expression) {
             Variable variable = Variable.of(expression.getType(), newName(nameSuggestion));
             write("$1T $2N = $3L;\n", variable.getType(), variable.getName(), expression.getCode());
             return variable;

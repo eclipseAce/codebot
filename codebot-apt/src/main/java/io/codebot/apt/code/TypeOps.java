@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.PrimitiveType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
@@ -30,12 +31,12 @@ public final class TypeOps {
         return typeElements.computeIfAbsent(fqn, elementUtils::getTypeElement);
     }
 
-    public DeclaredType getDeclaredType(TypeElement element, TypeMirror... typeArgs) {
+    public DeclaredType getDeclared(TypeElement element, TypeMirror... typeArgs) {
         return typeUtils.getDeclaredType(element, typeArgs);
     }
 
-    public DeclaredType getDeclaredType(String fqn, TypeMirror... typeArgs) {
-        return getDeclaredType(getTypeElement(fqn), typeArgs);
+    public DeclaredType getDeclared(String fqn, TypeMirror... typeArgs) {
+        return getDeclared(getTypeElement(fqn), typeArgs);
     }
 
     public boolean isAssignable(TypeMirror t1, TypeMirror t2) {
@@ -43,19 +44,23 @@ public final class TypeOps {
     }
 
     public boolean isAssignable(TypeMirror t, String fqn, TypeMirror... typeArgs) {
-        return isAssignable(t, getDeclaredType(fqn, typeArgs));
+        return isAssignable(t, getDeclared(fqn, typeArgs));
+    }
+
+    public boolean isSame(TypeMirror t1, TypeMirror t2) {
+        return typeUtils.isSameType(t1, t2);
     }
 
     public boolean isIterable(TypeMirror t) {
-        return isAssignable(t, getDeclaredType(Iterable.class.getName()));
+        return isAssignable(t, getDeclared(Iterable.class.getName()));
     }
 
     public boolean isCollection(TypeMirror t) {
-        return isAssignable(t, getDeclaredType(Collection.class.getName()));
+        return isAssignable(t, getDeclared(Collection.class.getName()));
     }
 
     public boolean isList(TypeMirror t) {
-        return isAssignable(t, getDeclaredType(List.class.getName()));
+        return isAssignable(t, getDeclared(List.class.getName()));
     }
 
     public boolean isPrimitive(TypeMirror t) {
@@ -68,5 +73,9 @@ public final class TypeOps {
 
     public boolean isDeclared(TypeMirror t) {
         return t.getKind() == TypeKind.DECLARED;
+    }
+
+    public TypeMirror boxed(TypeMirror t) {
+        return isPrimitive(t) ? typeUtils.boxedClass((PrimitiveType) t).asType() : t;
     }
 }

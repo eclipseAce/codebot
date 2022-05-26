@@ -1,12 +1,12 @@
 package io.codebot.test.service;
 
-import io.codebot.apt.annotation.CrudImplement;
+import io.codebot.apt.annotation.ImplementCrud;
 import io.codebot.apt.annotation.Exposed;
 import io.codebot.apt.annotation.ExposeController;
 import io.codebot.test.domain.Role;
 import io.codebot.test.dto.role.RoleCreate;
 
-@CrudImplement(entity = Role.class)
+@ImplementCrud(entity = Role.class)
 @ExposeController(tag = "角色管理", path = "/api/role")
 public interface RoleService {
 

@@ -9,6 +9,7 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.AnnotationValueVisitor;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.SimpleAnnotationValueVisitor8;
 import java.util.List;
@@ -79,6 +80,13 @@ public final class Annotations {
                         return b;
                     }
                 };
+        private static final AnnotationValueVisitor<TypeMirror, Void> TYPE_VISITOR =
+                new SimpleAnnotationValueVisitor8<TypeMirror, Void>() {
+                    @Override
+                    public TypeMirror visitType(TypeMirror t, Void unused) {
+                        return t;
+                    }
+                };
 
         private final AnnotationMirror mirror;
         private final Map<String, AnnotationValue> values;
@@ -111,6 +119,11 @@ public final class Annotations {
         @Override
         public boolean getBoolean(String name) {
             return visitValue(name, BOOLEAN_VISITOR);
+        }
+
+        @Override
+        public TypeMirror getType(String name) {
+            return visitValue(name, TYPE_VISITOR);
         }
 
         private AnnotationValue getValue(String name) {

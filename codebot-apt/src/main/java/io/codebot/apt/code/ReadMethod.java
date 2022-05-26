@@ -8,6 +8,6 @@ public interface ReadMethod extends Method {
     TypeMirror getReadType();
 
     default Expression toExpression(Expression caller) {
-        return Expression.of(getReadType(), "$L.$N()", caller, getSimpleName());
+        return Expression.of(getReadType(), "$L.$N()", caller.getCode(), getSimpleName());
     }
 }

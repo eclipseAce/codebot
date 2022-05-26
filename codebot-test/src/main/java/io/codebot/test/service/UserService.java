@@ -1,6 +1,6 @@
 package io.codebot.test.service;
 
-import io.codebot.apt.annotation.CrudImplement;
+import io.codebot.apt.annotation.ImplementCrud;
 import io.codebot.apt.annotation.ExposeController;
 import io.codebot.apt.annotation.Exposed;
 import io.codebot.apt.annotation.Exposed.Body;
@@ -13,7 +13,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
-@CrudImplement(entity = User.class)
+@ImplementCrud(entity = User.class)
 @ExposeController(tag = "用户管理", path = "/api/user")
 public interface UserService {
 

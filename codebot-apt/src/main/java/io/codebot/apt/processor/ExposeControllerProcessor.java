@@ -9,7 +9,6 @@ import io.codebot.apt.code.Parameter;
 import javax.lang.model.element.*;
 import javax.lang.model.type.DeclaredType;
 import java.util.List;
-import java.util.stream.Stream;
 
 public class ExposeControllerProcessor extends AbstractAnnotatedElementProcessor {
     private static final String VALID_FQN = "javax.validation.Valid";
@@ -35,7 +34,7 @@ public class ExposeControllerProcessor extends AbstractAnnotatedElementProcessor
             return;
         }
 
-        DeclaredType type = typeOps.getDeclaredType((TypeElement) element);
+        DeclaredType type = typeOps.getDeclared((TypeElement) element);
         Annotation typeAnnotation = annotationUtils.of(annotationMirror);
 
         ClassName typeName = ClassName.get((TypeElement) element);

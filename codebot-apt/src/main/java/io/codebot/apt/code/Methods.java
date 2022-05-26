@@ -19,9 +19,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
@@ -73,19 +71,20 @@ public final class Methods {
         if (methodName.length() > SETTER_PREFIX.length()
                 && methodName.startsWith(SETTER_PREFIX)
                 && method.getParameters().size() == 1) {
-            String writeName = StringUtils.uncapitalize(methodName.substring(BOOLEAN_GETTER_PREFIX.length()));
+            String writeName = StringUtils.uncapitalize(methodName.substring(SETTER_PREFIX.length()));
             return new WriteMethodImpl(method, writeName, method.getParameters().get(0).getType());
         }
         return method;
     }
 
-    public List<? extends Method> allOf(DeclaredType containingType) {
+    public MethodCollectionImpl allOf(DeclaredType containingType) {
         List<ExecutableElement> elements = Lists.newArrayList();
         collectMethodsInHierarchy(containingType, elements, Sets.newHashSet());
         return elements.stream()
                 .map(element -> of(containingType, element))
-                .collect(Collectors.toList());
+                .collect(Collectors.toCollection(() -> new MethodCollectionImpl(typeUtils)));
     }
+
 
     private void collectMethodsInHierarchy(DeclaredType containingType,
                                            List<ExecutableElement> collected,
@@ -166,4 +165,63 @@ public final class Methods {
             return element.getSimpleName().toString();
         }
     }
+
+    public static class MethodCollectionImpl extends AbstractCollection<Method> implements MethodCollection {
+        private final Types typeUtils;
+        private final List<Method> methods = Lists.newArrayList();
+
+        MethodCollectionImpl(Types typeUtils) {
+            this.typeUtils = typeUtils;
+        }
+
+        @Override
+        public boolean add(Method method) {
+            return methods.add(method);
+        }
+
+        @Override
+        public Iterator<Method> iterator() {
+            return methods.iterator();
+        }
+
+        @Override
+        public int size() {
+            return methods.size();
+        }
+
+        @Override
+        public Collection<ReadMethod> readers() {
+            return methods.stream()
+                    .filter(ReadMethod.class::isInstance)
+                    .map(ReadMethod.class::cast)
+                    .collect(Collectors.toList());
+        }
+
+        @Override
+        public Collection<WriteMethod> writers() {
+            return methods.stream()
+                    .filter(WriteMethod.class::isInstance)
+                    .map(WriteMethod.class::cast)
+                    .collect(Collectors.toList());
+        }
+
+        @Override
+        public WriteMethod findWriter(String name, TypeMirror assigningType) {
+            return writers().stream()
+                    .filter(it -> it.getWriteName().equals(name)
+                            && typeUtils.isAssignable(assigningType, it.getWriteType())
+                    )
+                    .findFirst().orElse(null);
+        }
+
+        @Override
+        public ReadMethod findReader(String name, TypeMirror acceptingType) {
+            return readers().stream()
+                    .filter(it -> it.getReadName().equals(name)
+                            && typeUtils.isAssignable(it.getReadType(), acceptingType)
+                    )
+                    .findFirst().orElse(null);
+        }
+    }
+
 }

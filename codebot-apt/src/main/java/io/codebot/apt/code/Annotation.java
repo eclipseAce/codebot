@@ -1,6 +1,7 @@
 package io.codebot.apt.code;
 
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.type.TypeMirror;
 import java.util.List;
 
 public interface Annotation {
@@ -11,4 +12,6 @@ public interface Annotation {
     List<String> getStringArray(String name);
 
     boolean getBoolean(String name);
+
+    TypeMirror getType(String name);
 }
