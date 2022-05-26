@@ -17,6 +17,7 @@ public class Entity {
     private static final String JPA_REPOSITORY_FQN = "org.springframework.data.jpa.repository.JpaRepository";
     private static final String JPA_SPECIFICATION_EXECUTOR_FQN = "org.springframework.data.jpa.repository.JpaSpecificationExecutor";
     private static final String QUERYDSL_PREDICATE_EXECUTOR_FQN = "org.springframework.data.querydsl.QuerydslPredicateExecutor";
+    private static final String SPECIFICATION_FQN = "org.springframework.data.jpa.domain.Specification";
 
     private final @Getter DeclaredType type;
     private final @Getter String idName;
@@ -27,6 +28,7 @@ public class Entity {
     private final @Getter DeclaredType jpaRepositoryType;
     private final @Getter DeclaredType jpaSpecificationExecutorType;
     private final @Getter DeclaredType querydslPredicateExecutorType;
+    private final @Getter DeclaredType specificationType;
 
     public static Entity resolve(ProcessingEnvironment processingEnv, TypeMirror type) {
         Annotations annotationUtils = Annotations.instanceOf(processingEnv);
@@ -64,6 +66,9 @@ public class Entity {
         DeclaredType querydslPredicateExecutorType = typeOps.getDeclared(
                 QUERYDSL_PREDICATE_EXECUTOR_FQN, entityType
         );
+        DeclaredType specificationType = typeOps.getDeclared(
+                SPECIFICATION_FQN, entityType
+        );
         return new Entity(
                 entityType,
                 idField.getName(),
@@ -72,7 +77,8 @@ public class Entity {
                 methods,
                 jpaRepositoryType,
                 jpaSpecificationExecutorType,
-                querydslPredicateExecutorType
+                querydslPredicateExecutorType,
+                specificationType
         );
     }
 }
