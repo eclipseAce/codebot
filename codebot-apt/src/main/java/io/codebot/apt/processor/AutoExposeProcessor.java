@@ -1,17 +1,62 @@
 package io.codebot.apt.processor;
 
+import com.google.auto.service.AutoService;
+import com.google.common.base.Throwables;
 import com.squareup.javapoet.*;
+import io.codebot.apt.annotation.AutoExpose;
 import io.codebot.apt.annotation.Exposed;
-import io.codebot.apt.code.Annotation;
-import io.codebot.apt.code.Method;
-import io.codebot.apt.code.Parameter;
-import io.codebot.apt.code.Variable;
+import io.codebot.apt.coding.*;
 
-import javax.lang.model.element.*;
+import javax.annotation.processing.*;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.Modifier;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.util.ElementFilter;
+import javax.tools.Diagnostic;
+import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
-public class ExposeControllerProcessor extends AbstractAnnotatedElementProcessor {
+@AutoService(Processor.class)
+@SupportedSourceVersion(SourceVersion.RELEASE_8)
+public class AutoExposeProcessor extends AbstractProcessor {
+    private TypeOps typeOps;
+    private Annotations annotationUtils;
+    private Methods methodUtils;
+
+    @Override
+    public Set<String> getSupportedAnnotationTypes() {
+        return Collections.singleton(AutoExpose.class.getName());
+    }
+
+    @Override
+    public synchronized void init(ProcessingEnvironment processingEnv) {
+        super.init(processingEnv);
+        this.typeOps = TypeOps.instanceOf(processingEnv);
+        this.annotationUtils = Annotations.instanceOf(processingEnv);
+        this.methodUtils = Methods.instanceOf(processingEnv);
+    }
+
+    @Override
+    public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+        for (TypeElement element : ElementFilter.typesIn(roundEnv.getElementsAnnotatedWith(AutoExpose.class))) {
+            Annotation annotation = annotationUtils.find(element, AutoExpose.class);
+            try {
+                process(element, annotation);
+            } catch (Exception e) {
+                processingEnv.getMessager().printMessage(
+                        Diagnostic.Kind.ERROR,
+                        Throwables.getStackTraceAsString(e),
+                        element, annotation.getMirror()
+                );
+            }
+        }
+        return false;
+    }
+
     private static final String VALID_FQN = "javax.validation.Valid";
 
     private static final String AUTOWIRED_FQN = "org.springframework.beans.factory.annotation.Autowired";
@@ -29,16 +74,14 @@ public class ExposeControllerProcessor extends AbstractAnnotatedElementProcessor
     private static final String OPERATION_FQN = "io.swagger.v3.oas.annotations.Operation";
     private static final String PAGEABLE_AS_QUERY_PARAM_FQN = "org.springdoc.core.converters.models.PageableAsQueryParam";
 
-    @Override
-    public void process(Element element, AnnotationMirror annotationMirror) throws Exception {
+    protected void process(TypeElement element, Annotation annotation) throws IOException {
         if (element.getKind() != ElementKind.CLASS && element.getKind() != ElementKind.INTERFACE) {
             return;
         }
 
-        DeclaredType type = typeOps.getDeclared((TypeElement) element);
-        Annotation typeAnnotation = annotationUtils.of(annotationMirror);
+        DeclaredType type = typeOps.getDeclared(element);
 
-        ClassName typeName = ClassName.get((TypeElement) element);
+        ClassName typeName = ClassName.get(element);
         ClassName controllerName = ClassName.get(
                 typeName.packageName().replaceAll("[^.]+$", "controller"),
                 typeName.simpleName().replaceAll("Service$", "Controller")
@@ -49,8 +92,8 @@ public class ExposeControllerProcessor extends AbstractAnnotatedElementProcessor
                 .addModifiers(Modifier.PUBLIC)
                 .addAnnotation(ClassName.bestGuess(REST_CONTROLLER_FQN));
 
-        String typeTag = typeAnnotation.getString("tag");
-        String typePath = typeAnnotation.getString("path");
+        String typeTag = annotation.getString("tag");
+        String typePath = annotation.getString("path");
 
         controller.addAnnotation(AnnotationSpec
                 .builder(ClassName.bestGuess(REQUEST_MAPPING_FQN))

@@ -7,6 +7,8 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.CLASS)
 @Target(ElementType.TYPE)
-public @interface ImplementCrud {
-    Class<?> entity();
+public @interface AutoExpose {
+    String tag() default "";
+
+    String path() default "";
 }

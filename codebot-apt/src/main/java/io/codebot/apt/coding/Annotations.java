@@ -1,4 +1,4 @@
-package io.codebot.apt.code;
+package io.codebot.apt.coding;
 
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;

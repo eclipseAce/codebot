@@ -1,4 +1,4 @@
-package io.codebot.apt.code;
+package io.codebot.apt.coding;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -78,7 +78,7 @@ public final class Methods {
     }
 
     public MethodCollectionImpl allOf(DeclaredType containingType) {
-        List<ExecutableElement> elements = Lists.newArrayList();
+        List<ExecutableElement> elements = Lists.newLinkedList();
         collectMethodsInHierarchy(containingType, elements, Sets.newHashSet());
         return elements.stream()
                 .map(element -> of(containingType, element))

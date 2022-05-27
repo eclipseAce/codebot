@@ -1,22 +1,18 @@
 package io.codebot.test.service;
 
-import io.codebot.apt.annotation.ImplementCrud;
-import io.codebot.apt.annotation.ExposeController;
+import io.codebot.apt.annotation.AutoExpose;
 import io.codebot.apt.annotation.Exposed;
 import io.codebot.apt.annotation.Exposed.Body;
 import io.codebot.apt.annotation.Exposed.Param;
 import io.codebot.apt.annotation.Exposed.Path;
-import io.codebot.test.domain.User;
 import io.codebot.test.dto.user.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
-@ImplementCrud(entity = User.class)
-@ExposeController(tag = "用户管理", path = "/api/user")
+@AutoExpose(tag = "用户管理", path = "/api/user")
 public interface UserService {
-
     @Exposed(title = "创建用户")
     long create(@Body UserCreate dto);
 

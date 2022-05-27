@@ -1,6 +1,7 @@
-package io.codebot.apt.code;
+package io.codebot.apt.coding;
 
 import com.squareup.javapoet.CodeBlock;
+import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.NameAllocator;
 
 public interface CodeWriter {
@@ -20,6 +21,12 @@ public interface CodeWriter {
 
     static CodeWriter create() {
         return new SimpleCodeWriter();
+    }
+
+    static CodeWriter create(MethodSpec.Builder methodBuilder) {
+        CodeWriter code = create();
+        methodBuilder.parameters.forEach(it -> code.newName(it.name));
+        return code;
     }
 
     class SimpleCodeWriter implements CodeWriter {
