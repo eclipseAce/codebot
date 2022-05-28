@@ -1,4 +1,4 @@
-package io.codebot.test.dto.user;
+package cases.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;

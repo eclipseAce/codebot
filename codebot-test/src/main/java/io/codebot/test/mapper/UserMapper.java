@@ -7,7 +7,7 @@ import org.mapstruct.Mapper;
 
 @Mapper(componentModel = "spring")
 public interface UserMapper {
-    User convertUserAddToUser(UserCreate source);
+    User convertUserCreateToUser(UserCreate source);
 
     UserDetails convertUserToUserDetails(User source);
 }

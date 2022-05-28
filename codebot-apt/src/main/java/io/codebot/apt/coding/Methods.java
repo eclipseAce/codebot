@@ -85,7 +85,6 @@ public final class Methods {
                 .collect(Collectors.toCollection(() -> new MethodCollectionImpl(typeUtils)));
     }
 
-
     private void collectMethodsInHierarchy(DeclaredType containingType,
                                            List<ExecutableElement> collected,
                                            Set<TypeElement> visited) {

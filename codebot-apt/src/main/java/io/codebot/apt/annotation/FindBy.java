@@ -1,11 +1,12 @@
-package test;
+package io.codebot.apt.annotation;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-@Target(ElementType.TYPE)
 @Retention(RetentionPolicy.CLASS)
-public @interface Dummy {
+@Target(ElementType.PARAMETER)
+public @interface FindBy {
+    String value();
 }
