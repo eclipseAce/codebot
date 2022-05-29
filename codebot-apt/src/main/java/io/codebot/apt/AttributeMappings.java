@@ -1,4 +1,4 @@
-package io.codebot.apt.annotation;
+package io.codebot.apt;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -6,9 +6,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.CLASS)
-@Target(ElementType.TYPE)
-public @interface AutoExpose {
-    String tag() default "";
-
-    String path() default "";
+@Target({ElementType.TYPE, ElementType.METHOD})
+public @interface AttributeMappings {
+    AttributeMapping[] value();
 }

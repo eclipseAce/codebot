@@ -1,52 +1,45 @@
 package io.codebot.test.service;
 
-import io.codebot.apt.annotation.AutoExpose;
-import io.codebot.apt.annotation.Exposed;
-import io.codebot.apt.annotation.Exposed.Body;
-import io.codebot.apt.annotation.Exposed.Param;
-import io.codebot.apt.annotation.Exposed.Path;
+import io.codebot.apt.AttributeMapping;
+import io.codebot.apt.EntityService;
+import io.codebot.test.domain.User;
 import io.codebot.test.dto.user.*;
+import org.mapstruct.Mapping;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 
-@AutoExpose(tag = "用户管理", path = "/api/user")
-public interface UserService {
-    @Exposed(title = "创建用户")
-    long create(@Body UserCreate dto);
+@EntityService(User.class)
+@AttributeMapping(to = "password", useMethod = "encodePassword")
+public abstract class UserService {
 
-    @Exposed(title = "创建用户2", tags = {"TEST1", "TEST2"})
-    UserDetails createAndGet(@Body UserCreate create);
+    String encodePassword(@Autowired PasswordEncoder passwordEncoder, String rawPassword) {
+        return passwordEncoder.encode(rawPassword);
+    }
 
-    @Exposed(title = "创建默认用户")
-    long createDefault();
+    public abstract long create(UserCreate dto);
 
-    @Exposed(title = "修改用户密码")
-    void updatePassword(@Body UserSetPassword dto);
+    public abstract UserDetails createAndGet(UserCreate create);
 
-    @Exposed(title = "修改用户密码2")
-    UserDetails updatePassword2(@Path long id, @Body UserSetPassword dto);
+    public abstract void updatePassword(UserSetPassword dto);
 
-    @Exposed(title = "修改用户资料")
-    void updateProfile(@Body UserSetProfile dto);
+    public abstract UserDetails updatePassword2(long id, UserSetPassword dto);
 
-    @Exposed(title = "修改用户锁定状态")
-    void updateLocked(@Body UserSetLocked dto);
+    public abstract void updateProfile(UserSetProfile dto);
 
-    @Exposed(title = "获取用户")
-    UserDetails findById(@Path long id);
+    public abstract void updateLocked(UserSetLocked dto);
 
-    @Exposed(title = "根据用户名获取用户")
-    UserDetails findByUsername(@Param String username);
+    public abstract UserDetails findById(long id);
 
-    @Exposed(title = "查询用户")
-    List<UserSummary> findList(@Body UserQuery query);
+    public abstract UserDetails findByUsername(String username);
 
-    @Exposed(title = "查询分页用户")
-    Page<UserSummary> findPage(@Body UserQuery query, Pageable pageable);
+    public abstract List<UserSummary> findList(UserQuery query);
 
-    @Exposed(title = "分页获取所有用户")
-    Page<UserSummary> findAllPage(Pageable pageable);
+    public abstract Page<UserSummary> findPage(UserQuery query, Pageable pageable);
+
+    public abstract Page<UserSummary> findAllPage(Pageable pageable);
 }
 

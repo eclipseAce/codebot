@@ -44,16 +44,10 @@
         </dependency>
 
         <dependency>
-            <groupId>com.github.javaparser</groupId>
-            <artifactId>javaparser-core</artifactId>
-            <version>3.24.2</version>
-        </dependency>
-
-        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <version>1.18.24</version>
-            <!--<scope>provided</scope>-->
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
@@ -67,6 +61,13 @@
             <groupId>com.karuslabs</groupId>
             <artifactId>elementary</artifactId>
             <version>1.1.2</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <version>1.4.2.Final</version>
             <scope>test</scope>
         </dependency>
 
@@ -95,6 +96,13 @@
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-common</artifactId>
             <version>1.6.8</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+            <version>5.7.1</version>
             <scope>test</scope>
         </dependency>
 
