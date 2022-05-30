@@ -1,10 +1,8 @@
 package io.codebot.test.service;
 
-import io.codebot.apt.AttributeMapping;
 import io.codebot.apt.EntityService;
 import io.codebot.test.domain.User;
 import io.codebot.test.dto.user.*;
-import org.mapstruct.Mapping;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,11 +11,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.util.List;
 
 @EntityService(User.class)
-@AttributeMapping(to = "password", useMethod = "encodePassword")
 public abstract class UserService {
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
-    String encodePassword(@Autowired PasswordEncoder passwordEncoder, String rawPassword) {
-        return passwordEncoder.encode(rawPassword);
+    protected void setPassword(User user, String password) {
+        user.setPassword(passwordEncoder.encode(password));
     }
 
     public abstract long create(UserCreate dto);
