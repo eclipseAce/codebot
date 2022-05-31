@@ -96,13 +96,18 @@ public class EntityServiceProcessor extends AbstractProcessor {
                     TypeName.get(entity.getIdAttributeType()).box()
             ));
 
+            injectIfAbsent(implementationBuilder, "querydslPredicateExecutor", ParameterizedTypeName.get(
+                    ClassName.bestGuess("org.springframework.data.querydsl.QuerydslPredicateExecutor"),
+                    TypeName.get(entity.getType())
+            ));
+
             if (crudType == CrudType.CREATE || crudType == CrudType.UPDATE) {
                 Variable entityVar = Variable.of(entity.getType(), names.newName("entity"));
                 if (crudType == CrudType.CREATE) {
                     methodBuilder.addStatement("$1T $2N = new $1T()", entityVar.getType(), entityVar.getName());
                 } else {
-                    QuerySource idSource = QuerySource
-                            .findQuerySources(processingEnv, entity, serviceMethod.getParameters())
+                    QueryMapping idSource = QueryMapping
+                            .find(processingEnv, entity, serviceMethod.getParameters())
                             .stream()
                             .filter(it -> it.attr.equals(entity.getIdAttribute()))
                             .findFirst()
@@ -111,23 +116,55 @@ public class EntityServiceProcessor extends AbstractProcessor {
                             entityVar.getType(), entityVar.getName(), idSource.valExpr.getCode());
                 }
 
-                WriteSource.findWriteSources(processingEnv, entity, serviceMethod.getParameters()).forEach(source -> {
-                    AttributeHandler handler = AttributeHandler.findAttributeHandler(
+                WriteMapping.find(processingEnv, entity.getType(), serviceMethod.getParameters()).forEach(source -> {
+                    SetAttributeHandler handler = SetAttributeHandler.find(
                             processingEnv, entity, serviceMethods,
-                            source.attrSetter.getWriteName(),
-                            source.attrSetter.getWriteType()
+                            source.targetSetter.getWriteName(),
+                            source.targetSetter.getWriteType()
                     );
                     if (handler != null) {
-                        methodBuilder.addStatement(handler.invoke(entityVar, source.valExpr));
+                        methodBuilder.addStatement(handler.invoke(entityVar, source.value));
                     } else {
                         methodBuilder.addStatement("$N.$N($L)",
                                 entityVar.getName(),
-                                source.attrSetter.getSimpleName(),
-                                source.valExpr.getCode());
+                                source.targetSetter.getSimpleName(),
+                                source.value.getCode());
                     }
                 });
 
                 methodBuilder.addStatement("this.jpaRepository.save($N)", entityVar.getName());
+                convertAndReturn(methodBuilder, names, serviceMethod, entity, entityVar);
+            } //
+            else if (crudType == CrudType.QUERY) {
+                TypeMirror returnType = serviceMethod.getReturnType();
+                List<? extends Parameter> params = serviceMethod.getParameters();
+                if (params.size() == 1 && typeOps.isSame(params.get(0).getType(), entity.getIdAttributeType())) {
+                    Variable filterVar = null;
+                    List<FilterHandler> filterHandlers = FilterHandler.findAll(processingEnv, serviceMethods);
+                    for (FilterHandler filterHandler : filterHandlers) {
+                        if (filterHandler.supports(params.get(0).getType())) {
+                            filterVar = Variable.of(typeOps.getDeclared(PREDICATE_FQN), names.newName("filter"));
+                            methodBuilder.addStatement("$T $N = $L",
+                                    filterVar.getType(), filterVar.getName(),
+                                    filterHandler.invoke(params.get(0)).getCode());
+                            break;
+                        }
+                    }
+                    if (filterVar != null) {
+                        for (FilterHandler filterHandler : filterHandlers) {
+                            if (filterHandler.supports(typeOps.getDeclared(PREDICATE_FQN))) {
+                                methodBuilder.addStatement("$N = $L",
+                                        filterVar.getName(), filterHandler.invoke(filterVar).getCode());
+                            }
+                        }
+                        Variable entityVar = Variable.of(entity.getType(), names.newName("entity"));
+                        methodBuilder.addStatement(
+                                "$T $N = this.querydslPredicateExecutor.findOne($N).orElse(null)",
+                                entityVar.getType(), entityVar.getName(), filterVar.getName());
+                        convertAndReturn(methodBuilder, names, serviceMethod, entity, entityVar);
+                    }
+
+                }
             }
 
             implementationBuilder.addMethod(methodBuilder.build());
@@ -148,12 +185,36 @@ public class EntityServiceProcessor extends AbstractProcessor {
                 return UPDATE;
             }
             if (method.getSimpleName().startsWith("delete")) {
-                return UPDATE;
+                return DELETE;
             }
             if (method.getSimpleName().startsWith("find")) {
                 return QUERY;
             }
             return UNKNOWN;
+        }
+    }
+
+    private void convertAndReturn(MethodSpec.Builder builder, NameAllocator names,
+                                  Method method, Entity entity, Variable fromVar) {
+        TypeMirror returnType = method.getReturnType();
+        if (typeOps.isAssignable(entity.getIdAttributeType(), returnType)) {
+            builder.addStatement("return $N.$N()",
+                    fromVar.getName(), entity.getIdReadMethod().getSimpleName());
+        }//
+        else if (typeOps.isDeclared(returnType)) {
+            DeclaredType targetType = (DeclaredType) returnType;
+
+            Variable resultVar = Variable.of(returnType, names.newName("result"));
+            builder.addStatement("$1T $2N = new $1T()", resultVar.getType(), resultVar.getName());
+
+            WriteMapping.find(processingEnv, targetType, Collections.singletonList(fromVar)).forEach(mapping -> {
+                builder.addStatement("$N.$N($L)",
+                        resultVar.getName(),
+                        mapping.targetSetter.getSimpleName(),
+                        mapping.value.getCode());
+            });
+
+            builder.addStatement("return $N", resultVar.getName());
         }
     }
 
@@ -170,12 +231,12 @@ public class EntityServiceProcessor extends AbstractProcessor {
         );
     }
 
-    private interface AttributeHandler {
+    private interface SetAttributeHandler {
         CodeBlock invoke(Expression entityExpr, Expression valueExpr);
 
-        static AttributeHandler findAttributeHandler(ProcessingEnvironment processingEnv,
-                                                     Entity entity, MethodCollection methods,
-                                                     String attribute, TypeMirror attributeType) {
+        static SetAttributeHandler find(ProcessingEnvironment processingEnv,
+                                        Entity entity, MethodCollection methods,
+                                        String attribute, TypeMirror attributeType) {
             TypeOps typeOps = TypeOps.instanceOf(processingEnv);
 
             for (Method method : methods) {
@@ -196,60 +257,120 @@ public class EntityServiceProcessor extends AbstractProcessor {
         }
     }
 
-    @RequiredArgsConstructor
-    private static class WriteSource {
-        public final WriteMethod attrSetter;
-        public final Expression valExpr;
+    private static final String PREDICATE_FQN = "com.querydsl.core.types.Predicate";
+    private static final String ENTITY_PATH_BASE_FQN = "com.querydsl.core.types.dsl.EntityPathBase";
 
-        public static List<WriteSource> findWriteSources(ProcessingEnvironment processingEnv,
-                                                         Entity entity, List<? extends Variable> variables) {
+    private interface FilterHandler {
+        boolean supports(TypeMirror type);
+
+        Expression invoke(Expression valueExpr);
+
+        static List<FilterHandler> findAll(ProcessingEnvironment processingEnv,
+                                           MethodCollection methods) {
+            TypeOps typeOps = TypeOps.instanceOf(processingEnv);
+            List<FilterHandler> handlers = Lists.newArrayList();
+
+            outer:
+            for (Method method : methods) {
+                List<? extends Parameter> params = method.getParameters();
+                Set<Modifier> modifiers = method.getModifiers();
+                if (modifiers.contains(Modifier.PRIVATE)
+                        || !typeOps.isAssignable(method.getReturnType(), PREDICATE_FQN)
+                        || params.size() < 1) {
+                    continue;
+                }
+                List<Expression> extraParams = Lists.newArrayList();
+                for (int i = 1; i < params.size(); i++) {
+                    Parameter param = params.get(i);
+                    if (typeOps.isAssignable(param.getType(), ENTITY_PATH_BASE_FQN)) {
+                        DeclaredType entityType = (DeclaredType) typeOps.resolveTypeParameter(
+                                (DeclaredType) param.getType(), ENTITY_PATH_BASE_FQN, 0);
+                        ClassName entityTypeName = ClassName.get((TypeElement) entityType.asElement());
+                        ClassName queryTypeName = ClassName.get(
+                                entityTypeName.packageName(), "Q" + entityTypeName.simpleName());
+                        extraParams.add(Expression.of(typeOps.getDeclared(queryTypeName.canonicalName()),
+                                "$T.$N", queryTypeName, StringUtils.uncapitalize(entityTypeName.simpleName())));
+                    } else {
+                        continue outer;
+                    }
+                }
+                handlers.add(new FilterHandler() {
+                    @Override
+                    public boolean supports(TypeMirror type) {
+                        return typeOps.isSame(type, params.get(0).getType());
+                    }
+
+                    @Override
+                    public Expression invoke(Expression valueExpr) {
+                        return Expression.of(
+                                params.get(0).getType(),
+                                "$N($L, $L)",
+                                method.getSimpleName(), valueExpr.getCode(),
+                                extraParams.stream().map(Expression::getCode).collect(CodeBlock.joining(", "))
+                        );
+                    }
+                });
+            }
+            return handlers;
+        }
+    }
+
+    @RequiredArgsConstructor
+    private static class WriteMapping {
+        public final WriteMethod targetSetter;
+        public final Expression value;
+
+        public static List<WriteMapping> find(ProcessingEnvironment processingEnv,
+                                              DeclaredType targetType,
+                                              List<? extends Variable> variables) {
             TypeOps typeOps = TypeOps.instanceOf(processingEnv);
             Methods methodUtils = Methods.instanceOf(processingEnv);
-            MethodCollection entityMethods = methodUtils.allOf(entity.getType());
+            MethodCollection entityMethods = methodUtils.allOf(targetType);
 
-            List<WriteSource> writeSources = Lists.newArrayList();
+            List<WriteMapping> writeMappings = Lists.newArrayList();
             for (Variable variable : variables) {
                 WriteMethod entitySetter = entityMethods.findWriter(variable.getName(), variable.getType());
                 if (entitySetter != null) {
-                    writeSources.add(new WriteSource(entitySetter, variable));
+                    writeMappings.add(new WriteMapping(entitySetter, variable));
                     continue;
                 }
                 if (typeOps.isDeclared(variable.getType())) {
                     for (ReadMethod paramGetter : methodUtils.allOf((DeclaredType) variable.getType()).readers()) {
                         entitySetter = entityMethods.findWriter(paramGetter.getReadName(), paramGetter.getReadType());
                         if (entitySetter != null) {
-                            writeSources.add(new WriteSource(entitySetter, paramGetter.toExpression(variable)));
+                            writeMappings.add(new WriteMapping(entitySetter, paramGetter.toExpression(variable)));
                         }
                     }
                 }
             }
-            return writeSources;
+            return writeMappings;
         }
     }
 
     @RequiredArgsConstructor
-    private static class QuerySource {
+    private static class QueryMapping {
         public final String attr;
         public final Expression valExpr;
 
-        public static List<QuerySource> findQuerySources(ProcessingEnvironment processingEnv,
-                                                         Entity entity, List<? extends Variable> variables) {
+        public static List<QueryMapping> find(ProcessingEnvironment processingEnv,
+                                              Entity entity,
+                                              List<? extends Variable> variables) {
             TypeOps typeOps = TypeOps.instanceOf(processingEnv);
             Methods methodUtils = Methods.instanceOf(processingEnv);
             MethodCollection entityMethods = methodUtils.allOf(entity.getType());
 
-            List<QuerySource> querySources = Lists.newArrayList();
+            List<QueryMapping> queryMappings = Lists.newArrayList();
             for (Variable variable : variables) {
                 ReadMethod entityGetter = entityMethods.findReader(variable.getName(), variable.getType());
                 if (entityGetter != null) {
-                    querySources.add(new QuerySource(entityGetter.getReadName(), variable));
+                    queryMappings.add(new QueryMapping(entityGetter.getReadName(), variable));
                     continue;
                 }
                 if (typeOps.isDeclared(variable.getType())) {
                     for (ReadMethod paramGetter : methodUtils.allOf((DeclaredType) variable.getType()).readers()) {
                         entityGetter = entityMethods.findReader(paramGetter.getReadName(), paramGetter.getReadType());
                         if (entityGetter != null) {
-                            querySources.add(new QuerySource(
+                            queryMappings.add(new QueryMapping(
                                     entityGetter.getReadName(),
                                     paramGetter.toExpression(variable)
                             ));
@@ -257,7 +378,7 @@ public class EntityServiceProcessor extends AbstractProcessor {
                     }
                 }
             }
-            return querySources;
+            return queryMappings;
         }
     }
 }

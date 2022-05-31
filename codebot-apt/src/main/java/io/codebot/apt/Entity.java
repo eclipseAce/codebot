@@ -21,6 +21,7 @@ public class Entity {
     private final @Getter DeclaredType type;
     private final @Getter String idAttribute;
     private final @Getter TypeMirror idAttributeType;
+    private final @Getter ReadMethod idReadMethod;
 
     public static Entity of(ProcessingEnvironment processingEnv, TypeMirror type) {
         TypeOps typeOps = TypeOps.instanceOf(processingEnv);
@@ -28,12 +29,15 @@ public class Entity {
             throw new IllegalArgumentException("Not declared type for entity: " + type);
         }
         Fields fieldUtils = Fields.instanceOf(processingEnv);
+        Methods methodUtils = Methods.instanceOf(processingEnv);
         Annotations annotationUtils = Annotations.instanceOf(processingEnv);
         Field idField = fieldUtils.allOf((DeclaredType) type).stream()
                 .filter(it -> annotationUtils.isPresent(it.getElement(), "javax.persistence.Id"))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Entity " + type + " has no Id attribute"));
-        return new Entity(processingEnv, (DeclaredType) type, idField.getName(), idField.getType());
+        ReadMethod idReadMethod = methodUtils.allOf((DeclaredType) type)
+                .findReader(idField.getName(), idField.getType());
+        return new Entity(processingEnv, (DeclaredType) type, idField.getName(), idField.getType(), idReadMethod);
     }
 
     private Map<String, WriteMapping> findWriteMappings(List<? extends Variable> variables) {

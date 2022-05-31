@@ -55,12 +55,33 @@ public final class TypeOps {
         return isAssignable(t, getDeclared(Iterable.class.getName()));
     }
 
+    public boolean isIterableOf(TypeMirror t, TypeMirror element) {
+        return isAssignable(t, getDeclared(
+                Iterable.class.getName(),
+                typeUtils.getWildcardType(element, null)
+        ));
+    }
+
     public boolean isCollection(TypeMirror t) {
         return isAssignable(t, getDeclared(Collection.class.getName()));
     }
 
+    public boolean isCollectionOf(TypeMirror t, TypeMirror element) {
+        return isAssignable(t, getDeclared(
+                Collection.class.getName(),
+                typeUtils.getWildcardType(element, null)
+        ));
+    }
+
     public boolean isList(TypeMirror t) {
         return isAssignable(t, getDeclared(List.class.getName()));
+    }
+
+    public boolean isListOf(TypeMirror t, TypeMirror element) {
+        return isAssignable(t, getDeclared(
+                List.class.getName(),
+                typeUtils.getWildcardType(element, null)
+        ));
     }
 
     public boolean isPrimitive(TypeMirror t) {
@@ -77,5 +98,13 @@ public final class TypeOps {
 
     public TypeMirror boxed(TypeMirror t) {
         return isPrimitive(t) ? typeUtils.boxedClass((PrimitiveType) t).asType() : t;
+    }
+
+    public TypeMirror resolveTypeParameter(DeclaredType containing, TypeElement element, int index) {
+        return typeUtils.asMemberOf(containing, element.getTypeParameters().get(index));
+    }
+
+    public TypeMirror resolveTypeParameter(DeclaredType containing, String fqn, int index) {
+        return typeUtils.asMemberOf(containing, getTypeElement(fqn).getTypeParameters().get(index));
     }
 }

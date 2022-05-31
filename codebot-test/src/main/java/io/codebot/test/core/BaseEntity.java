@@ -21,6 +21,8 @@ public abstract class BaseEntity implements Serializable {
     @GeneratedValue
     private @Getter long id;
 
+    private @Getter boolean deleted;
+
     @CreatedDate
     private @Getter LocalDateTime createdAt;
 

@@ -1,6 +1,10 @@
 package io.codebot.test.service;
 
+import com.querydsl.core.types.Predicate;
+import com.querydsl.core.types.dsl.Expressions;
 import io.codebot.apt.EntityService;
+import io.codebot.test.core.QBaseEntity;
+import io.codebot.test.domain.QUser;
 import io.codebot.test.domain.User;
 import io.codebot.test.dto.user.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,12 +15,16 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.util.List;
 
 @EntityService(User.class)
-public abstract class UserService {
+public abstract class UserService extends BaseService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
     protected void setPassword(User user, String password) {
         user.setPassword(passwordEncoder.encode(password));
+    }
+
+    protected Predicate filter(long id, QUser user) {
+        return user.id.eq(id);
     }
 
     public abstract long create(UserCreate dto);
