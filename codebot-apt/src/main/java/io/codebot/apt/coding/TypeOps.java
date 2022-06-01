@@ -51,7 +51,7 @@ public final class TypeOps {
         return typeUtils.isSameType(t1, t2);
     }
 
-    public boolean isIterable(TypeMirror t) {
+    public boolean isAssignableToIterable(TypeMirror t) {
         return isAssignable(t, getDeclared(Iterable.class.getName()));
     }
 
@@ -62,7 +62,7 @@ public final class TypeOps {
         ));
     }
 
-    public boolean isCollection(TypeMirror t) {
+    public boolean isAssignableToCollection(TypeMirror t) {
         return isAssignable(t, getDeclared(Collection.class.getName()));
     }
 
@@ -73,7 +73,7 @@ public final class TypeOps {
         ));
     }
 
-    public boolean isList(TypeMirror t) {
+    public boolean isAssignableToList(TypeMirror t) {
         return isAssignable(t, getDeclared(List.class.getName()));
     }
 
@@ -102,6 +102,10 @@ public final class TypeOps {
 
     public TypeMirror boxed(TypeMirror t) {
         return isPrimitive(t) ? typeUtils.boxedClass((PrimitiveType) t).asType() : t;
+    }
+
+    public TypeMirror erasure(TypeMirror t) {
+        return typeUtils.erasure(t);
     }
 
     public DeclaredType resolveTypeParameter(DeclaredType containing, TypeElement element, int index) {

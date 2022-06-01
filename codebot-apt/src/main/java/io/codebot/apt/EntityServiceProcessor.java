@@ -139,20 +139,34 @@ public class EntityServiceProcessor extends AbstractProcessor {
                 convertAndReturn(methodBuilder, names, entity, entityVar, serviceMethod.getReturnType());
             } //
             else if (crudType == CrudType.QUERY) {
+                List<Parameter> filterParams = Lists.newArrayList();
+                List<Parameter> pageableParams = Lists.newArrayList();
+                for (Parameter param : serviceMethod.getParameters()) {
+                    if (typeOps.isAssignable(param.getType(), PAGEABLE_FQN)) {
+                        pageableParams.add(param);
+                    } else {
+                        filterParams.add(param);
+                    }
+                }
                 Variable filterVar = getFilterVariable(
-                        methodBuilder, names, entity.getType(), serviceMethods,
-                        serviceMethod.getParameters()
-                );
+                        methodBuilder, names, entity.getType(), serviceMethods, filterParams);
                 Variable resultVar;
-                if (typeOps.isList(serviceMethod.getReturnType())) {
+                if (typeOps.isAssignableToList(serviceMethod.getReturnType())) {
                     resultVar = Variable.of(
-                            typeOps.getDeclared(Iterable.class.getName(), entity.getType()),
-                            names.newName("result")
-                    );
+                            typeOps.getDeclared(Iterable.class.getName(), entity.getType()), names.newName("result"));
                     methodBuilder.addStatement(
                             "$T $N = this.querydslPredicateExecutor.findAll($N)",
                             resultVar.getType(), resultVar.getName(), filterVar.getName());
-                } else {
+                } //
+                else if (typeOps.isAssignable(serviceMethod.getReturnType(), PAGE_FQN) && !pageableParams.isEmpty()) {
+                    resultVar = Variable.of(
+                            typeOps.getDeclared(PAGE_FQN, entity.getType()), names.newName("result"));
+                    methodBuilder.addStatement(
+                            "$T $N = this.querydslPredicateExecutor.findAll($N, $N)",
+                            resultVar.getType(), resultVar.getName(), filterVar.getName(),
+                            pageableParams.get(0).getName());
+                } //
+                else {
                     resultVar = Variable.of(entity.getType(), names.newName("result"));
                     methodBuilder.addStatement(
                             "$T $N = this.querydslPredicateExecutor.findOne($N).orElse(null)",
@@ -218,12 +232,28 @@ public class EntityServiceProcessor extends AbstractProcessor {
 
     private Expression convert(CodeBlock.Builder code, NameAllocator names,
                                Entity entity, Variable sourceVar, TypeMirror targetType) {
-        if (typeOps.isList(targetType) && typeOps.isIterable(sourceVar.getType())) {
+        if (typeOps.isAssignable(sourceVar.getType(), PAGE_FQN)
+                && typeOps.isAssignable(typeOps.getDeclared(PAGE_FQN), typeOps.erasure(targetType))) {
+            CodeBlock.Builder lambdaCode = CodeBlock.builder();
+            NameAllocator lambdaNames = names.clone();
+
+            Variable itVar = Variable.of(
+                    typeOps.resolveTypeParameter((DeclaredType) sourceVar.getType(), PAGE_FQN, 0),
+                    lambdaNames.newName("it")
+            );
+            lambdaCode.add("return $L;\n", convert(
+                    lambdaCode, lambdaNames, entity, itVar,
+                    typeOps.resolveTypeParameter((DeclaredType) targetType, PAGE_FQN, 0)
+            ).getCode());
+            return Expression.of(targetType, "$L.map($N -> {\n$>$L$<})",
+                    sourceVar.getName(), itVar.getName(), lambdaCode.build());
+        }
+        if (typeOps.isAssignableToList(targetType) && typeOps.isAssignableToIterable(sourceVar.getType())) {
             CodeBlock.Builder lambdaCode = CodeBlock.builder();
             NameAllocator lambdaNames = names.clone();
 
             CodeBlock stream;
-            if (typeOps.isCollection(sourceVar.getType())) {
+            if (typeOps.isAssignableToCollection(sourceVar.getType())) {
                 stream = CodeBlock.of("$N.stream()", sourceVar.getName());
             } else {
                 stream = CodeBlock.of("$T.stream($N.spliterator(), false)", StreamSupport.class, sourceVar.getName());
@@ -339,6 +369,8 @@ public class EntityServiceProcessor extends AbstractProcessor {
         }
     }
 
+    private static final String PAGE_FQN = "org.springframework.data.domain.Page";
+    private static final String PAGEABLE_FQN = "org.springframework.data.domain.Pageable";
     private static final String BOOLEAN_BUILDER_FQN = "com.querydsl.core.BooleanBuilder";
     private static final String PREDICATE_FQN = "com.querydsl.core.types.Predicate";
     private static final String ENTITY_PATH_BASE_FQN = "com.querydsl.core.types.dsl.EntityPathBase";
