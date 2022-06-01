@@ -5,7 +5,7 @@ import com.querydsl.core.types.dsl.Expressions;
 import io.codebot.test.core.QBaseEntity;
 
 public abstract class BaseService {
-    protected Predicate filter(Predicate predicate, QBaseEntity baseEntity) {
+    protected Predicate filterDeleted(Predicate predicate, QBaseEntity baseEntity) {
         return Expressions.allOf(baseEntity.deleted.isFalse(), Expressions.asBoolean(predicate));
     }
 }

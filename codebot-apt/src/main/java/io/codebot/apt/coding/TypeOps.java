@@ -96,15 +96,27 @@ public final class TypeOps {
         return t.getKind() == TypeKind.DECLARED;
     }
 
+    public PrimitiveType getBooleanType() {
+        return typeUtils.getPrimitiveType(TypeKind.BOOLEAN);
+    }
+
     public TypeMirror boxed(TypeMirror t) {
         return isPrimitive(t) ? typeUtils.boxedClass((PrimitiveType) t).asType() : t;
     }
 
-    public TypeMirror resolveTypeParameter(DeclaredType containing, TypeElement element, int index) {
-        return typeUtils.asMemberOf(containing, element.getTypeParameters().get(index));
+    public DeclaredType resolveTypeParameter(DeclaredType containing, TypeElement element, int index) {
+        return (DeclaredType) typeUtils.asMemberOf(containing, element.getTypeParameters().get(index));
     }
 
-    public TypeMirror resolveTypeParameter(DeclaredType containing, String fqn, int index) {
-        return typeUtils.asMemberOf(containing, getTypeElement(fqn).getTypeParameters().get(index));
+    public DeclaredType resolveTypeParameter(DeclaredType containing, String fqn, int index) {
+        return resolveTypeParameter(containing, getTypeElement(fqn), index);
+    }
+
+    public DeclaredType resolveListElementType(DeclaredType containing) {
+        return resolveTypeParameter(containing, List.class.getName(), 0);
+    }
+
+    public DeclaredType resolveIterableElementType(DeclaredType containing) {
+        return resolveTypeParameter(containing, Iterable.class.getName(), 0);
     }
 }

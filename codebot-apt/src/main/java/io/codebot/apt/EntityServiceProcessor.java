@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 @AutoService(Processor.class)
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
@@ -106,14 +108,15 @@ public class EntityServiceProcessor extends AbstractProcessor {
                 if (crudType == CrudType.CREATE) {
                     methodBuilder.addStatement("$1T $2N = new $1T()", entityVar.getType(), entityVar.getName());
                 } else {
-                    QueryMapping idSource = QueryMapping
-                            .find(processingEnv, entity, serviceMethod.getParameters())
-                            .stream()
-                            .filter(it -> it.attr.equals(entity.getIdAttribute()))
-                            .findFirst()
-                            .orElseThrow(() -> new IllegalArgumentException("Can't find a way to load entity with id"));
+                    QueryMapping idSource = serviceMethod.getParameters().stream()
+                            .flatMap(it -> QueryMapping.find(processingEnv, entity.getType(), it).stream())
+                            .filter(it -> it.attribute.equals(entity.getIdAttribute()))
+                            .findFirst().orElseThrow(() ->
+                                    new IllegalArgumentException("Can't find a way to load entity with id")
+                            );
+
                     methodBuilder.addStatement("$1T $2N = this.jpaRepository.getById($3L)",
-                            entityVar.getType(), entityVar.getName(), idSource.valExpr.getCode());
+                            entityVar.getType(), entityVar.getName(), idSource.value.getCode());
                 }
 
                 WriteMapping.find(processingEnv, entity.getType(), serviceMethod.getParameters()).forEach(source -> {
@@ -133,38 +136,30 @@ public class EntityServiceProcessor extends AbstractProcessor {
                 });
 
                 methodBuilder.addStatement("this.jpaRepository.save($N)", entityVar.getName());
-                convertAndReturn(methodBuilder, names, serviceMethod, entity, entityVar);
+                convertAndReturn(methodBuilder, names, entity, entityVar, serviceMethod.getReturnType());
             } //
             else if (crudType == CrudType.QUERY) {
-                TypeMirror returnType = serviceMethod.getReturnType();
-                List<? extends Parameter> params = serviceMethod.getParameters();
-                if (params.size() == 1 && typeOps.isSame(params.get(0).getType(), entity.getIdAttributeType())) {
-                    Variable filterVar = null;
-                    List<FilterHandler> filterHandlers = FilterHandler.findAll(processingEnv, serviceMethods);
-                    for (FilterHandler filterHandler : filterHandlers) {
-                        if (filterHandler.supports(params.get(0).getType())) {
-                            filterVar = Variable.of(typeOps.getDeclared(PREDICATE_FQN), names.newName("filter"));
-                            methodBuilder.addStatement("$T $N = $L",
-                                    filterVar.getType(), filterVar.getName(),
-                                    filterHandler.invoke(params.get(0)).getCode());
-                            break;
-                        }
-                    }
-                    if (filterVar != null) {
-                        for (FilterHandler filterHandler : filterHandlers) {
-                            if (filterHandler.supports(typeOps.getDeclared(PREDICATE_FQN))) {
-                                methodBuilder.addStatement("$N = $L",
-                                        filterVar.getName(), filterHandler.invoke(filterVar).getCode());
-                            }
-                        }
-                        Variable entityVar = Variable.of(entity.getType(), names.newName("entity"));
-                        methodBuilder.addStatement(
-                                "$T $N = this.querydslPredicateExecutor.findOne($N).orElse(null)",
-                                entityVar.getType(), entityVar.getName(), filterVar.getName());
-                        convertAndReturn(methodBuilder, names, serviceMethod, entity, entityVar);
-                    }
-
+                Variable filterVar = getFilterVariable(
+                        methodBuilder, names, entity.getType(), serviceMethods,
+                        serviceMethod.getParameters()
+                );
+                Variable resultVar;
+                if (typeOps.isList(serviceMethod.getReturnType())) {
+                    resultVar = Variable.of(
+                            typeOps.getDeclared(Iterable.class.getName(), entity.getType()),
+                            names.newName("result")
+                    );
+                    methodBuilder.addStatement(
+                            "$T $N = this.querydslPredicateExecutor.findAll($N)",
+                            resultVar.getType(), resultVar.getName(), filterVar.getName());
+                } else {
+                    resultVar = Variable.of(entity.getType(), names.newName("result"));
+                    methodBuilder.addStatement(
+                            "$T $N = this.querydslPredicateExecutor.findOne($N).orElse(null)",
+                            resultVar.getType(), resultVar.getName(), filterVar.getName());
                 }
+
+                convertAndReturn(methodBuilder, names, entity, resultVar, serviceMethod.getReturnType());
             }
 
             implementationBuilder.addMethod(methodBuilder.build());
@@ -172,6 +167,130 @@ public class EntityServiceProcessor extends AbstractProcessor {
 
         JavaFile.builder(implementationName.packageName(), implementationBuilder.build()).build()
                 .writeTo(processingEnv.getFiler());
+    }
+
+    private Variable getFilterVariable(MethodSpec.Builder builder,
+                                       NameAllocator names,
+                                       DeclaredType entityType,
+                                       MethodCollection siblingMethods,
+                                       List<? extends Variable> sourceVars) {
+        DeclaredType predicateType = typeOps.getDeclared(PREDICATE_FQN);
+        DeclaredType booleanBuilderType = typeOps.getDeclared(BOOLEAN_BUILDER_FQN);
+
+        Variable predicateVar = Variable.of(booleanBuilderType, names.newName("predicate"));
+        builder.addStatement("$1T $2N = new $1T()", predicateVar.getType(), predicateVar.getName());
+
+        Expression queryExpr = getQueryExpression(typeOps, entityType);
+        sourceVars.stream()
+                .flatMap(it -> QueryMapping.find(processingEnv, entityType, it).stream())
+                .forEach(mapping -> {
+                    CodeBlock stmt = CodeBlock.of("$N.and($L.$N.eq($L))",
+                            predicateVar.getName(), queryExpr.getCode(),
+                            mapping.attribute, mapping.value.getCode()
+                    );
+                    if (mapping.precondition != null) {
+                        builder.beginControlFlow("if ($L)", mapping.precondition.getCode());
+                        builder.addStatement(stmt);
+                        builder.endControlFlow();
+                    } else {
+                        builder.addStatement(stmt);
+                    }
+                });
+
+        Variable filterVar = Variable.of(predicateType, names.newName("filter"));
+        builder.addStatement("$T $N = $N", filterVar.getType(), filterVar.getName(), predicateVar.getName());
+        for (FilterHandler filterHandler : FilterHandler.findAll(processingEnv, siblingMethods)) {
+            builder.addStatement("$N = $L", filterVar.getName(), filterHandler.invoke(filterVar).getCode());
+        }
+        return filterVar;
+    }
+
+    private void convertAndReturn(MethodSpec.Builder methodBuilder, NameAllocator names,
+                                  Entity entity, Variable sourceVar, TypeMirror returnType) {
+        if (typeOps.isVoid(returnType)) {
+            return;
+        }
+        CodeBlock.Builder code = CodeBlock.builder();
+        Expression expression = convert(code, names, entity, sourceVar, returnType);
+        methodBuilder.addCode(code.build());
+        methodBuilder.addCode("return $L;\n", expression.getCode());
+    }
+
+    private Expression convert(CodeBlock.Builder code, NameAllocator names,
+                               Entity entity, Variable sourceVar, TypeMirror targetType) {
+        if (typeOps.isList(targetType) && typeOps.isIterable(sourceVar.getType())) {
+            CodeBlock.Builder lambdaCode = CodeBlock.builder();
+            NameAllocator lambdaNames = names.clone();
+
+            CodeBlock stream;
+            if (typeOps.isCollection(sourceVar.getType())) {
+                stream = CodeBlock.of("$N.stream()", sourceVar.getName());
+            } else {
+                stream = CodeBlock.of("$T.stream($N.spliterator(), false)", StreamSupport.class, sourceVar.getName());
+            }
+
+            Variable itVar = Variable.of(
+                    typeOps.resolveIterableElementType((DeclaredType) sourceVar.getType()),
+                    lambdaNames.newName("it")
+            );
+            lambdaCode.add("return $L;\n", convert(
+                    lambdaCode, lambdaNames, entity, itVar,
+                    typeOps.resolveListElementType((DeclaredType) targetType)
+            ).getCode());
+            return Expression.of(targetType,
+                    "$L.map($N -> {\n$>$L$<}).collect($T.toList())",
+                    stream, itVar.getName(), lambdaCode.build(), Collectors.class
+            );
+        }
+        if (typeOps.isSame(sourceVar.getType(), entity.getType())
+                && typeOps.isAssignable(entity.getIdAttributeType(), targetType)) {
+            return Expression.of(targetType, "$N.$N()",
+                    sourceVar.getName(), entity.getIdReadMethod().getSimpleName());
+        }
+        if (typeOps.isDeclared(targetType)) {
+            if (!typeOps.isPrimitive(targetType)) {
+                code.beginControlFlow("if ($N == null)", sourceVar.getName());
+                code.addStatement("return null");
+                code.endControlFlow();
+            }
+
+            Variable resultVar = Variable.of(targetType, names.newName("result"));
+            code.addStatement("$1T $2N = new $1T()", resultVar.getType(), resultVar.getName());
+
+            WriteMapping.find(
+                    processingEnv,
+                    (DeclaredType) targetType,
+                    Collections.singletonList(sourceVar)
+            ).forEach(mapping -> {
+                code.addStatement("$N.$N($L)",
+                        resultVar.getName(),
+                        mapping.targetSetter.getSimpleName(),
+                        mapping.value.getCode());
+            });
+
+            return resultVar;
+        }
+        throw new IllegalArgumentException("Can't convert to type " + targetType);
+    }
+
+    private void injectIfAbsent(TypeSpec.Builder typeBuilder, String name, TypeName typeName) {
+        for (FieldSpec field : typeBuilder.fieldSpecs) {
+            if (field.name.equals(name)) {
+                return;
+            }
+        }
+        typeBuilder.addField(FieldSpec
+                .builder(typeName, name, Modifier.PRIVATE)
+                .addAnnotation(ClassName.bestGuess("org.springframework.beans.factory.annotation.Autowired"))
+                .build()
+        );
+    }
+
+    private static Expression getQueryExpression(TypeOps typeOps, DeclaredType entityType) {
+        ClassName entityTypeName = ClassName.get((TypeElement) entityType.asElement());
+        ClassName queryTypeName = ClassName.get(entityTypeName.packageName(), "Q" + entityTypeName.simpleName());
+        return Expression.of(typeOps.getDeclared(queryTypeName.canonicalName()),
+                "$T.$N", queryTypeName, StringUtils.uncapitalize(entityTypeName.simpleName()));
     }
 
     private enum CrudType {
@@ -192,43 +311,6 @@ public class EntityServiceProcessor extends AbstractProcessor {
             }
             return UNKNOWN;
         }
-    }
-
-    private void convertAndReturn(MethodSpec.Builder builder, NameAllocator names,
-                                  Method method, Entity entity, Variable fromVar) {
-        TypeMirror returnType = method.getReturnType();
-        if (typeOps.isAssignable(entity.getIdAttributeType(), returnType)) {
-            builder.addStatement("return $N.$N()",
-                    fromVar.getName(), entity.getIdReadMethod().getSimpleName());
-        }//
-        else if (typeOps.isDeclared(returnType)) {
-            DeclaredType targetType = (DeclaredType) returnType;
-
-            Variable resultVar = Variable.of(returnType, names.newName("result"));
-            builder.addStatement("$1T $2N = new $1T()", resultVar.getType(), resultVar.getName());
-
-            WriteMapping.find(processingEnv, targetType, Collections.singletonList(fromVar)).forEach(mapping -> {
-                builder.addStatement("$N.$N($L)",
-                        resultVar.getName(),
-                        mapping.targetSetter.getSimpleName(),
-                        mapping.value.getCode());
-            });
-
-            builder.addStatement("return $N", resultVar.getName());
-        }
-    }
-
-    private void injectIfAbsent(TypeSpec.Builder typeBuilder, String name, TypeName typeName) {
-        for (FieldSpec field : typeBuilder.fieldSpecs) {
-            if (field.name.equals(name)) {
-                return;
-            }
-        }
-        typeBuilder.addField(FieldSpec
-                .builder(typeName, name, Modifier.PRIVATE)
-                .addAnnotation(ClassName.bestGuess("org.springframework.beans.factory.annotation.Autowired"))
-                .build()
-        );
     }
 
     private interface SetAttributeHandler {
@@ -257,12 +339,11 @@ public class EntityServiceProcessor extends AbstractProcessor {
         }
     }
 
+    private static final String BOOLEAN_BUILDER_FQN = "com.querydsl.core.BooleanBuilder";
     private static final String PREDICATE_FQN = "com.querydsl.core.types.Predicate";
     private static final String ENTITY_PATH_BASE_FQN = "com.querydsl.core.types.dsl.EntityPathBase";
 
     private interface FilterHandler {
-        boolean supports(TypeMirror type);
-
         Expression invoke(Expression valueExpr);
 
         static List<FilterHandler> findAll(ProcessingEnvironment processingEnv,
@@ -276,7 +357,8 @@ public class EntityServiceProcessor extends AbstractProcessor {
                 Set<Modifier> modifiers = method.getModifiers();
                 if (modifiers.contains(Modifier.PRIVATE)
                         || !typeOps.isAssignable(method.getReturnType(), PREDICATE_FQN)
-                        || params.size() < 1) {
+                        || params.size() < 1
+                        || !typeOps.isAssignable(params.get(0).getType(), PREDICATE_FQN)) {
                     continue;
                 }
                 List<Expression> extraParams = Lists.newArrayList();
@@ -285,31 +367,17 @@ public class EntityServiceProcessor extends AbstractProcessor {
                     if (typeOps.isAssignable(param.getType(), ENTITY_PATH_BASE_FQN)) {
                         DeclaredType entityType = (DeclaredType) typeOps.resolveTypeParameter(
                                 (DeclaredType) param.getType(), ENTITY_PATH_BASE_FQN, 0);
-                        ClassName entityTypeName = ClassName.get((TypeElement) entityType.asElement());
-                        ClassName queryTypeName = ClassName.get(
-                                entityTypeName.packageName(), "Q" + entityTypeName.simpleName());
-                        extraParams.add(Expression.of(typeOps.getDeclared(queryTypeName.canonicalName()),
-                                "$T.$N", queryTypeName, StringUtils.uncapitalize(entityTypeName.simpleName())));
+                        extraParams.add(getQueryExpression(typeOps, entityType));
                     } else {
                         continue outer;
                     }
                 }
-                handlers.add(new FilterHandler() {
-                    @Override
-                    public boolean supports(TypeMirror type) {
-                        return typeOps.isSame(type, params.get(0).getType());
-                    }
-
-                    @Override
-                    public Expression invoke(Expression valueExpr) {
-                        return Expression.of(
-                                params.get(0).getType(),
-                                "$N($L, $L)",
-                                method.getSimpleName(), valueExpr.getCode(),
-                                extraParams.stream().map(Expression::getCode).collect(CodeBlock.joining(", "))
-                        );
-                    }
-                });
+                handlers.add(valueExpr -> Expression.of(
+                        params.get(0).getType(),
+                        "$N($L, $L)",
+                        method.getSimpleName(), valueExpr.getCode(),
+                        extraParams.stream().map(Expression::getCode).collect(CodeBlock.joining(", "))
+                ));
             }
             return handlers;
         }
@@ -349,36 +417,42 @@ public class EntityServiceProcessor extends AbstractProcessor {
 
     @RequiredArgsConstructor
     private static class QueryMapping {
-        public final String attr;
-        public final Expression valExpr;
+        public final String attribute;
+        public final Expression value;
+        public final Expression precondition;
 
         public static List<QueryMapping> find(ProcessingEnvironment processingEnv,
-                                              Entity entity,
-                                              List<? extends Variable> variables) {
+                                              DeclaredType entityType, Variable variable) {
             TypeOps typeOps = TypeOps.instanceOf(processingEnv);
             Methods methodUtils = Methods.instanceOf(processingEnv);
-            MethodCollection entityMethods = methodUtils.allOf(entity.getType());
+            MethodCollection entityMethods = methodUtils.allOf(entityType);
 
-            List<QueryMapping> queryMappings = Lists.newArrayList();
-            for (Variable variable : variables) {
-                ReadMethod entityGetter = entityMethods.findReader(variable.getName(), variable.getType());
-                if (entityGetter != null) {
-                    queryMappings.add(new QueryMapping(entityGetter.getReadName(), variable));
-                    continue;
-                }
-                if (typeOps.isDeclared(variable.getType())) {
-                    for (ReadMethod paramGetter : methodUtils.allOf((DeclaredType) variable.getType()).readers()) {
-                        entityGetter = entityMethods.findReader(paramGetter.getReadName(), paramGetter.getReadType());
-                        if (entityGetter != null) {
-                            queryMappings.add(new QueryMapping(
-                                    entityGetter.getReadName(),
-                                    paramGetter.toExpression(variable)
-                            ));
+            ReadMethod entityGetter = entityMethods.findReader(variable.getName(), variable.getType());
+            if (entityGetter != null) {
+                Expression precondition = typeOps.isPrimitive(variable.getType())
+                        ? null : Expression.of(typeOps.getBooleanType(), "$N != null", variable.getName());
+                return Collections.singletonList(new QueryMapping(entityGetter.getReadName(), variable, precondition));
+            }
+            if (typeOps.isDeclared(variable.getType())) {
+                List<QueryMapping> queryMappings = Lists.newArrayList();
+                for (ReadMethod paramGetter : methodUtils.allOf((DeclaredType) variable.getType()).readers()) {
+                    entityGetter = entityMethods.findReader(paramGetter.getReadName(), paramGetter.getReadType());
+                    if (entityGetter != null) {
+                        Expression precondition;
+                        if (typeOps.isPrimitive(paramGetter.getReadType())) {
+                            precondition = Expression.of(typeOps.getBooleanType(), "$N != null", variable.getName());
+                        } else {
+                            precondition = Expression.of(typeOps.getBooleanType(), "$N != null && $L != null",
+                                    variable.getName(), paramGetter.toExpression(variable));
                         }
+                        queryMappings.add(new QueryMapping(
+                                entityGetter.getReadName(), paramGetter.toExpression(variable), precondition
+                        ));
                     }
                 }
+                return Collections.unmodifiableList(queryMappings);
             }
-            return queryMappings;
+            return Collections.emptyList();
         }
     }
 }

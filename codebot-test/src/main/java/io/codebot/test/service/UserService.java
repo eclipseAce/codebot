@@ -23,10 +23,6 @@ public abstract class UserService extends BaseService {
         user.setPassword(passwordEncoder.encode(password));
     }
 
-    protected Predicate filter(long id, QUser user) {
-        return user.id.eq(id);
-    }
-
     public abstract long create(UserCreate dto);
 
     public abstract UserDetails createAndGet(UserCreate create);
