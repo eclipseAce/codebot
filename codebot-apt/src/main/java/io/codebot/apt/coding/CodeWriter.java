@@ -9,15 +9,19 @@ public interface CodeWriter {
 
     void write(String format, Object... args);
 
-    Variable writeNewVariable(String nameSuggestion, Expression expression);
+    void beginControlFlow(String controlFlow, Object... args);
+
+    void nextControlFlow(String controlFlow, Object... args);
+
+    void endControlFlow();
+
+    void endControlFlow(String controlFlow, Object... args);
 
     String newName(String nameSuggestion);
 
-    boolean isEmpty();
+    CodeWriter newWriter();
 
-    CodeWriter fork();
-
-    CodeBlock getCode();
+    CodeBlock toCode();
 
     static CodeWriter create() {
         return new SimpleCodeWriter();
@@ -53,29 +57,37 @@ public interface CodeWriter {
         }
 
         @Override
+        public void beginControlFlow(String controlFlow, Object... args) {
+            builder.beginControlFlow(controlFlow, args);
+        }
+
+        @Override
+        public void nextControlFlow(String controlFlow, Object... args) {
+            builder.nextControlFlow(controlFlow, args);
+        }
+
+        @Override
+        public void endControlFlow() {
+            builder.endControlFlow();
+        }
+
+        @Override
+        public void endControlFlow(String controlFlow, Object... args) {
+            builder.endControlFlow(controlFlow, args);
+        }
+
+        @Override
         public String newName(String nameSuggestion) {
             return nameAllocator.newName(nameSuggestion);
         }
 
         @Override
-        public Variable writeNewVariable(String nameSuggestion, Expression expression) {
-            Variable variable = Variable.of(expression.getType(), newName(nameSuggestion));
-            write("$1T $2N = $3L;\n", variable.getType(), variable.getName(), expression.getCode());
-            return variable;
-        }
-
-        @Override
-        public boolean isEmpty() {
-            return builder.isEmpty();
-        }
-
-        @Override
-        public CodeWriter fork() {
+        public CodeWriter newWriter() {
             return new SimpleCodeWriter(nameAllocator.clone());
         }
 
         @Override
-        public CodeBlock getCode() {
+        public CodeBlock toCode() {
             return builder.build();
         }
     }
