@@ -23,9 +23,9 @@ public abstract class UserService extends BaseService {
 
     public abstract UserDetails createAndGet(UserCreate create);
 
-    public abstract UserDetails updatePassword(long id, UserUpdatePassword dto);
+    public abstract void updatePassword(long id, UserUpdatePassword dto);
 
-    public abstract void update(long id, UserUpdate dto);
+    public abstract UserDetails update(long id, UserUpdate dto);
 
     public abstract UserDetails findById(long id);
 
