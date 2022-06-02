@@ -103,8 +103,11 @@ public class EntityServiceProcessor extends AbstractProcessor {
                             getter -> getter.getReadName().equals(entity.getIdAttribute()));
                     entityVar = querydslCodes.findOneEntity(writer, predicateVar);
                 }
+
                 mappingCodes.copyProperties(writer, entityVar, serviceMethod.getParameters());
+
                 querydslCodes.saveEntity(writer, entityVar);
+
                 conversionCodes.convertAndReturn(writer, entity, entityVar, serviceMethod.getReturnType());
             } //
             else if (crudType == CrudType.QUERY) {

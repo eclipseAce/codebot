@@ -30,6 +30,12 @@ public class UserDetails {
     @Schema(description = "角色名称")
     private String roleName;
 
+    @Schema(description = "企业ID")
+    private Long companyId;
+
+    @Schema(description = "企业名称")
+    private String companyName;
+
     @Schema(description = "创建时间")
     private LocalDateTime createdAt;
 

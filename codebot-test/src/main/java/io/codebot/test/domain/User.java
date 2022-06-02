@@ -21,4 +21,6 @@ public class User extends BaseEntity {
     private boolean locked;
 
     private Long roleId;
+
+    private Long companyId;
 }
