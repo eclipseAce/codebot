@@ -23,4 +23,7 @@ public class UserCreate {
     @Schema(description = "邮箱")
     private String email;
 
+    @Schema(description = "角色ID")
+    private Long roleId;
+
 }

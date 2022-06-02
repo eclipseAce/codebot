@@ -4,10 +4,16 @@ import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.NameAllocator;
 
+import javax.lang.model.type.TypeMirror;
+
 public interface CodeWriter {
     void write(CodeBlock code);
 
     void write(String format, Object... args);
+
+    Variable writeNewVariable(String nameSuggestion, TypeMirror type);
+
+    Variable writeNewVariable(String nameSuggestion, TypeMirror type, CodeBlock initial);
 
     void beginControlFlow(String controlFlow, Object... args);
 
@@ -20,6 +26,8 @@ public interface CodeWriter {
     String newName(String nameSuggestion);
 
     CodeWriter newWriter();
+
+    boolean isEmpty();
 
     CodeBlock toCode();
 
@@ -57,6 +65,20 @@ public interface CodeWriter {
         }
 
         @Override
+        public Variable writeNewVariable(String nameSuggestion, TypeMirror type) {
+            Variable variable = Variable.of(type, newName(nameSuggestion));
+            write("$T $N;\n", variable.getType(), variable.getName());
+            return variable;
+        }
+
+        @Override
+        public Variable writeNewVariable(String nameSuggestion, TypeMirror type, CodeBlock initial) {
+            Variable variable = Variable.of(type, newName(nameSuggestion));
+            write("$T $N = $L;\n", variable.getType(), variable.getName(), initial);
+            return variable;
+        }
+
+        @Override
         public void beginControlFlow(String controlFlow, Object... args) {
             builder.beginControlFlow(controlFlow, args);
         }
@@ -84,6 +106,11 @@ public interface CodeWriter {
         @Override
         public CodeWriter newWriter() {
             return new SimpleCodeWriter(nameAllocator.clone());
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return builder.isEmpty();
         }
 
         @Override

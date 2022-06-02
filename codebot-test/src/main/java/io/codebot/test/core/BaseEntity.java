@@ -12,6 +12,7 @@ import javax.persistence.MappedSuperclass;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
+@Getter
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)
 public abstract class BaseEntity implements Serializable {
@@ -19,13 +20,13 @@ public abstract class BaseEntity implements Serializable {
 
     @Id
     @GeneratedValue
-    private @Getter long id;
+    private long id;
 
-    private @Getter boolean deleted;
+    private boolean deleted;
 
     @CreatedDate
-    private @Getter LocalDateTime createdAt;
+    private LocalDateTime createdAt;
 
     @LastModifiedDate
-    private @Getter LocalDateTime updatedAt;
+    private LocalDateTime updatedAt;
 }

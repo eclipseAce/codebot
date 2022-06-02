@@ -12,16 +12,16 @@ import java.util.List;
 import java.util.Set;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-public class BeanCodes {
+public class MappingCodes {
     private final TypeOps typeOps;
     private final Methods methodUtils;
     private final MethodCollection contextMethods;
 
-    public static BeanCodes instanceOf(ProcessingEnvironment processingEnv, MethodCollection contextMethods) {
-        return new BeanCodes(TypeOps.instanceOf(processingEnv), Methods.instanceOf(processingEnv), contextMethods);
+    public static MappingCodes instanceOf(ProcessingEnvironment processingEnv, MethodCollection contextMethods) {
+        return new MappingCodes(TypeOps.instanceOf(processingEnv), Methods.instanceOf(processingEnv), contextMethods);
     }
 
-    public void setProperties(CodeWriter writer, Variable target, List<? extends Variable> sources) {
+    public void copyProperties(CodeWriter writer, Variable target, List<? extends Variable> sources) {
         if (!typeOps.isDeclared(target.getType())) {
             return;
         }
@@ -60,7 +60,7 @@ public class BeanCodes {
                     || !typeOps.isSame(params.get(1).getType(), propertyValue.getType())) {
                 continue;
             }
-            writer.write("$N($N, $L);\n", contextMethod.getSimpleName(),
+            writer.write("super.$N($N, $L);\n", contextMethod.getSimpleName(),
                     target.getName(), propertyValue.getCode());
             return;
         }

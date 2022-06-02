@@ -1,18 +1,13 @@
 package io.codebot.apt;
 
-import com.google.common.collect.Lists;
 import io.codebot.apt.coding.*;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class Entity {
@@ -38,47 +33,5 @@ public class Entity {
         ReadMethod idReadMethod = methodUtils.allOf((DeclaredType) type)
                 .findReader(idField.getName(), idField.getType());
         return new Entity(processingEnv, (DeclaredType) type, idField.getName(), idField.getType(), idReadMethod);
-    }
-
-    private Map<String, WriteMapping> findWriteMappings(List<? extends Variable> variables) {
-        TypeOps typeOps = TypeOps.instanceOf(processingEnv);
-        Methods methodUtils = Methods.instanceOf(processingEnv);
-
-        List<WriteMapping> mappings = Lists.newArrayList();
-        MethodCollection entityMethods = methodUtils.allOf(type);
-        for (Variable variable : variables) {
-            WriteMethod attrWriter = entityMethods.findWriter(variable.getName(), variable.getType());
-            if (attrWriter != null) {
-                mappings.add(new WriteMapping(
-                        attrWriter.getWriteName(), attrWriter,
-                        variable, null
-                ));
-                continue;
-            }
-            if (typeOps.isDeclared(variable.getType())) {
-                for (ReadMethod varReader : methodUtils.allOf((DeclaredType) variable.getType()).readers()) {
-                    attrWriter = entityMethods.findWriter(variable.getName(), variable.getType());
-                    if (attrWriter != null) {
-                        mappings.add(new WriteMapping(
-                                attrWriter.getWriteName(), attrWriter,
-                                variable, varReader
-                        ));
-                    }
-                }
-            }
-        }
-        return mappings.stream().collect(Collectors.toMap(
-                it -> it.attribute,
-                it -> it,
-                (a, b) -> a
-        ));
-    }
-
-    @RequiredArgsConstructor
-    private static class WriteMapping {
-        public final String attribute;
-        public final WriteMethod attributeWriteMethod;
-        public final Variable variable;
-        public final ReadMethod variableReadMethod;
     }
 }

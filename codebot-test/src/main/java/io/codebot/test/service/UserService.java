@@ -1,10 +1,6 @@
 package io.codebot.test.service;
 
-import com.querydsl.core.types.Predicate;
-import com.querydsl.core.types.dsl.Expressions;
 import io.codebot.apt.EntityService;
-import io.codebot.test.core.QBaseEntity;
-import io.codebot.test.domain.QUser;
 import io.codebot.test.domain.User;
 import io.codebot.test.dto.user.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,13 +23,9 @@ public abstract class UserService extends BaseService {
 
     public abstract UserDetails createAndGet(UserCreate create);
 
-    public abstract void updatePassword(UserSetPassword dto);
+    public abstract UserDetails updatePassword(long id, UserUpdatePassword dto);
 
-    public abstract UserDetails updatePassword2(long id, UserSetPassword dto);
-
-    public abstract void updateProfile(UserSetProfile dto);
-
-    public abstract void updateLocked(UserSetLocked dto);
+    public abstract void update(long id, UserUpdate dto);
 
     public abstract UserDetails findById(long id);
 

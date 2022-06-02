@@ -5,12 +5,7 @@ import lombok.Data;
 
 @Data
 @Schema(description = "用户密码修改")
-public class UserSetPassword {
-
-    @Schema(description = "用户ID")
-    private Long id;
-
+public class UserUpdatePassword {
     @Schema(description = "用户密码")
     private String password;
-
 }

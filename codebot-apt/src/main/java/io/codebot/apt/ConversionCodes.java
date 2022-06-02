@@ -20,14 +20,19 @@ public class ConversionCodes {
     private static final String PAGE_FQN = "org.springframework.data.domain.Page";
 
     private final TypeOps typeOps;
-    private final BeanCodes beanCodes;
+    private final MappingCodes mappingCodes;
 
-    public static ConversionCodes instanceOf(ProcessingEnvironment processingEnv, BeanCodes beanCodes) {
-        return new ConversionCodes(TypeOps.instanceOf(processingEnv), beanCodes);
+    public static ConversionCodes instanceOf(ProcessingEnvironment processingEnv, MappingCodes mappingCodes) {
+        return new ConversionCodes(TypeOps.instanceOf(processingEnv), mappingCodes);
     }
 
     public void convertAndReturn(CodeWriter writer, Entity entity, Variable sourceVar, TypeMirror returnType) {
         if (!typeOps.isVoid(returnType)) {
+            if (!typeOps.isPrimitive(returnType)) {
+                writer.beginControlFlow("if ($N == null)", sourceVar.getName());
+                writer.write("return null;\n");
+                writer.endControlFlow();
+            }
             writer.write("return $L;\n", convert(writer, entity, sourceVar, returnType).getCode());
         }
     }
@@ -75,15 +80,9 @@ public class ConversionCodes {
                     sourceVar.getName(), entity.getIdReadMethod().getSimpleName());
         }
         if (typeOps.isDeclared(targetType)) {
-            if (!typeOps.isPrimitive(targetType)) {
-                writer.beginControlFlow("if ($N == null)", sourceVar.getName());
-                writer.write("return null;\n");
-                writer.endControlFlow();
-            }
-
-            Variable resultVar = Variable.of(targetType, writer.newName("temp"));
-            writer.write("$1T $2N = new $1T();\n", resultVar.getType(), resultVar.getName());
-            beanCodes.setProperties(writer, resultVar, Collections.singletonList(sourceVar));
+            Variable resultVar = writer.writeNewVariable("temp", targetType,
+                    CodeBlock.of("new $T()", targetType));
+            mappingCodes.copyProperties(writer, resultVar, Collections.singletonList(sourceVar));
             return resultVar;
         }
         throw new IllegalArgumentException("Can't convert to type " + targetType);

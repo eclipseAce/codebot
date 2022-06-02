@@ -9,19 +9,14 @@ import javax.persistence.Entity;
 import java.util.HashSet;
 import java.util.Set;
 
+@Getter
+@Setter
 @Entity
 public class Role extends BaseEntity {
-
-    @Getter
-    @Setter
     private String name;
 
-    @Getter
-    @Setter
     private boolean disabled;
 
-    @Getter
-    @Setter
     @ElementCollection
     private Set<String> permissions = new HashSet<>();
 }
