@@ -24,6 +24,12 @@ public class UserDetails {
     @Schema(description = "是否锁定")
     private Boolean locked;
 
+    @Schema(description = "角色ID")
+    private Long roleId;
+
+    @Schema(description = "角色名称")
+    private String roleName;
+
     @Schema(description = "创建时间")
     private LocalDateTime createdAt;
 

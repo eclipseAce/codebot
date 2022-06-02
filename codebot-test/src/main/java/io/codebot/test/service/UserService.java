@@ -1,6 +1,11 @@
 package io.codebot.test.service;
 
+import com.querydsl.core.Tuple;
+import com.querydsl.jpa.JPAExpressions;
+import com.querydsl.jpa.JPQLQuery;
 import io.codebot.apt.EntityService;
+import io.codebot.test.domain.QRole;
+import io.codebot.test.domain.QUser;
 import io.codebot.test.domain.User;
 import io.codebot.test.dto.user.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,6 +13,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import javax.annotation.PostConstruct;
 import java.util.List;
 
 @EntityService(User.class)
@@ -37,4 +43,3 @@ public abstract class UserService extends BaseService {
 
     public abstract Page<UserSummary> findAllPage(Pageable pageable);
 }
-
