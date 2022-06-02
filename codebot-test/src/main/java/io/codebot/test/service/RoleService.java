@@ -1,6 +1,7 @@
 package io.codebot.test.service;
 
 import io.codebot.apt.EntityService;
+import io.codebot.test.core.BaseService;
 import io.codebot.test.domain.Role;
 import io.codebot.test.dto.role.RoleCreate;
 

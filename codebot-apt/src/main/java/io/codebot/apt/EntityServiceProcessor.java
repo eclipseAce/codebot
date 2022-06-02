@@ -66,7 +66,8 @@ public class EntityServiceProcessor extends AbstractProcessor {
         ClassName serviceName = ClassName.get(element);
         ClassName implementationName = ClassName.get(serviceName.packageName(), serviceName.simpleName() + "Impl");
         TypeSpec.Builder implementationBuilder = TypeSpec.classBuilder(implementationName)
-                .addModifiers(Modifier.PUBLIC);
+                .addModifiers(Modifier.PUBLIC)
+                .addAnnotation(ClassName.bestGuess("org.springframework.stereotype.Component"));
         if (element.getKind() == ElementKind.CLASS) {
             implementationBuilder.superclass(serviceName);
         } else if (element.getKind() == ElementKind.INTERFACE) {

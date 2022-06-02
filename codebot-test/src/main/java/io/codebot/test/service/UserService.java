@@ -1,10 +1,9 @@
 package io.codebot.test.service;
 
-import com.querydsl.core.Tuple;
-import com.querydsl.jpa.JPAExpressions;
-import com.querydsl.jpa.JPQLQuery;
+import com.querydsl.core.BooleanBuilder;
+import com.querydsl.core.types.Predicate;
 import io.codebot.apt.EntityService;
-import io.codebot.test.domain.QRole;
+import io.codebot.test.core.BaseService;
 import io.codebot.test.domain.QUser;
 import io.codebot.test.domain.User;
 import io.codebot.test.dto.user.*;
@@ -13,7 +12,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import javax.annotation.PostConstruct;
 import java.util.List;
 
 @EntityService(User.class)
@@ -23,6 +21,18 @@ public abstract class UserService extends BaseService {
 
     protected void setPassword(User user, String password) {
         user.setPassword(passwordEncoder.encode(password));
+    }
+
+    protected void setUsername(UserDetails userDetails, String username) {
+        userDetails.setUsername(username);
+    }
+
+    protected void setUsername(UserSummary userSummary, String username) {
+        userSummary.setUsername(username);
+    }
+
+    protected Predicate filterDeleted(Predicate predicate) {
+        return new BooleanBuilder(QUser.user.deleted.isFalse()).and(predicate);
     }
 
     public abstract long create(UserCreate dto);

@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:h2:~/cruder_test.db
+    url: jdbc:h2:~/codebot_test.db
     username: sa
     password: 
   jpa:
