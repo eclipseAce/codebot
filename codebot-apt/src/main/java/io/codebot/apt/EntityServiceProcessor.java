@@ -88,10 +88,8 @@ public class EntityServiceProcessor extends AbstractProcessor {
                     processingEnv.getTypeUtils()
             );
             CodeWriter writer = CodeWriter.create(methodBuilder);
-            MappingCodes mappingCodes = MappingCodes.instanceOf(processingEnv, serviceMethods);
-            ConversionCodes conversionCodes = ConversionCodes.instanceOf(processingEnv, mappingCodes);
-            QuerydslCodes querydslCodes = QuerydslCodes.instanceOf(
-                    processingEnv, implementationBuilder, entity, serviceMethods);
+            ConversionCodes conversionCodes = ConversionCodes.instanceOf(processingEnv, serviceMethods);
+            QuerydslCodes querydslCodes = QuerydslCodes.instanceOf(processingEnv, implementationBuilder, serviceMethods);
 
             if (crudType == CrudType.CREATE || crudType == CrudType.UPDATE) {
                 Variable entityVar;
@@ -99,12 +97,13 @@ public class EntityServiceProcessor extends AbstractProcessor {
                     entityVar = writer.writeNewVariable("entity", entity.getType(),
                             CodeBlock.of("new $T()", entity.getType()));
                 } else {
-                    Variable predicateVar = querydslCodes.createPredicate(writer, serviceMethod.getParameters(),
+                    Variable predicateVar = querydslCodes.createPredicate(
+                            writer, entity, serviceMethod.getParameters(),
                             getter -> getter.getReadName().equals(entity.getIdAttribute()));
-                    entityVar = querydslCodes.findOneEntity(writer, predicateVar);
+                    entityVar = querydslCodes.findOneEntity(writer, entity, predicateVar);
                 }
 
-                mappingCodes.copyProperties(writer, entityVar, serviceMethod.getParameters());
+                conversionCodes.copyProperties(writer, entityVar, serviceMethod.getParameters());
 
                 querydslCodes.saveEntity(writer, entityVar);
 
@@ -120,16 +119,16 @@ public class EntityServiceProcessor extends AbstractProcessor {
                         filterParams.add(param);
                     }
                 }
-                Variable predicateVar = querydslCodes.createPredicate(writer, filterParams);
+                Variable predicateVar = querydslCodes.createPredicate(writer, entity, filterParams);
                 Variable resultVar;
                 if (typeOps.isAssignableToList(serviceMethod.getReturnType())) {
-                    resultVar = querydslCodes.findAllEntities(writer, predicateVar);
+                    resultVar = querydslCodes.findAllEntities(writer, entity, predicateVar);
                 } //
                 else if (typeOps.isAssignable(serviceMethod.getReturnType(), PAGE_FQN) && !pageableParams.isEmpty()) {
-                    resultVar = querydslCodes.findAllEntities(writer, predicateVar, pageableParams.get(0));
+                    resultVar = querydslCodes.findAllEntities(writer, entity, predicateVar, pageableParams.get(0));
                 } //
                 else {
-                    resultVar = querydslCodes.findOneEntity(writer, predicateVar);
+                    resultVar = querydslCodes.findOneEntity(writer, entity, predicateVar);
                 }
                 conversionCodes.convertAndReturn(writer, entity, resultVar, serviceMethod.getReturnType());
             }

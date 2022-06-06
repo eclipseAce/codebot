@@ -35,23 +35,22 @@ public class QuerydslCodes {
     private final TypeOps typeOps;
     private final Methods methodUtils;
     private final TypeSpec.Builder typeBuilder;
-    private final Entity entity;
     private final MethodCollection contextMethods;
 
     public static QuerydslCodes instanceOf(ProcessingEnvironment processingEnv,
-                                           TypeSpec.Builder typeBuilder, Entity entity, MethodCollection contextMethods) {
+                                           TypeSpec.Builder typeBuilder, MethodCollection contextMethods) {
         return new QuerydslCodes(
                 TypeOps.instanceOf(processingEnv),
                 Methods.instanceOf(processingEnv),
-                typeBuilder, entity, contextMethods
+                typeBuilder, contextMethods
         );
     }
 
-    public Variable createPredicate(CodeWriter writer, List<? extends Variable> sources) {
-        return createPredicate(writer, sources, it -> true);
+    public Variable createPredicate(CodeWriter writer, Entity entity, List<? extends Variable> sources) {
+        return createPredicate(writer, entity, sources, it -> true);
     }
 
-    public Variable createPredicate(CodeWriter writer, List<? extends Variable> sources,
+    public Variable createPredicate(CodeWriter writer, Entity entity, List<? extends Variable> sources,
                                     Predicate<ReadMethod> propertyFilter) {
         MethodCollection entityMethods = methodUtils.allOf(entity.getType());
         DeclaredType booleanBuilderType = typeOps.getDeclared(BOOLEAN_BUILDER_FQN);
@@ -63,7 +62,7 @@ public class QuerydslCodes {
             ReadMethod entityGetter = entityMethods.findReader(source.getName(), source.getType());
             if (entityGetter != null) {
                 if (propertyFilter.test(entityGetter)) {
-                    appendPredicate(writer, builderVar, entityGetter.getReadName(), source);
+                    appendPredicate(writer, entity, builderVar, entityGetter.getReadName(), source);
                 }
                 continue;
             }
@@ -72,7 +71,8 @@ public class QuerydslCodes {
                 for (ReadMethod getter : methodUtils.allOf((DeclaredType) source.getType()).readers()) {
                     entityGetter = entityMethods.findReader(getter.getReadName(), getter.getReadType());
                     if (entityGetter != null && propertyFilter.test(entityGetter)) {
-                        appendPredicate(tempWriter, builderVar, entityGetter.getReadName(), getter.toExpression(source));
+                        appendPredicate(tempWriter, entity, builderVar,
+                                entityGetter.getReadName(), getter.toExpression(source));
                     }
                 }
                 if (!tempWriter.isEmpty()) {
@@ -102,7 +102,7 @@ public class QuerydslCodes {
         return predicateVar != null ? predicateVar : builderVar;
     }
 
-    private void appendPredicate(CodeWriter writer, Variable builder, String property, Expression value) {
+    private void appendPredicate(CodeWriter writer, Entity entity, Variable builder, String property, Expression value) {
         CodeBlock code = CodeBlock.of("$N.and($L.$N.eq($L));\n",
                 builder.getName(), getQType(entity.getType()).getCode(), property, value.getCode());
         if (!typeOps.isPrimitive(value.getType())) {
@@ -118,11 +118,11 @@ public class QuerydslCodes {
         writer.write("this.$N.persist($L);\n", getEntityManagerField(), entity.getCode());
     }
 
-    public Variable findAllEntities(CodeWriter writer, Expression predicate, Expression pageable) {
+    public Variable findAllEntities(CodeWriter writer, Entity entity, Expression predicate, Expression pageable) {
         DeclaredType queryResultsType = typeOps.getDeclared(QUERY_RESULTS_FQN, entity.getType());
         DeclaredType pageImplType = typeOps.getDeclared(PAGE_IMPL_FQN, entity.getType());
 
-        Variable queryVar = createJPAQuery(writer, predicate);
+        Variable queryVar = createJPAQuery(writer, entity, predicate);
         writer.write("$1N.offset($2L.getOffset()).limit($2L.getPageSize());\n",
                 queryVar.getName(), pageable.getCode());
         Variable resultsVar = writer.writeNewVariable("results", queryResultsType,
@@ -132,21 +132,21 @@ public class QuerydslCodes {
                         pageImplType, resultsVar.getName(), pageable.getCode()));
     }
 
-    public Variable findAllEntities(CodeWriter writer, Expression predicate) {
+    public Variable findAllEntities(CodeWriter writer, Entity entity, Expression predicate) {
         DeclaredType resultType = typeOps.getDeclared(List.class.getName(), entity.getType());
-        Variable queryVar = createJPAQuery(writer, predicate);
+        Variable queryVar = createJPAQuery(writer, entity, predicate);
         return writer.writeNewVariable("list", resultType,
                 CodeBlock.of("$N.fetch()", queryVar.getName()));
     }
 
-    public Variable findOneEntity(CodeWriter writer, Expression predicate) {
-        Variable queryVar = createJPAQuery(writer, predicate);
+    public Variable findOneEntity(CodeWriter writer, Entity entity, Expression predicate) {
+        Variable queryVar = createJPAQuery(writer, entity, predicate);
 
         return writer.writeNewVariable("entity", entity.getType(),
                 CodeBlock.of("$N.fetchOne()", queryVar.getName()));
     }
 
-    private Variable createJPAQuery(CodeWriter writer, Expression predicate) {
+    private Variable createJPAQuery(CodeWriter writer, Entity entity, Expression predicate) {
         DeclaredType jpaQueryType = typeOps.getDeclared(JPA_QUERY_FQN, entity.getType());
         Variable queryVar = writer.writeNewVariable("query", jpaQueryType,
                 CodeBlock.of("new $T($N)", jpaQueryType, getEntityManagerField()));
