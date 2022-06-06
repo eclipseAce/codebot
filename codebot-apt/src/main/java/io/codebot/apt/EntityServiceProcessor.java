@@ -123,10 +123,12 @@ public class EntityServiceProcessor extends AbstractProcessor {
                 Variable predicateVar = querydslCodes.createPredicate(writer, filterParams);
                 Variable resultVar;
                 if (typeOps.isAssignableToList(serviceMethod.getReturnType())) {
-                    resultVar = querydslCodes.findAllEntities(writer, predicateVar, null);
-                } else if (typeOps.isAssignable(serviceMethod.getReturnType(), PAGE_FQN) && !pageableParams.isEmpty()) {
+                    resultVar = querydslCodes.findAllEntities(writer, predicateVar);
+                } //
+                else if (typeOps.isAssignable(serviceMethod.getReturnType(), PAGE_FQN) && !pageableParams.isEmpty()) {
                     resultVar = querydslCodes.findAllEntities(writer, predicateVar, pageableParams.get(0));
-                } else {
+                } //
+                else {
                     resultVar = querydslCodes.findOneEntity(writer, predicateVar);
                 }
                 conversionCodes.convertAndReturn(writer, entity, resultVar, serviceMethod.getReturnType());
