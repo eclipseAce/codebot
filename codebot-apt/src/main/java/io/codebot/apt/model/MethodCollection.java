@@ -1,4 +1,4 @@
-package io.codebot.apt.coding;
+package io.codebot.apt.model;
 
 import javax.lang.model.type.TypeMirror;
 import java.util.Collection;

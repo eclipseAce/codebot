@@ -1,6 +1,6 @@
 package io.codebot.apt;
 
-import io.codebot.apt.coding.*;
+import io.codebot.apt.model.*;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;

@@ -4,8 +4,8 @@ import com.google.auto.service.AutoService;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.squareup.javapoet.*;
-import io.codebot.apt.coding.CodeWriter;
-import io.codebot.apt.coding.*;
+import io.codebot.apt.code.CodeWriter;
+import io.codebot.apt.model.*;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;

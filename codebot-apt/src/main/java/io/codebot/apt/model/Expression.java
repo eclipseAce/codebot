@@ -1,4 +1,4 @@
-package io.codebot.apt.coding;
+package io.codebot.apt.model;
 
 import com.squareup.javapoet.CodeBlock;
 import lombok.AllArgsConstructor;
