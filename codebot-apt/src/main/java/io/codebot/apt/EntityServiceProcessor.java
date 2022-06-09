@@ -98,7 +98,7 @@ public class EntityServiceProcessor extends AbstractProcessor {
                 Variable entityVar;
                 if (crudType == CrudType.CREATE) {
                     entityVar = writer.write(basic.newVariable(
-                            "entity", entity.getType(), CodeBlock.of("new $T()", entity.getType())
+                            entity.getType(), CodeBlock.of("new $T()", entity.getType())
                     ));
                 } else {
                     Variable predicateVar = writer.write(querydsl.newPredicate(

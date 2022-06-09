@@ -39,9 +39,9 @@ public class BasicCodes {
         this.contextMethods.addAll(contextMethods);
     }
 
-    public CodeSnippet<Variable> newVariable(String nameSuggestion, TypeMirror type, CodeBlock initial) {
+    public CodeSnippet<Variable> newVariable(TypeMirror type, CodeBlock initial) {
         return writer -> {
-            Variable variable = Variable.of(type, writer.newName(nameSuggestion));
+            Variable variable = Variable.of(type, writer.nextVariableName());
             if (initial != null) {
                 writer.write("$T $N = $L;\n", variable.getType(), variable.getName(), initial);
             } else {
@@ -108,11 +108,6 @@ public class BasicCodes {
             if (typeOps.isVoid(returnType)) {
                 return null;
             }
-            if (!typeOps.isPrimitive(returnType)) {
-                writer.beginControlFlow("if ($N == null)", source.getName());
-                writer.write("return null;\n");
-                writer.endControlFlow();
-            }
             Expression mapResult = writer.write(map(entity, source, returnType));
             writer.write("return $L;\n", mapResult.getCode());
             return null;
@@ -123,11 +118,11 @@ public class BasicCodes {
         return writer -> {
             if (typeOps.isAssignable(source.getType(), PAGE_FQN)
                     && typeOps.isAssignable(typeOps.getDeclared(PAGE_FQN), typeOps.erasure(targetType))) {
-                CodeWriter lambdaWriter = writer.newWriter();
+                CodeWriter lambdaWriter = writer.forkNew();
 
                 Variable itVar = Variable.of(
                         typeOps.resolveTypeParameter((DeclaredType) source.getType(), PAGE_FQN, 0),
-                        lambdaWriter.newName("it")
+                        lambdaWriter.nextVariableName()
                 );
                 TypeMirror elementType = typeOps.resolveTypeParameter((DeclaredType) targetType, PAGE_FQN, 0);
                 lambdaWriter.write(mapAndReturn(entity, itVar, elementType));
@@ -135,7 +130,7 @@ public class BasicCodes {
                         source.getName(), itVar.getName(), lambdaWriter.toCode());
             }
             if (typeOps.isAssignableToList(targetType) && typeOps.isAssignableToIterable(source.getType())) {
-                CodeWriter lambdaWriter = writer.newWriter();
+                CodeWriter lambdaWriter = writer.forkNew();
 
                 CodeBlock stream;
                 if (typeOps.isAssignableToCollection(source.getType())) {
@@ -146,7 +141,7 @@ public class BasicCodes {
 
                 Variable itVar = Variable.of(
                         typeOps.resolveIterableElementType((DeclaredType) source.getType()),
-                        lambdaWriter.newName("it")
+                        lambdaWriter.nextVariableName()
                 );
                 TypeMirror elementType = typeOps.resolveListElementType((DeclaredType) targetType);
                 lambdaWriter.write(mapAndReturn(entity, itVar, elementType));
@@ -161,7 +156,7 @@ public class BasicCodes {
                         source.getName(), entity.getIdReadMethod().getSimpleName());
             }
             if (typeOps.isDeclared(targetType)) {
-                Variable resultVar = writer.write(newVariable("temp", targetType, CodeBlock.of("new $T()", targetType)));
+                Variable resultVar = writer.write(newVariable(targetType, CodeBlock.of("new $T()", targetType)));
                 writer.write(copyProperties(resultVar, Collections.singletonList(source)));
                 return resultVar;
             }

@@ -56,7 +56,7 @@ public class QuerydslCodes {
             DeclaredType predicateType = typeOps.getDeclared(PREDICATE_FQN);
 
             Variable builderVar = writer.write(basicCodes.newVariable(
-                    "builder", booleanBuilderType, CodeBlock.of("new $T()", booleanBuilderType)
+                    booleanBuilderType, CodeBlock.of("new $T()", booleanBuilderType)
             ));
             for (Variable source : sources) {
                 ReadMethod entityGetter = entityMethods.findReader(source.getName(), source.getType());
@@ -67,7 +67,7 @@ public class QuerydslCodes {
                     continue;
                 }
                 if (typeOps.isDeclared(source.getType())) {
-                    CodeWriter tempWriter = writer.newWriter();
+                    CodeWriter tempWriter = writer.forkNew();
                     for (ReadMethod getter : methodUtils.allOf((DeclaredType) source.getType()).readers()) {
                         entityGetter = entityMethods.findReader(getter.getReadName(), getter.getReadType());
                         if (entityGetter != null && propertyFilter.test(entityGetter)) {
@@ -93,7 +93,7 @@ public class QuerydslCodes {
                 }
                 if (predicateVar == null) {
                     predicateVar = writer.write(basicCodes.newVariable(
-                            "predicate", predicateType,
+                            predicateType,
                             CodeBlock.of("super.$N($N)", contextMethod.getSimpleName(), builderVar.getName())
                     ));
                 } else {
@@ -121,10 +121,10 @@ public class QuerydslCodes {
             writer.write("$1N.offset($2L.getOffset()).limit($2L.getPageSize());\n",
                     queryVar.getName(), pageable.getCode());
             Variable resultsVar = writer.write(basicCodes.newVariable(
-                    "results", queryResultsType, CodeBlock.of("$N.fetchResults()", queryVar.getName())
+                    queryResultsType, CodeBlock.of("$N.fetchResults()", queryVar.getName())
             ));
             return writer.write(basicCodes.newVariable(
-                    "page", pageImplType,
+                    pageImplType,
                     CodeBlock.of("new $1T($2N.getResults(), $3L, $2N.getTotal())",
                             pageImplType, resultsVar.getName(), pageable.getCode())
             ));
@@ -136,7 +136,7 @@ public class QuerydslCodes {
             DeclaredType resultType = typeOps.getDeclared(List.class.getName(), entity.getType());
             Variable queryVar = writer.write(newJPAQuery(entity, predicate));
             return writer.write(basicCodes.newVariable(
-                    "list", resultType, CodeBlock.of("$N.fetch()", queryVar.getName())
+                    resultType, CodeBlock.of("$N.fetch()", queryVar.getName())
             ));
         };
     }
@@ -145,7 +145,7 @@ public class QuerydslCodes {
         return writer -> {
             Variable queryVar = writer.write(newJPAQuery(entity, predicate));
             return writer.write(basicCodes.newVariable(
-                    "entity", entity.getType(), CodeBlock.of("$N.fetchOne()", queryVar.getName())
+                    entity.getType(), CodeBlock.of("$N.fetchOne()", queryVar.getName())
             ));
         };
     }
@@ -154,7 +154,7 @@ public class QuerydslCodes {
         return writer -> {
             DeclaredType jpaQueryType = typeOps.getDeclared(JPA_QUERY_FQN, entity.getType());
             Variable queryVar = writer.write(basicCodes.newVariable(
-                    "query", jpaQueryType,
+                    jpaQueryType,
                     CodeBlock.of("new $T($N)", jpaQueryType, entityManager())
             ));
             writer.write("$1N.select($2L).from($2L);\n",

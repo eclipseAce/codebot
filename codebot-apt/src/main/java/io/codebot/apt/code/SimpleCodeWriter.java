@@ -3,13 +3,14 @@ package io.codebot.apt.code;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.NameAllocator;
-import io.codebot.apt.model.Variable;
 
-import javax.lang.model.type.TypeMirror;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class SimpleCodeWriter implements CodeWriter {
     private final CodeBlock.Builder builder;
     private final NameAllocator nameAllocator;
+
+    private final AtomicInteger variableNumber;
 
     public static CodeWriter create() {
         return new SimpleCodeWriter();
@@ -22,12 +23,13 @@ public class SimpleCodeWriter implements CodeWriter {
     }
 
     SimpleCodeWriter() {
-        this(new NameAllocator());
+        this(new NameAllocator(), 1);
     }
 
-    SimpleCodeWriter(NameAllocator nameAllocator) {
+    SimpleCodeWriter(NameAllocator nameAllocator, int initialVariableNumber) {
         this.builder = CodeBlock.builder();
         this.nameAllocator = nameAllocator;
+        this.variableNumber = new AtomicInteger(initialVariableNumber);
     }
 
     @Override
@@ -71,8 +73,14 @@ public class SimpleCodeWriter implements CodeWriter {
     }
 
     @Override
-    public CodeWriter newWriter() {
-        return new io.codebot.apt.code.SimpleCodeWriter(nameAllocator.clone());
+    public String nextVariableName() {
+        int current = variableNumber.getAndIncrement();
+        return nameAllocator.newName("var" + current);
+    }
+
+    @Override
+    public CodeWriter forkNew() {
+        return new SimpleCodeWriter(nameAllocator.clone(), variableNumber.get());
     }
 
     @Override
