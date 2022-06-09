@@ -4,7 +4,10 @@ import com.google.auto.service.AutoService;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.squareup.javapoet.*;
+import io.codebot.apt.code.BasicCodes;
 import io.codebot.apt.code.CodeWriter;
+import io.codebot.apt.code.QuerydslCodes;
+import io.codebot.apt.code.SimpleCodeWriter;
 import io.codebot.apt.model.*;
 
 import javax.annotation.processing.*;
@@ -87,27 +90,27 @@ public class EntityServiceProcessor extends AbstractProcessor {
                     serviceMethod.getContainingType(),
                     processingEnv.getTypeUtils()
             );
-            CodeWriter writer = CodeWriter.create(methodBuilder);
-            ConversionCodes conversionCodes = ConversionCodes.instanceOf(processingEnv, serviceMethods);
-            QuerydslCodes querydslCodes = QuerydslCodes.instanceOf(processingEnv, implementationBuilder, serviceMethods);
+            CodeWriter writer = SimpleCodeWriter.create(methodBuilder);
+            BasicCodes basic = new BasicCodes(processingEnv, serviceMethods);
+            QuerydslCodes querydsl = new QuerydslCodes(basic, implementationBuilder);
 
             if (crudType == CrudType.CREATE || crudType == CrudType.UPDATE) {
                 Variable entityVar;
                 if (crudType == CrudType.CREATE) {
-                    entityVar = writer.writeNewVariable("entity", entity.getType(),
-                            CodeBlock.of("new $T()", entity.getType()));
+                    entityVar = writer.write(basic.newVariable(
+                            "entity", entity.getType(), CodeBlock.of("new $T()", entity.getType())
+                    ));
                 } else {
-                    Variable predicateVar = querydslCodes.createPredicate(
-                            writer, entity, serviceMethod.getParameters(),
-                            getter -> getter.getReadName().equals(entity.getIdAttribute()));
-                    entityVar = querydslCodes.findOneEntity(writer, entity, predicateVar);
+                    Variable predicateVar = writer.write(querydsl.newPredicate(
+                            entity, serviceMethod.getParameters(),
+                            getter -> getter.getReadName().equals(entity.getIdAttribute())
+                    ));
+                    entityVar = writer.write(querydsl.fetchOne(entity, predicateVar));
                 }
 
-                conversionCodes.copyProperties(writer, entityVar, serviceMethod.getParameters());
-
-                querydslCodes.saveEntity(writer, entityVar);
-
-                conversionCodes.convertAndReturn(writer, entity, entityVar, serviceMethod.getReturnType());
+                writer.write(basic.copyProperties(entityVar, serviceMethod.getParameters()));
+                writer.write(querydsl.persist(entityVar));
+                writer.write(basic.mapAndReturn(entity, entityVar, serviceMethod.getReturnType()));
             } //
             else if (crudType == CrudType.QUERY) {
                 List<Parameter> filterParams = Lists.newArrayList();
@@ -119,18 +122,18 @@ public class EntityServiceProcessor extends AbstractProcessor {
                         filterParams.add(param);
                     }
                 }
-                Variable predicateVar = querydslCodes.createPredicate(writer, entity, filterParams);
+                Variable predicateVar = writer.write(querydsl.newPredicate(entity, filterParams, it -> true));
                 Variable resultVar;
                 if (typeOps.isAssignableToList(serviceMethod.getReturnType())) {
-                    resultVar = querydslCodes.findAllEntities(writer, entity, predicateVar);
+                    resultVar = writer.write(querydsl.fetch(entity, predicateVar));
                 } //
                 else if (typeOps.isAssignable(serviceMethod.getReturnType(), PAGE_FQN) && !pageableParams.isEmpty()) {
-                    resultVar = querydslCodes.findAllEntities(writer, entity, predicateVar, pageableParams.get(0));
+                    resultVar = writer.write(querydsl.fetch(entity, predicateVar, pageableParams.get(0)));
                 } //
                 else {
-                    resultVar = querydslCodes.findOneEntity(writer, entity, predicateVar);
+                    resultVar = writer.write(querydsl.fetchOne(entity, predicateVar));
                 }
-                conversionCodes.convertAndReturn(writer, entity, resultVar, serviceMethod.getReturnType());
+                writer.write(basic.mapAndReturn(entity, resultVar, serviceMethod.getReturnType()));
             }
 
             methodBuilder.addCode(writer.toCode());

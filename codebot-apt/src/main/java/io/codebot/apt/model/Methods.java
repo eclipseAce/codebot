@@ -77,12 +77,22 @@ public final class Methods {
         return method;
     }
 
-    public MethodCollectionImpl allOf(DeclaredType containingType) {
+    public MethodCollection allOf(DeclaredType containingType) {
         List<ExecutableElement> elements = Lists.newLinkedList();
         collectMethodsInHierarchy(containingType, elements, Sets.newHashSet());
         return elements.stream()
                 .map(element -> of(containingType, element))
                 .collect(Collectors.toCollection(() -> new MethodCollectionImpl(typeUtils)));
+    }
+
+    public MethodCollection newCollection() {
+        return new MethodCollectionImpl(typeUtils);
+    }
+
+    public MethodCollection newCollection(Iterable<? extends Method> methods) {
+        MethodCollectionImpl coll = new MethodCollectionImpl(typeUtils);
+        methods.forEach(coll::add);
+        return coll;
     }
 
     private void collectMethodsInHierarchy(DeclaredType containingType,
@@ -165,7 +175,7 @@ public final class Methods {
         }
     }
 
-    public static class MethodCollectionImpl extends AbstractCollection<Method> implements MethodCollection {
+    private static class MethodCollectionImpl extends AbstractCollection<Method> implements MethodCollection {
         private final Types typeUtils;
         private final List<Method> methods = Lists.newArrayList();
 
